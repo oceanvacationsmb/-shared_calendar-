@@ -8,33 +8,33 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="top-bar">
-      <div>
-        <h1>Shared Calendar</h1>
-        <p>Pool / Pest Control Schedule</p>
+    <header class="guesty-top">
+      <div class="filter-row">
+        <button class="filter-btn">Cities: All</button>
+        <button class="filter-btn">Tags: All</button>
+        <button class="filter-btn">Status: Listed</button>
+        <span id="resultCount" class="result-count">Loading...</span>
+        <button id="clearSearchBtn" class="clear-btn">Clear all</button>
       </div>
 
-      <button id="todayBtn">TODAY</button>
+      <button id="todayBtn" class="today-btn">Today</button>
     </header>
 
-    <div class="legend">
-      <span class="legend-pill checkin">Check-in</span>
-      <span class="legend-pill stay">Guest stay</span>
-      <span class="legend-pill checkout">Checkout</span>
-      <span class="legend-pill turnover-demo">
-        <span>Checkout</span>
-        <span>Check-in</span>
-      </span>
-    </div>
+    <main class="calendar-shell">
+      <aside class="property-panel">
+        <div class="search-box">
+          <span class="search-icon">⌕</span>
+          <input id="searchInput" type="text" placeholder="Search properties" />
+        </div>
 
-    <div class="scroll-note">
-      Starts today and shows the next 14 days. Scroll left/right with mouse, trackpad, mobile swipe, or keyboard arrows.
-    </div>
+        <div id="propertyList" class="property-list"></div>
+      </aside>
 
-    <main id="calendarWrap" class="calendar-wrap" tabindex="0">
-      <div id="calendar" class="calendar">
-        <div class="loading">Loading calendar...</div>
-      </div>
+      <section id="calendarWrap" class="calendar-wrap" tabindex="0">
+        <div id="calendar" class="calendar">
+          <div class="loading">Loading calendar...</div>
+        </div>
+      </section>
     </main>
   </div>
 
