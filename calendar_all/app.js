@@ -27,7 +27,7 @@ let renderTimer = null;
 let activeFilters = {
   elevator: false,
   confPmt: false,
-  areas: []
+  area: null
 };
 
 todayBtn.addEventListener("click", () => {
@@ -37,20 +37,24 @@ todayBtn.addEventListener("click", () => {
 showAllBtn.addEventListener("click", () => {
   activeFilters.elevator = false;
   activeFilters.confPmt = false;
-  activeFilters.areas = [];
+  activeFilters.area = null;
   isListOpen = false;
   updateFilterButtons();
   render();
 });
 
 elevatorFilterBtn.addEventListener("click", () => {
+  activeFilters.area = null;
   activeFilters.elevator = !activeFilters.elevator;
+
   updateFilterButtons();
   render();
 });
 
 confPmtFilterBtn.addEventListener("click", () => {
+  activeFilters.area = null;
   activeFilters.confPmt = !activeFilters.confPmt;
+
   updateFilterButtons();
   render();
 });
@@ -59,10 +63,14 @@ areaButtons.forEach(btn => {
   btn.addEventListener("click", () => {
     const area = btn.dataset.area;
 
-    if (activeFilters.areas.includes(area)) {
-      activeFilters.areas = activeFilters.areas.filter(item => item !== area);
+    activeFilters.elevator = false;
+    activeFilters.confPmt = false;
+    isListOpen = false;
+
+    if (activeFilters.area === area) {
+      activeFilters.area = null;
     } else {
-      activeFilters.areas.push(area);
+      activeFilters.area = area;
     }
 
     updateFilterButtons();
@@ -412,7 +420,7 @@ function renderBookingBars(row, property) {
     }
 
     if (isYesValue(booking.confPmt)) {
-      extraLabels.push("CONF PMT");
+      extraLabels.push("CONFIRM PMT");
     }
 
     if (widthUnits >= 1.4) {
@@ -493,7 +501,7 @@ function isCoveredByAnyBooking(property, date) {
 }
 
 function hasAnyActiveFilter() {
-  return activeFilters.elevator || activeFilters.confPmt || activeFilters.areas.length > 0;
+  return activeFilters.elevator || activeFilters.confPmt || activeFilters.area;
 }
 
 function hasMovingFilter() {
@@ -501,10 +509,10 @@ function hasMovingFilter() {
 }
 
 function matchesBookingFilters(booking, property) {
-  if (activeFilters.areas.length > 0) {
+  if (activeFilters.area) {
     const area = getPropertyArea(property);
 
-    if (!activeFilters.areas.includes(area)) {
+    if (area !== activeFilters.area) {
       return false;
     }
   }
@@ -521,8 +529,8 @@ function matchesBookingFilters(booking, property) {
 }
 
 function propertyMatchesArea(property) {
-  if (!activeFilters.areas.length) return true;
-  return activeFilters.areas.includes(getPropertyArea(property));
+  if (!activeFilters.area) return true;
+  return getPropertyArea(property) === activeFilters.area;
 }
 
 function isYesValue(value) {
@@ -556,8 +564,6 @@ function getVisibleProperties() {
   const visibleRange = getCurrentVisibleRange();
 
   return properties.filter(property => {
-    if (!propertyMatchesArea(property)) return false;
-
     const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
     return bookings.some(booking => {
@@ -576,8 +582,6 @@ function getFilteredBookingsInView() {
   const items = [];
 
   properties.forEach(property => {
-    if (!propertyMatchesArea(property)) return;
-
     const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
     bookings.forEach(booking => {
@@ -590,7 +594,7 @@ function getFilteredBookingsInView() {
       const tags = [];
 
       if (isYesValue(booking.elevator)) tags.push("ELEVATOR");
-      if (isYesValue(booking.confPmt)) tags.push("CONF PMT");
+      if (isYesValue(booking.confPmt)) tags.push("CONFIRM PMT");
 
       const guestName = cleanGuestName(
         booking.guestName ||
@@ -684,7 +688,7 @@ function updateFilterButtons() {
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
 
   areaButtons.forEach(btn => {
-    btn.classList.toggle("active", activeFilters.areas.includes(btn.dataset.area));
+    btn.classList.toggle("active", activeFilters.area === btn.dataset.area);
   });
 
   updateFilteredList();
@@ -702,11 +706,8 @@ function getActiveFilterNames() {
   const names = [];
 
   if (activeFilters.elevator) names.push("ELEVATOR");
-  if (activeFilters.confPmt) names.push("CONF PMT");
-
-  activeFilters.areas.forEach(area => {
-    names.push(area);
-  });
+  if (activeFilters.confPmt) names.push("CONFIRM PMT");
+  if (activeFilters.area) names.push(activeFilters.area);
 
   return names.length ? names : ["ALL"];
 }
