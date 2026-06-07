@@ -319,6 +319,7 @@ button {
   user-select: none;
 }
 
+/* NCI = no check-in after checkout */
 .nci-half {
   position: absolute;
   top: 10px;
@@ -463,7 +464,7 @@ button {
     font-size: 9px;
   }
 
-  .month-cell {
+  .month-label {
     font-size: 12px;
   }
 }
