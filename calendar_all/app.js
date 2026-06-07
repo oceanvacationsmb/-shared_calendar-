@@ -7,7 +7,6 @@ const calendarWrap = document.getElementById("calendarWrap");
 const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
 
-const showAllBtn = document.getElementById("showAllBtn");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 const listToggleBtn = document.getElementById("listToggleBtn");
@@ -34,21 +33,22 @@ todayBtn.addEventListener("click", () => {
   scrollToToday(true);
 });
 
-showAllBtn.addEventListener("click", () => {
+cityFilterSelect.addEventListener("change", () => {
   activeFilters.elevator = false;
   activeFilters.confPmt = false;
-  activeFilters.area = null;
-  cityFilterSelect.value = "";
+  activeFilters.area = cityFilterSelect.value || null;
   isListOpen = false;
+
   updateFilterButtons();
   render();
 });
 
-
 elevatorFilterBtn.addEventListener("click", () => {
   activeFilters.area = null;
   cityFilterSelect.value = "";
+
   activeFilters.elevator = !activeFilters.elevator;
+  activeFilters.confPmt = false;
 
   updateFilterButtons();
   render();
@@ -57,18 +57,9 @@ elevatorFilterBtn.addEventListener("click", () => {
 confPmtFilterBtn.addEventListener("click", () => {
   activeFilters.area = null;
   cityFilterSelect.value = "";
+
   activeFilters.confPmt = !activeFilters.confPmt;
-
-  updateFilterButtons();
-  render();
-});
-
-cityFilterSelect.addEventListener("change", () => {
   activeFilters.elevator = false;
-  activeFilters.confPmt = false;
-  isListOpen = false;
-
-  activeFilters.area = cityFilterSelect.value || null;
 
   updateFilterButtons();
   render();
@@ -497,11 +488,11 @@ function isCoveredByAnyBooking(property, date) {
 }
 
 function hasAnyActiveFilter() {
-  return activeFilters.elevator || activeFilters.confPmt || activeFilters.area;
+  return Boolean(activeFilters.elevator || activeFilters.confPmt || activeFilters.area);
 }
 
 function hasMovingFilter() {
-  return activeFilters.elevator || activeFilters.confPmt;
+  return Boolean(activeFilters.elevator || activeFilters.confPmt);
 }
 
 function matchesBookingFilters(booking, property) {
@@ -679,12 +670,11 @@ function updateFilteredList() {
 }
 
 function updateFilterButtons() {
-  showAllBtn.classList.toggle("active", !hasAnyActiveFilter());
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
 
   cityFilterSelect.value = activeFilters.area || "";
-cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area));
+  cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area));
 
   updateFilteredList();
 }
@@ -735,7 +725,6 @@ function getPropertyArea(property) {
 
   if (text.includes("north myrtle")) return "NMB";
   if (text.includes("surfside")) return "SSB";
-  if (text.includes("garden city")) return "GC";
   if (text.includes("murrells")) return "MI";
   if (text.includes("myrtle beach")) return "MB";
 
