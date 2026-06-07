@@ -1,10 +1,12 @@
 const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const DAYS_TO_SHOW = 90;
+const DAYS_BEFORE_TODAY = 5;
 
 const calendarEl = document.getElementById("calendar");
 const calendarWrap = document.getElementById("calendarWrap");
 const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
+
 const showAllBtn = document.getElementById("showAllBtn");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
@@ -19,8 +21,10 @@ let activeFilters = {
 };
 
 todayBtn.addEventListener("click", () => {
+  const todayIndex = dates.indexOf(todayString());
+
   calendarWrap.scrollTo({
-    left: 0,
+    left: todayIndex > 0 ? Math.max(0, (todayIndex - 1) * getDayWidth()) : 0,
     behavior: "smooth"
   });
 });
@@ -44,6 +48,7 @@ confPmtFilterBtn.addEventListener("click", () => {
   render();
 });
 
+/* Keep property names locked with calendar rows */
 calendarWrap.addEventListener("scroll", () => {
   if (isSyncingScroll) return;
 
@@ -101,10 +106,20 @@ function displayDate(dateString) {
   const d = new Date(dateString + "T00:00:00");
 
   return {
-    month: d.toLocaleDateString("en-US", { month: "short" }),
+    month: d.toLocaleDateString("en-US", { month: "long" }),
+    shortMonth: d.toLocaleDateString("en-US", { month: "short" }),
     weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
     day: d.toLocaleDateString("en-US", { day: "2-digit" })
   };
+}
+
+function getDayWidth() {
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue("--day-width")
+    .replace("px", "")
+    .trim();
+
+  return Number(value) || 76;
 }
 
 async function loadCalendar() {
@@ -112,10 +127,10 @@ async function loadCalendar() {
   propertyListEl.innerHTML = "";
 
   const today = todayString();
-const start = addDays(today, -5);
-const end = addDays(today, DAYS_TO_SHOW);
+  const start = addDays(today, -DAYS_BEFORE_TODAY);
+  const end = addDays(today, DAYS_TO_SHOW);
 
-dates = buildDates(start, DAYS_TO_SHOW + 5);
+  dates = buildDates(start, DAYS_TO_SHOW + DAYS_BEFORE_TODAY);
 
   try {
     const res = await fetch(`${API_URL}?start=${start}&end=${end}`);
@@ -140,6 +155,7 @@ dates = buildDates(start, DAYS_TO_SHOW + 5);
 function render() {
   renderProperties();
   renderCalendar();
+  updateFilterButtons();
 }
 
 function renderProperties() {
@@ -170,8 +186,8 @@ function renderCalendar() {
   }
 
   getVisibleProperties().forEach(property => {
-  const row = document.createElement("div");
-  row.className = "calendar-row";
+    const row = document.createElement("div");
+    row.className = "calendar-row";
 
     dates.forEach(date => {
       const dayCell = document.createElement("div");
@@ -201,10 +217,12 @@ function renderCalendar() {
 }
 
 function renderDateHeader() {
+  renderMonthHeader();
+
   const headerRow = document.createElement("div");
   headerRow.className = "date-row";
 
-  dates.forEach((date, index) => {
+  dates.forEach(date => {
     const cell = document.createElement("div");
     cell.className = "date-cell";
 
@@ -213,12 +231,9 @@ function renderDateHeader() {
     }
 
     const formatted = displayDate(date);
-    const previous = dates[index - 1];
-    const previousFormatted = previous ? displayDate(previous) : null;
-    const showMonth = !previousFormatted || previousFormatted.month !== formatted.month;
 
     cell.innerHTML = `
-      <div class="date-month">${showMonth ? formatted.month : ""}</div>
+      <div class="date-month"></div>
       <div class="date-weekday">${formatted.weekday}</div>
       <div class="date-number">${formatted.day}</div>
     `;
@@ -227,6 +242,39 @@ function renderDateHeader() {
   });
 
   calendarEl.appendChild(headerRow);
+}
+
+function renderMonthHeader() {
+  const monthRow = document.createElement("div");
+  monthRow.className = "month-row";
+
+  const groups = [];
+
+  dates.forEach(date => {
+    const formatted = displayDate(date);
+    const monthName = formatted.month;
+
+    const lastGroup = groups[groups.length - 1];
+
+    if (lastGroup && lastGroup.month === monthName) {
+      lastGroup.count += 1;
+    } else {
+      groups.push({
+        month: monthName,
+        count: 1
+      });
+    }
+  });
+
+  groups.forEach(group => {
+    const cell = document.createElement("div");
+    cell.className = "month-cell";
+    cell.textContent = group.month;
+    cell.style.width = `calc(${group.count} * var(--day-width))`;
+    monthRow.appendChild(cell);
+  });
+
+  calendarEl.appendChild(monthRow);
 }
 
 function renderBookingBars(row, property) {
@@ -252,8 +300,8 @@ function renderBookingBars(row, property) {
 
     /*
       Always half-day:
-      check-in starts from the middle of the check-in day
-      checkout ends in the middle of the checkout day
+      check-in starts from middle of check-in day
+      checkout ends in middle of checkout day
     */
     let leftUnit = startsVisible ? checkInIndex + 0.56 : 0;
     let rightUnit = endsVisible ? checkOutIndex + 0.44 : dates.length;
@@ -290,11 +338,11 @@ function renderBookingBars(row, property) {
 
     const extraLabels = [];
 
-    if (booking.elevator) {
+    if (isYesValue(booking.elevator)) {
       extraLabels.push("ELEVATOR");
     }
 
-    if (booking.confPmt) {
+    if (isYesValue(booking.confPmt)) {
       extraLabels.push("CONF PMT");
     }
 
@@ -340,10 +388,14 @@ function hasAnyActiveFilter() {
 function matchesActiveFilters(booking) {
   if (!hasAnyActiveFilter()) return true;
 
-  if (activeFilters.elevator && booking.elevator) return true;
-  if (activeFilters.confPmt && booking.confPmt) return true;
+  if (activeFilters.elevator && isYesValue(booking.elevator)) return true;
+  if (activeFilters.confPmt && isYesValue(booking.confPmt)) return true;
 
   return false;
+}
+
+function isYesValue(value) {
+  return value === true || String(value || "").trim().toLowerCase() === "yes";
 }
 
 function getVisibleProperties() {
