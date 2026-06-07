@@ -1,4 +1,4 @@
-const API_BASE = "https://ocean-specials.onrender.com";
+const API_BASE = "https://shared-calendar-api.onrender.com";
 
 let currentWeekStart = getStartOfWeek(new Date());
 
