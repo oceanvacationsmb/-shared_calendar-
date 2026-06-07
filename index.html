@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,29 +7,31 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div class="page">
-    <header class="header">
+  <div class="app-shell">
+    <header class="top-bar">
       <div>
         <h1>Shared Calendar</h1>
         <p>Pool / Pest Control Schedule</p>
       </div>
 
-      <div class="controls">
-        <button id="prevWeekBtn">← Previous</button>
-        <button id="todayBtn">Today</button>
-        <button id="nextWeekBtn">Next →</button>
-      </div>
+      <button id="todayBtn">TODAY</button>
     </header>
 
-    <section class="week-box">
-      <h2 id="weekTitle">Loading...</h2>
-      <p class="note">
-        Green = check-in · Red = check-out · Orange = same-day turnover · Blue = guest stay
-      </p>
-    </section>
+    <div class="legend">
+      <span class="legend-pill checkin">Check-in</span>
+      <span class="legend-pill stay">Guest stay</span>
+      <span class="legend-pill checkout">Checkout</span>
+      <span class="legend-pill turnover">Checkout / Check-in</span>
+    </div>
 
-    <main id="calendar" class="calendar">
-      <div class="loading">Loading calendar...</div>
+    <div class="scroll-note">
+      Scroll left/right with mouse, trackpad, mobile swipe, or keyboard arrows.
+    </div>
+
+    <main id="calendarWrap" class="calendar-wrap" tabindex="0">
+      <div id="calendar" class="calendar">
+        <div class="loading">Loading calendar...</div>
+      </div>
     </main>
   </div>
 
