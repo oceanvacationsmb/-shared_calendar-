@@ -278,8 +278,8 @@ function renderBookingBars(row, property) {
 
     /*
       Always half-day:
-      IN starts from middle of check-in day
-      OUT ends in middle of checkout day
+      IN starts in the second half of check-in day.
+      OUT ends in the first half of checkout day.
     */
     let leftUnit = startsVisible ? checkInIndex + 0.56 : 0;
     let rightUnit = endsVisible ? checkOutIndex + 0.44 : dates.length;
@@ -326,27 +326,27 @@ function renderBookingBars(row, property) {
     row.appendChild(bar);
 
     /*
-      If checkout day has no same-day check-in:
-      first half = OUT
-      second half = NO CHECK-IN
+      ONLY show NCI when:
+      - this date is a checkout date
+      - there is NO check-in on the same date
     */
     if (endsVisible && !hasCheckinSameDayAfter) {
-      renderNoCheckinHalf(row, checkOutIndex);
+      renderNciHalf(row, checkOutIndex);
     }
   });
 }
 
-function renderNoCheckinHalf(row, dateIndex) {
-  if (row.querySelector(`[data-no-checkin="${dateIndex}"]`)) return;
+function renderNciHalf(row, dateIndex) {
+  if (row.querySelector(`[data-nci="${dateIndex}"]`)) return;
 
   const box = document.createElement("div");
-  box.className = "no-checkin-half";
-  box.dataset.noCheckin = dateIndex;
+  box.className = "nci-half";
+  box.dataset.nci = dateIndex;
 
   box.style.left = `calc(${dateIndex} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
   box.style.width = `calc((var(--day-width) / 2) - 4px)`;
 
-  box.textContent = "No IN";
+  box.textContent = "NCI";
 
   row.appendChild(box);
 }
@@ -357,6 +357,10 @@ function isCoveredByAnyBooking(property, date) {
   return bookings.some(booking => {
     if (!booking.checkIn || !booking.checkOut) return false;
 
+    /*
+      Check-in day and checkout day are still considered occupied visually
+      because they have IN / OUT / NCI half-day boxes.
+    */
     return date >= booking.checkIn && date <= booking.checkOut;
   });
 }
