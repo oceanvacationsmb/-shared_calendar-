@@ -3,31 +3,26 @@
 }
 
 :root {
-  --property-width: 210px;
-  --day-width: 58px;
-  --row-height: 44px;
+  --property-width: 220px;
+  --day-width: 76px;
+  --row-height: 52px;
   --header-height: 58px;
 
   --green: #5c9d8b;
-  --green-dark: #3f806e;
-  --blue: #dbeafe;
-  --blue-text: #1d4ed8;
-  --red: #fee2e2;
-  --red-text: #b91c1c;
-  --yellow: #fef3c7;
-  --yellow-text: #92400e;
+  --green-dark: #4c8a79;
+  --red-line: #f48181;
+  --pink: #ec4899;
 
   --border: #e5e7eb;
   --light-border: #f1f5f9;
   --text: #111827;
   --muted: #6b7280;
-  --bg: #ffffff;
 }
 
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: var(--bg);
+  background: #ffffff;
   color: var(--text);
 }
 
@@ -95,23 +90,17 @@ button {
   vertical-align: -1px;
 }
 
-.dot.in {
-  background: var(--blue);
-  border: 1px solid #93c5fd;
-}
-
+.dot.in,
 .dot.stay {
   background: var(--green);
 }
 
 .dot.out {
-  background: var(--red);
-  border: 1px solid #fecaca;
+  background: var(--green);
 }
 
 .dot.turnover {
-  background: linear-gradient(to right, var(--red) 50%, var(--blue) 50%);
-  border: 1px solid #fbbf24;
+  background: linear-gradient(to right, var(--green) 50%, var(--green-dark) 50%);
 }
 
 /* Layout */
@@ -167,12 +156,13 @@ button {
 
 .calendar {
   min-width: calc(90 * var(--day-width));
+  position: relative;
 }
 
 .date-row {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 30;
   height: var(--header-height);
   display: grid;
   grid-template-columns: repeat(90, var(--day-width));
@@ -215,11 +205,23 @@ button {
   font-weight: bold;
 }
 
+.today-line {
+  position: absolute;
+  top: var(--header-height);
+  bottom: 0;
+  width: 2px;
+  background: var(--pink);
+  z-index: 20;
+}
+
+/* Rows */
 .calendar-row {
   height: var(--row-height);
   display: grid;
   grid-template-columns: repeat(90, var(--day-width));
   border-bottom: 1px solid var(--light-border);
+  position: relative;
+  background: white;
 }
 
 .day-cell {
@@ -227,7 +229,6 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3px;
   background: white;
 }
 
@@ -235,48 +236,115 @@ button {
   background: #fafafa;
 }
 
-/* Simple status boxes */
-.status {
-  width: 100%;
-  height: 28px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-  line-height: 1.1;
+.no-stay {
+  color: #e5e7eb;
+  font-size: 10px;
+  user-select: none;
 }
 
-.status.empty {
-  color: #d1d5db;
-  font-weight: 500;
-}
-
-.status.checkin {
-  background: var(--blue);
-  color: var(--blue-text);
-  border: 1px solid #bfdbfe;
-}
-
-.status.stay {
+/* Guesty-style solid reservation bar */
+.booking-bar {
+  position: absolute;
+  top: 10px;
+  height: 32px;
   background: var(--green);
   color: white;
+  z-index: 10;
+  overflow: hidden;
+  box-shadow: none;
 }
 
-.status.checkout {
-  background: var(--red);
-  color: var(--red-text);
-  border: 1px solid #fecaca;
+.booking-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--red-line);
 }
 
-.status.turnover {
-  background: linear-gradient(to right, var(--red) 50%, var(--blue) 50%);
-  color: #111827;
-  border: 1px solid #fbbf24;
+.booking-bar.start-round {
+  border-radius: 18px 0 0 18px;
+}
+
+.booking-bar.end-round {
+  border-radius: 0 18px 18px 0;
+}
+
+.booking-bar.full-round {
+  border-radius: 18px;
+}
+
+.bar-text {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.bar-text.left {
+  left: 12px;
+}
+
+.bar-text.center {
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.bar-text.right {
+  right: 12px;
+}
+
+/* same-day turnover split */
+.turnover-out,
+.turnover-in {
+  position: absolute;
+  top: 10px;
+  height: 32px;
+  background: var(--green);
+  color: white;
+  z-index: 12;
+  overflow: hidden;
+}
+
+.turnover-out::before,
+.turnover-in::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--red-line);
+}
+
+.turnover-out {
+  border-radius: 0 18px 18px 0;
+}
+
+.turnover-in {
+  border-radius: 18px 0 0 18px;
+}
+
+.turnover-text {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 10px;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.turnover-out .turnover-text {
+  right: 8px;
+}
+
+.turnover-in .turnover-text {
+  left: 8px;
 }
 
 /* Loading */
@@ -294,8 +362,8 @@ button {
 @media (max-width: 800px) {
   :root {
     --property-width: 150px;
-    --day-width: 52px;
-    --row-height: 42px;
+    --day-width: 66px;
+    --row-height: 48px;
     --header-height: 54px;
   }
 
@@ -334,12 +402,11 @@ button {
     padding: 0 8px;
   }
 
-  .status {
-    height: 26px;
+  .bar-text {
     font-size: 9px;
   }
 
-  .status.turnover {
+  .turnover-text {
     font-size: 8px;
   }
 }
