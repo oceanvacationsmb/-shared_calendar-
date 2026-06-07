@@ -7,8 +7,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
+  next();
+});
+
 const GUESTY_REPORT_API_KEY = process.env.GUESTY_REPORT_API_KEY;
 const GUESTY_ALL_REPORT_API_KEY = process.env.GUESTY_ALL_REPORT_API_KEY;
+
+const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
@@ -192,35 +202,34 @@ function normalizeReservation(row) {
     listingId ||
     "Property";
 
-  const listingCity = String(
+  const listingCity =
     getField(row, "listing.address.city") ||
     getField(row, "listing.city") ||
     getField(row, "address.city") ||
     row?.listing?.address?.city ||
     row?.listing?.city ||
     row?.address?.city ||
-    ""
-  ).trim();
+    "";
 
-  const guestName = String(
+  const guestName =
     getField(row, "guest.fullName") ||
     getField(row, "guest.name") ||
     getField(row, "guestFullName") ||
     getField(row, "guestName") ||
     row?.guest?.fullName ||
     row?.guest?.name ||
-    ""
-  ).trim();
+    "Guest";
 
-  const guestPhone = cleanPhone(
-    getField(row, "guest.phone") ||
-    getField(row, "guest.phoneNumber") ||
-    getField(row, "guestPhone") ||
-    getField(row, "phone") ||
-    row?.guest?.phone ||
-    row?.guest?.phoneNumber ||
-    ""
-  );
+  const guestPhone =
+    cleanPhone(
+      getField(row, "guest.phone") ||
+      getField(row, "guest.phoneNumber") ||
+      getField(row, "guestPhone") ||
+      getField(row, "phone") ||
+      row?.guest?.phone ||
+      row?.guest?.phoneNumber ||
+      ""
+    );
 
   const checkIn =
     cleanDate(getField(row, "checkInDate") || row?.checkInDate || row?.checkIn);
@@ -239,12 +248,12 @@ function normalizeReservation(row) {
     listingId,
     nickname,
     listingCity,
+    guestName,
+    guestPhone,
     checkIn,
     checkOut,
     elevator,
-    confPmt,
-    guestName,
-    guestPhone
+    confPmt
   };
 }
 
@@ -279,17 +288,10 @@ function buildPropertiesFromReservations(reservations, start, end) {
         listingId: res.listingId,
         nickname: res.nickname,
         name: res.nickname,
-        city: res.listingCity,
-        listingCity: res.listingCity,
+        city: res.listingCity || "",
+        listingCity: res.listingCity || "",
         bookings: []
       });
-    }
-
-    const property = map.get(res.listingId);
-
-    if (!property.city && res.listingCity) {
-      property.city = res.listingCity;
-      property.listingCity = res.listingCity;
     }
 
     if (
@@ -298,7 +300,7 @@ function buildPropertiesFromReservations(reservations, start, end) {
       res.checkOut &&
       overlapsRange(res.checkIn, res.checkOut, start, end)
     ) {
-      property.bookings.push({
+      map.get(res.listingId).bookings.push({
         checkIn: res.checkIn,
         checkOut: res.checkOut,
         elevator: res.elevator,
@@ -413,6 +415,47 @@ async function buildCalendarResponse(reportKey, req) {
   };
 }
 
+function requireSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  }
+}
+
+async function supabaseRequest(path, options = {}) {
+  requireSupabase();
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      "content-type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+
+  const text = await response.text();
+
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(JSON.stringify({
+      status: response.status,
+      data
+    }));
+  }
+
+  return data;
+}
+
 app.get("/", (req, res) => {
   res.json({
     ok: true,
@@ -500,6 +543,106 @@ app.get("/api/calendar-all", async (req, res) => {
     res.status(500).json({
       ok: false,
       message: err.message || "Calendar all failed"
+    });
+  }
+});
+
+/* TASK API */
+
+app.get("/api/calendar-tasks", async (req, res) => {
+  try {
+    const tasks = await supabaseRequest(
+      "calendar_tasks?status=eq.open&select=*&order=created_at.desc",
+      {
+        method: "GET"
+      }
+    );
+
+    res.json({
+      ok: true,
+      tasks: tasks || []
+    });
+  } catch (err) {
+    console.error("Get tasks error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to load tasks"
+    });
+  }
+});
+
+app.post("/api/calendar-tasks", async (req, res) => {
+  try {
+    const listingId = String(req.body.listingId || "").trim();
+    const propertyName = String(req.body.propertyName || "").trim();
+    const taskText = String(req.body.taskText || "").trim();
+
+    if (!listingId || !taskText) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing listingId or taskText"
+      });
+    }
+
+    const created = await supabaseRequest(
+      "calendar_tasks",
+      {
+        method: "POST",
+        headers: {
+          Prefer: "return=representation"
+        },
+        body: JSON.stringify({
+          listing_id: listingId,
+          property_name: propertyName,
+          task_text: taskText,
+          status: "open"
+        })
+      }
+    );
+
+    res.json({
+      ok: true,
+      task: Array.isArray(created) ? created[0] : created
+    });
+  } catch (err) {
+    console.error("Create task error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to create task"
+    });
+  }
+});
+
+app.delete("/api/calendar-tasks/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing task id"
+      });
+    }
+
+    await supabaseRequest(
+      `calendar_tasks?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "DELETE"
+      }
+    );
+
+    res.json({
+      ok: true,
+      deleted: id
+    });
+  } catch (err) {
+    console.error("Delete task error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to delete task"
     });
   }
 });
