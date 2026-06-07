@@ -11,7 +11,7 @@ const GUESTY_CLIENT_ID = process.env.GUESTY_CLIENT_ID;
 const GUESTY_CLIENT_SECRET = process.env.GUESTY_CLIENT_SECRET;
 
 async function getGuestyToken() {
-  const response = await fetch("https://open-api.guesty.com/oauth2/token", {
+  const response = await fetch("https://booking.guesty.com/oauth2/token", {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded"
