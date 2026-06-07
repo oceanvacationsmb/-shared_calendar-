@@ -308,6 +308,11 @@ button {
   right: 12px;
 }
 
+.bar-text.has-extra {
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
 /* Loading */
 .loading,
 .error {
