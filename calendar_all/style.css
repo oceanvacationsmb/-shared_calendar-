@@ -319,6 +319,24 @@ button {
   user-select: none;
 }
 
+.nci-half {
+  position: absolute;
+  top: 10px;
+  height: 32px;
+  z-index: 9;
+  background: #ffffff;
+  color: #111827;
+  border: 1px dashed #111827;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 /* Main guest stay bar */
 .booking-bar {
   position: absolute;
