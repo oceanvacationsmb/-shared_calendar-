@@ -1,1 +1,39 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shared Calendar | Ocean Vacations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div>
+        <h1>Shared Calendar</h1>
+        <p>Pool / Pest Control Schedule</p>
+      </div>
+
+      <div class="controls">
+        <button id="prevWeekBtn">← Previous</button>
+        <button id="todayBtn">Today</button>
+        <button id="nextWeekBtn">Next →</button>
+      </div>
+    </header>
+
+    <section class="week-box">
+      <h2 id="weekTitle">Loading...</h2>
+      <p class="note">
+        Green = check-in · Red = check-out · Orange = same-day turnover · Blue = guest stay
+      </p>
+    </section>
+
+    <main id="calendar" class="calendar">
+      <div class="loading">Loading calendar...</div>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
