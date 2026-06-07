@@ -33,11 +33,11 @@ calendarWrap.addEventListener("scroll", () => {
 
 window.addEventListener("keydown", event => {
   if (event.key === "ArrowRight") {
-    calendarWrap.scrollLeft += 140;
+    calendarWrap.scrollLeft += 120;
   }
 
   if (event.key === "ArrowLeft") {
-    calendarWrap.scrollLeft -= 140;
+    calendarWrap.scrollLeft -= 120;
   }
 
   if (event.key === "Home") {
@@ -213,10 +213,15 @@ function renderCalendar(properties) {
         const eventEl = document.createElement("div");
 
         if (event.type === "turnover") {
-          eventEl.className = "event turnover";
+          eventEl.className = "turnover";
           eventEl.innerHTML = `
-            <div class="turnover-half turnover-checkout">Checkout</div>
-            <div class="turnover-half turnover-checkin">Check-in</div>
+            <div class="turnover-piece turnover-checkout-piece">
+              Checkout
+            </div>
+            <div class="turnover-piece turnover-checkin-piece">
+              <span class="turnover-icon">⌂</span>
+              Check-in
+            </div>
           `;
         } else {
           eventEl.className = `event ${event.type}`;
