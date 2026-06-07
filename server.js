@@ -194,12 +194,20 @@ function normalizeReservation(row) {
   const checkOut =
     cleanDate(getField(row, "checkOutDate") || row?.checkOutDate || row?.checkOut);
 
+  const elevatorRaw = getField(row, "customFields.69682ec2a604dc001460d3c5");
+  const confPmtRaw = getField(row, "customFields.697a503bb0eb850013850912");
+
+  const elevator = String(elevatorRaw || "").trim().toLowerCase() === "yes";
+  const confPmt = String(confPmtRaw || "").trim().toLowerCase() === "yes";
+
   return {
     status,
     listingId,
     nickname,
     checkIn,
-    checkOut
+    checkOut,
+    elevator,
+    confPmt
   };
 }
 
@@ -245,9 +253,11 @@ function buildPropertiesFromReservations(reservations, start, end) {
       overlapsRange(res.checkIn, res.checkOut, start, end)
     ) {
       map.get(res.listingId).bookings.push({
-        checkIn: res.checkIn,
-        checkOut: res.checkOut
-      });
+  checkIn: res.checkIn,
+  checkOut: res.checkOut,
+  elevator: res.elevator,
+  confPmt: res.confPmt
+});
     }
   });
 
