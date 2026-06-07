@@ -6,6 +6,8 @@ const calendarEl = document.getElementById("calendar");
 const calendarWrap = document.getElementById("calendarWrap");
 const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
+const calendarUrlEl = document.getElementById("calendarUrl");
+const copyUrlBtn = document.getElementById("copyUrlBtn");
 
 let dates = [];
 let properties = [];
@@ -18,6 +20,27 @@ todayBtn.addEventListener("click", () => {
     left: todayIndex > 0 ? Math.max(0, (todayIndex - 1) * getDayWidth()) : 0,
     behavior: "smooth"
   });
+});
+
+copyUrlBtn.addEventListener("click", async () => {
+  const url = calendarUrlEl.textContent.trim();
+
+  try {
+    await navigator.clipboard.writeText(url);
+  } catch (err) {
+    const temp = document.createElement("textarea");
+    temp.value = url;
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand("copy");
+    document.body.removeChild(temp);
+  }
+
+  copyUrlBtn.textContent = "Copied!";
+
+  setTimeout(() => {
+    copyUrlBtn.textContent = "Copy URL";
+  }, 1500);
 });
 
 /* Keep property names locked with calendar rows */
@@ -169,7 +192,7 @@ function renderCalendar() {
       if (!isCoveredByAnyBooking(property, date)) {
         const empty = document.createElement("div");
         empty.className = "no-stay";
-        empty.textContent = "NO STAY";
+        empty.textContent = "No stay";
         dayCell.appendChild(empty);
       }
 
@@ -276,11 +299,6 @@ function renderBookingBars(row, property) {
       other !== booking && other.checkIn === booking.checkOut
     );
 
-    /*
-      Always half-day:
-      IN starts in the second half of check-in day.
-      OUT ends in the first half of checkout day.
-    */
     let leftUnit = startsVisible ? checkInIndex + 0.56 : 0;
     let rightUnit = endsVisible ? checkOutIndex + 0.44 : dates.length;
 
@@ -325,11 +343,6 @@ function renderBookingBars(row, property) {
 
     row.appendChild(bar);
 
-    /*
-      ONLY show NCI when:
-      - this date is a checkout date
-      - there is NO check-in on the same date
-    */
     if (endsVisible && !hasCheckinSameDayAfter) {
       renderNciHalf(row, checkOutIndex);
     }
@@ -357,10 +370,6 @@ function isCoveredByAnyBooking(property, date) {
   return bookings.some(booking => {
     if (!booking.checkIn || !booking.checkOut) return false;
 
-    /*
-      Check-in day and checkout day are still considered occupied visually
-      because they have IN / OUT / NCI half-day boxes.
-    */
     return date >= booking.checkIn && date <= booking.checkOut;
   });
 }
