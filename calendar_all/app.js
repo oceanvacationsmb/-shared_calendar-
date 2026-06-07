@@ -11,6 +11,8 @@ const showAllBtn = document.getElementById("showAllBtn");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 const listToggleBtn = document.getElementById("listToggleBtn");
+const areaButtons = document.querySelectorAll(".area-btn");
+
 const filteredListPanel = document.getElementById("filteredListPanel");
 const filteredListTitle = document.getElementById("filteredListTitle");
 const filteredListCount = document.getElementById("filteredListCount");
@@ -24,7 +26,8 @@ let renderTimer = null;
 
 let activeFilters = {
   elevator: false,
-  confPmt: false
+  confPmt: false,
+  areas: []
 };
 
 todayBtn.addEventListener("click", () => {
@@ -34,6 +37,7 @@ todayBtn.addEventListener("click", () => {
 showAllBtn.addEventListener("click", () => {
   activeFilters.elevator = false;
   activeFilters.confPmt = false;
+  activeFilters.areas = [];
   isListOpen = false;
   updateFilterButtons();
   render();
@@ -51,13 +55,27 @@ confPmtFilterBtn.addEventListener("click", () => {
   render();
 });
 
+areaButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const area = btn.dataset.area;
+
+    if (activeFilters.areas.includes(area)) {
+      activeFilters.areas = activeFilters.areas.filter(item => item !== area);
+    } else {
+      activeFilters.areas.push(area);
+    }
+
+    updateFilterButtons();
+    render();
+  });
+});
+
 listToggleBtn.addEventListener("click", () => {
   isListOpen = !isListOpen;
   updateFilterButtons();
   updateFilteredList();
 });
 
-/* Keep property names locked with calendar rows */
 calendarWrap.addEventListener("scroll", () => {
   if (isSyncingScroll) return;
 
@@ -68,7 +86,7 @@ calendarWrap.addEventListener("scroll", () => {
     isSyncingScroll = false;
   });
 
-  if (hasAnyActiveFilter()) {
+  if (hasMovingFilter()) {
     scheduleFilteredRerender();
   }
 });
@@ -120,7 +138,6 @@ function displayDate(dateString) {
 
   return {
     month: d.toLocaleDateString("en-US", { month: "long" }),
-    shortMonth: d.toLocaleDateString("en-US", { month: "short" }),
     weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
     day: d.toLocaleDateString("en-US", { day: "2-digit" })
   };
@@ -137,7 +154,6 @@ function getDayWidth() {
 
 function scrollToToday(smooth = false) {
   const todayIndex = dates.indexOf(todayString());
-
   const targetIndex = todayIndex >= 0 ? Math.max(0, todayIndex - 1) : 0;
   const todayScrollLeft = targetIndex * getDayWidth();
 
@@ -217,9 +233,7 @@ function render(options = {}) {
 function renderProperties() {
   propertyListEl.innerHTML = "";
 
-  const visibleProperties = getVisibleProperties();
-
-  visibleProperties.forEach(property => {
+  getVisibleProperties().forEach(property => {
     const row = document.createElement("div");
     row.className = "property-row";
     row.textContent = property.nickname || property.name || "Property";
@@ -341,7 +355,7 @@ function renderBookingBars(row, property) {
     ? [...property.bookings].sort((a, b) => a.checkIn.localeCompare(b.checkIn))
     : [];
 
-  const visibleBookings = bookings.filter(matchesActiveFilters);
+  const visibleBookings = bookings.filter(booking => matchesBookingFilters(booking, property));
 
   visibleBookings.forEach(booking => {
     if (!booking.checkIn || !booking.checkOut) return;
@@ -405,8 +419,18 @@ function renderBookingBars(row, property) {
       const label = document.createElement("span");
       label.className = extraLabels.length ? "bar-text center has-extra" : "bar-text center";
 
-      const guestName = cleanGuestName(booking.guestName || booking.guestFullName || booking.fullName);
-      const guestPhone = cleanPhone(booking.guestPhone || booking.phone);
+      const guestName = cleanGuestName(
+        booking.guestName ||
+        booking.guestFullName ||
+        booking.fullName ||
+        booking.guest?.fullName
+      );
+
+      const guestPhone = cleanPhone(
+        booking.guestPhone ||
+        booking.phone ||
+        booking.guest?.phone
+      );
 
       if (guestPhone) {
         label.innerHTML = `
@@ -460,24 +484,45 @@ function renderNciHalf(row, dateIndex) {
 function isCoveredByAnyBooking(property, date) {
   const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
-  return bookings.filter(matchesActiveFilters).some(booking => {
-    if (!booking.checkIn || !booking.checkOut) return false;
-
-    return date >= booking.checkIn && date <= booking.checkOut;
-  });
+  return bookings
+    .filter(booking => matchesBookingFilters(booking, property))
+    .some(booking => {
+      if (!booking.checkIn || !booking.checkOut) return false;
+      return date >= booking.checkIn && date <= booking.checkOut;
+    });
 }
 
 function hasAnyActiveFilter() {
+  return activeFilters.elevator || activeFilters.confPmt || activeFilters.areas.length > 0;
+}
+
+function hasMovingFilter() {
   return activeFilters.elevator || activeFilters.confPmt;
 }
 
-function matchesActiveFilters(booking) {
-  if (!hasAnyActiveFilter()) return true;
+function matchesBookingFilters(booking, property) {
+  if (activeFilters.areas.length > 0) {
+    const area = getPropertyArea(property);
 
-  if (activeFilters.elevator && isYesValue(booking.elevator)) return true;
-  if (activeFilters.confPmt && isYesValue(booking.confPmt)) return true;
+    if (!activeFilters.areas.includes(area)) {
+      return false;
+    }
+  }
 
-  return false;
+  if (activeFilters.elevator && !isYesValue(booking.elevator)) {
+    return false;
+  }
+
+  if (activeFilters.confPmt && !isYesValue(booking.confPmt)) {
+    return false;
+  }
+
+  return true;
+}
+
+function propertyMatchesArea(property) {
+  if (!activeFilters.areas.length) return true;
+  return activeFilters.areas.includes(getPropertyArea(property));
 }
 
 function isYesValue(value) {
@@ -504,13 +549,19 @@ function getVisibleProperties() {
     return properties;
   }
 
+  if (!hasMovingFilter()) {
+    return properties.filter(propertyMatchesArea);
+  }
+
   const visibleRange = getCurrentVisibleRange();
 
   return properties.filter(property => {
+    if (!propertyMatchesArea(property)) return false;
+
     const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
     return bookings.some(booking => {
-      if (!matchesActiveFilters(booking)) return false;
+      if (!matchesBookingFilters(booking, property)) return false;
       if (!booking.checkIn || !booking.checkOut) return false;
 
       return booking.checkOut >= visibleRange.start && booking.checkIn <= visibleRange.end;
@@ -519,16 +570,18 @@ function getVisibleProperties() {
 }
 
 function getFilteredBookingsInView() {
-  if (!hasAnyActiveFilter()) return [];
+  if (!hasMovingFilter()) return [];
 
   const visibleRange = getCurrentVisibleRange();
   const items = [];
 
   properties.forEach(property => {
+    if (!propertyMatchesArea(property)) return;
+
     const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
     bookings.forEach(booking => {
-      if (!matchesActiveFilters(booking)) return;
+      if (!matchesBookingFilters(booking, property)) return;
       if (!booking.checkIn || !booking.checkOut) return;
 
       const overlaps = booking.checkOut >= visibleRange.start && booking.checkIn <= visibleRange.end;
@@ -539,12 +592,27 @@ function getFilteredBookingsInView() {
       if (isYesValue(booking.elevator)) tags.push("ELEVATOR");
       if (isYesValue(booking.confPmt)) tags.push("CONF PMT");
 
+      const guestName = cleanGuestName(
+        booking.guestName ||
+        booking.guestFullName ||
+        booking.fullName ||
+        booking.guest?.fullName
+      );
+
+      const guestPhone = cleanPhone(
+        booking.guestPhone ||
+        booking.phone ||
+        booking.guest?.phone
+      );
+
       items.push({
         property: property.nickname || property.name || "Property",
+        area: getPropertyArea(property),
+        city: getPropertyCity(property),
         checkIn: booking.checkIn,
         checkOut: booking.checkOut,
-        guestName: cleanGuestName(booking.guestName || booking.guestFullName || booking.fullName),
-        guestPhone: cleanPhone(booking.guestPhone || booking.phone),
+        guestName,
+        guestPhone,
         tags
       });
     });
@@ -560,7 +628,7 @@ function getFilteredBookingsInView() {
 }
 
 function updateFilteredList() {
-  const showListOption = hasAnyActiveFilter();
+  const showListOption = hasMovingFilter();
 
   listToggleBtn.classList.toggle("hidden", !showListOption);
 
@@ -579,10 +647,7 @@ function updateFilteredList() {
   if (!isListOpen) return;
 
   const items = getFilteredBookingsInView();
-  const activeNames = [];
-
-  if (activeFilters.elevator) activeNames.push("ELEVATOR");
-  if (activeFilters.confPmt) activeNames.push("CONF PMT");
+  const activeNames = getActiveFilterNames();
 
   filteredListTitle.textContent = `${activeNames.join(" + ")} stays in current view`;
   filteredListCount.textContent = `${items.length} stay${items.length === 1 ? "" : "s"}`;
@@ -604,7 +669,7 @@ function updateFilteredList() {
 
     return `
       <div class="filtered-item">
-        <div class="filtered-item-title">${escapeHtml(item.property)}</div>
+        <div class="filtered-item-title">${escapeHtml(item.property)} (${escapeHtml(item.area)})</div>
         <div class="filtered-item-dates">IN ${escapeHtml(item.checkIn)} → OUT ${escapeHtml(item.checkOut)}</div>
         <div class="filtered-item-guest">Guest: ${guestHtml}</div>
         <div class="filtered-item-tags">${escapeHtml(item.tags.join(" • "))}</div>
@@ -618,6 +683,10 @@ function updateFilterButtons() {
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
 
+  areaButtons.forEach(btn => {
+    btn.classList.toggle("active", activeFilters.areas.includes(btn.dataset.area));
+  });
+
   updateFilteredList();
 }
 
@@ -627,6 +696,55 @@ function scheduleFilteredRerender() {
   renderTimer = setTimeout(() => {
     render({ preserveScroll: true });
   }, 120);
+}
+
+function getActiveFilterNames() {
+  const names = [];
+
+  if (activeFilters.elevator) names.push("ELEVATOR");
+  if (activeFilters.confPmt) names.push("CONF PMT");
+
+  activeFilters.areas.forEach(area => {
+    names.push(area);
+  });
+
+  return names.length ? names : ["ALL"];
+}
+
+function getPropertyCity(property) {
+  return String(
+    property.listingCity ||
+    property.city ||
+    property.addressCity ||
+    property.listing?.address?.city ||
+    property.address?.city ||
+    ""
+  ).trim();
+}
+
+function getPropertyArea(property) {
+  const city = getPropertyCity(property).toLowerCase();
+
+  if (city === "myrtle beach") return "MB";
+  if (city === "north myrtle beach") return "NMB";
+  if (city === "surfside beach") return "SSB";
+  if (city === "garden city") return "GC";
+  if (city === "murrells inlet") return "MI";
+
+  const text = [
+    property.nickname,
+    property.name,
+    property.address,
+    property.location
+  ].join(" ").toLowerCase();
+
+  if (text.includes("north myrtle")) return "NMB";
+  if (text.includes("surfside")) return "SSB";
+  if (text.includes("garden city")) return "GC";
+  if (text.includes("murrells")) return "MI";
+  if (text.includes("myrtle beach")) return "MB";
+
+  return "MB";
 }
 
 function cleanGuestName(value) {
