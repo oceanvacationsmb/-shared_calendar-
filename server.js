@@ -26,9 +26,14 @@ async function getGuestyToken() {
   const data = await response.json();
 
   if (!response.ok) {
-    console.log("Guesty token error:", data);
-    throw new Error(data.error_description || data.message || "Guesty token failed");
-  }
+  console.log("Guesty token error:", data);
+
+  throw new Error(JSON.stringify({
+    status: response.status,
+    statusText: response.statusText,
+    guestyError: data
+  }));
+}
 
   return data.access_token;
 }
