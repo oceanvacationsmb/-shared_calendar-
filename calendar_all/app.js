@@ -84,10 +84,11 @@ async function loadCalendar() {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
   propertyListEl.innerHTML = "";
 
-  const start = todayString();
-  const end = addDays(start, DAYS_TO_SHOW);
+  const today = todayString();
+const start = addDays(today, -5);
+const end = addDays(today, DAYS_TO_SHOW);
 
-  dates = buildDates(start, DAYS_TO_SHOW);
+dates = buildDates(start, DAYS_TO_SHOW + 5);
 
   try {
     const res = await fetch(`${API_URL}?start=${start}&end=${end}`);
