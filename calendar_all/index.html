@@ -9,7 +9,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./style.css?v=110" />
+  <link rel="stylesheet" href="./style.css?v=120" />
 </head>
 <body>
   <div class="page">
@@ -23,6 +23,8 @@
     </header>
 
     <div class="filters">
+      <button id="newTaskBtn" class="filter-btn new-task-btn">NEW TASK</button>
+
       <select id="cityFilterSelect" class="city-select">
         <option value="">ALL</option>
         <option value="MB">MB</option>
@@ -62,6 +64,47 @@
     </main>
   </div>
 
-  <script src="./app.js?v=110"></script>
+  <!-- New Task Popup -->
+  <div id="newTaskModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>New Task</strong>
+        <button id="closeNewTaskBtn" class="modal-x">×</button>
+      </div>
+
+      <label class="modal-label">Pick property</label>
+      <select id="taskPropertySelect" class="modal-select">
+        <option value="">Select property</option>
+      </select>
+
+      <label class="modal-label">Task / problem</label>
+      <textarea id="taskTextInput" class="modal-textarea" placeholder="Type the problem here..."></textarea>
+
+      <div id="newTaskError" class="modal-error hidden"></div>
+
+      <div class="modal-actions">
+        <button id="cancelNewTaskBtn" class="modal-btn secondary">Close</button>
+        <button id="saveTaskBtn" class="modal-btn primary">Save Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Tasks Popup -->
+  <div id="viewTasksModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong id="viewTasksTitle">Tasks</strong>
+        <button id="closeViewTasksBtn" class="modal-x">×</button>
+      </div>
+
+      <div id="tasksList" class="tasks-list"></div>
+
+      <div class="modal-actions">
+        <button id="doneViewTasksBtn" class="modal-btn secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js?v=120"></script>
 </body>
 </html>
