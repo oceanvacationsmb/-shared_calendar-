@@ -161,7 +161,7 @@ button {
 }
 
 .calendar {
-  min-width: calc(90 * var(--day-width));
+  min-width: calc(95 * var(--day-width));
   position: relative;
 }
 
@@ -171,7 +171,7 @@ button {
   z-index: 30;
   height: var(--header-height);
   display: grid;
-  grid-template-columns: repeat(90, var(--day-width));
+  grid-template-columns: repeat(95, var(--day-width));
   background: white;
   border-bottom: 1px solid var(--border);
 }
@@ -224,7 +224,7 @@ button {
 .calendar-row {
   height: var(--row-height);
   display: grid;
-  grid-template-columns: repeat(90, var(--day-width));
+  grid-template-columns: repeat(95, var(--day-width));
   border-bottom: 1px solid var(--light-border);
   position: relative;
   background: white;
