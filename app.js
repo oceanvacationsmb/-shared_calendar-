@@ -309,7 +309,7 @@ function renderBookingBars(row, property) {
       bar.appendChild(label);
     }
 
-    if (widthUnits >= 3) {
+    if (widthUnits >= 1.4) {
       const label = document.createElement("span");
       label.className = "bar-text center";
       label.textContent = "GUEST";
