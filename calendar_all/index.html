@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <title>All Properties Calendar | Ocean Vacations</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="./style.css?v=10" />
+
+  <link rel="stylesheet" href="./style.css?v=30" />
 </head>
 <body>
   <div class="page">
@@ -18,17 +19,26 @@
     </header>
 
     <div class="legend">
-      <span><b class="dot stay"></b> Guest stay</span>
-      <span><b class="dot in"></b> Check-in</span>
-      <span><b class="dot out"></b> Checkout</span>
-      <span><b class="dot turnover"></b> Checkout / Check-in</span>
+      <span><b class="dot stay"></b> Guest</span>
+      <span><b class="dot in"></b> IN</span>
+      <span><b class="dot out"></b> OUT</span>
       <span><b class="dot empty"></b> No stay</span>
+      <span><b class="dot nci"></b> NCI = No Check-In</span>
     </div>
 
     <div class="filters">
       <button id="showAllBtn" class="filter-btn active">ALL</button>
       <button id="elevatorFilterBtn" class="filter-btn">ELEVATOR</button>
-      <button id="confPmtFilterBtn" class="filter-btn">CONFIRM PMT</button>
+      <button id="confPmtFilterBtn" class="filter-btn">CONF PMT</button>
+      <button id="listToggleBtn" class="filter-btn list-btn hidden">Click for list</button>
+    </div>
+
+    <div id="filteredListPanel" class="filtered-list-panel hidden">
+      <div class="filtered-list-head">
+        <strong id="filteredListTitle">Filtered stays</strong>
+        <span id="filteredListCount"></span>
+      </div>
+      <div id="filteredListBody" class="filtered-list-body"></div>
     </div>
 
     <main class="calendar-shell">
@@ -45,6 +55,6 @@
     </main>
   </div>
 
-  <script src="./app.js?v=10"></script>
+  <script src="./app.js?v=30"></script>
 </body>
 </html>
