@@ -1,5 +1,5 @@
 const API_BASE = "https://shared-calendar-api.onrender.com";
-const DAYS_TO_SHOW = 14;
+const DAYS_TO_SHOW = 90;
 
 const calendarEl = document.getElementById("calendar");
 const calendarWrap = document.getElementById("calendarWrap");
@@ -72,6 +72,7 @@ function displayDate(dateString) {
   const d = new Date(dateString + "T00:00:00");
 
   return {
+    month: d.toLocaleDateString("en-US", { month: "short" }),
     weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
     date: d.toLocaleDateString("en-US", { day: "2-digit" })
   };
@@ -136,7 +137,7 @@ function applySearch() {
 }
 
 function renderAll() {
-  resultCountEl.textContent = `${filteredProperties.length} results`;
+  resultCountEl.textContent = `${filteredProperties.length} properties`;
   renderPropertyList(filteredProperties);
   renderCalendar(filteredProperties);
 }
@@ -149,11 +150,7 @@ function renderPropertyList(properties) {
     row.className = "property-row";
 
     row.innerHTML = `
-      <div class="property-thumb"></div>
-      <div class="property-info">
-        <div class="property-name">${escapeHtml(property.nickname || property.name || "Property")}</div>
-        <div class="property-sub">Guest calendar</div>
-      </div>
+      <div class="property-name">${escapeHtml(property.nickname || property.name || "Property")}</div>
     `;
 
     propertyListEl.appendChild(row);
@@ -171,7 +168,7 @@ function renderCalendar(properties) {
   const headerRow = document.createElement("div");
   headerRow.className = "date-row";
 
-  dates.forEach(date => {
+  dates.forEach((date, index) => {
     const cell = document.createElement("div");
     cell.className = "date-cell";
 
@@ -180,8 +177,12 @@ function renderCalendar(properties) {
     }
 
     const formatted = displayDate(date);
+    const previous = dates[index - 1];
+    const previousFormatted = previous ? displayDate(previous) : null;
+    const showMonth = !previousFormatted || previousFormatted.month !== formatted.month;
 
     cell.innerHTML = `
+      <div class="date-month">${showMonth ? formatted.month : ""}</div>
       <div class="date-weekday">${formatted.weekday}</div>
       <div class="date-number">${formatted.date}</div>
     `;
@@ -192,6 +193,7 @@ function renderCalendar(properties) {
   calendarEl.appendChild(headerRow);
 
   const todayIndex = dates.indexOf(todayString());
+
   if (todayIndex >= 0) {
     const line = document.createElement("div");
     line.className = "today-line";
@@ -215,21 +217,13 @@ function renderCalendar(properties) {
         if (event.type === "turnover") {
           eventEl.className = "turnover";
           eventEl.innerHTML = `
-            <div class="turnover-piece turnover-checkout-piece">
-              Checkout
-            </div>
-            <div class="turnover-piece turnover-checkin-piece">
-              <span class="turnover-icon">⌂</span>
-              Check-in
-            </div>
+            <div class="turnover-piece turnover-checkout-piece">Out</div>
+            <div class="turnover-piece turnover-checkin-piece">In</div>
           `;
         } else {
           eventEl.className = `event ${event.type}`;
           eventEl.innerHTML = `
-            <div class="event-label">
-              ${event.type === "checkin" ? `<span class="channel-icon">⌂</span>` : ""}
-              <span>${event.label}</span>
-            </div>
+            <div class="event-label">${event.label}</div>
           `;
         }
 
@@ -260,28 +254,28 @@ function getEventForDate(property, date) {
     if (checkout && checkin) {
       return {
         type: "turnover",
-        label: "Checkout / Check-in"
+        label: "Out / In"
       };
     }
 
     if (checkout) {
       return {
         type: "checkout",
-        label: "Checkout"
+        label: "Out"
       };
     }
 
     if (checkin) {
       return {
         type: "checkin",
-        label: "Check-in"
+        label: "In"
       };
     }
 
     if (stay) {
       return {
         type: "stay",
-        label: "Guest stay"
+        label: "Stay"
       };
     }
   }
