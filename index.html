@@ -8,25 +8,23 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="guesty-top">
-      <div class="filter-row">
-        <button class="filter-btn">Cities: All</button>
-        <button class="filter-btn">Tags: All</button>
-        <button class="filter-btn">Status: Confirmed</button>
-        <span id="resultCount" class="result-count">Loading...</span>
-        <button id="clearSearchBtn" class="clear-btn">Clear all</button>
+    <header class="top-bar">
+      <div class="title-box">
+        <h1>Shared Calendar</h1>
+        <p>Pool / Pest Control Schedule</p>
       </div>
 
-      <button id="todayBtn" class="today-btn">Today</button>
+      <div class="top-actions">
+        <input id="searchInput" type="text" placeholder="Search property..." />
+        <span id="resultCount" class="result-count">Loading...</span>
+        <button id="clearSearchBtn" class="clear-btn">Clear</button>
+        <button id="todayBtn" class="today-btn">Today</button>
+      </div>
     </header>
 
     <main class="calendar-shell">
       <aside class="property-panel">
-        <div class="search-box">
-          <span class="search-icon">⌕</span>
-          <input id="searchInput" type="text" placeholder="Search properties" />
-        </div>
-
+        <div class="property-header">Property</div>
         <div id="propertyList" class="property-list"></div>
       </aside>
 
