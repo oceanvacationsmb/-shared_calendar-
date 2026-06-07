@@ -43,17 +43,14 @@ function addDays(dateString, days) {
 
 function buildDates(start, count) {
   const arr = [];
-
   for (let i = 0; i < count; i++) {
     arr.push(addDays(start, i));
   }
-
   return arr;
 }
 
 function displayDate(dateString) {
   const d = new Date(dateString + "T00:00:00");
-
   return {
     month: d.toLocaleDateString("en-US", { month: "short" }),
     weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
@@ -199,23 +196,23 @@ function renderBookingBars(row, property) {
     const startsVisible = checkInIndex >= 0;
     const endsVisible = checkOutIndex >= 0;
 
-    const sameDayPreviousCheckout = bookings.some(other =>
+    const prevSameDayCheckout = bookings.some(other =>
       other !== booking && other.checkOut === booking.checkIn
     );
 
-    const sameDayNextCheckin = bookings.some(other =>
+    const nextSameDayCheckin = bookings.some(other =>
       other !== booking && other.checkIn === booking.checkOut
     );
 
     let leftUnit = startsVisible ? checkInIndex : 0;
     let rightUnit = endsVisible ? checkOutIndex + 1 : dates.length;
 
-    if (startsVisible && sameDayPreviousCheckout) {
+    if (startsVisible && prevSameDayCheckout) {
       leftUnit = checkInIndex + 0.5;
       renderTurnoverIn(row, checkInIndex);
     }
 
-    if (endsVisible && sameDayNextCheckin) {
+    if (endsVisible && nextSameDayCheckin) {
       rightUnit = checkOutIndex + 0.5;
       renderTurnoverOut(row, checkOutIndex);
     }
@@ -225,30 +222,26 @@ function renderBookingBars(row, property) {
     const bar = document.createElement("div");
     bar.className = "booking-bar";
 
-    if (startsVisible && !sameDayPreviousCheckout) {
-      bar.classList.add("start-round");
-    }
+    const widthUnits = rightUnit - leftUnit;
 
-    if (endsVisible && !sameDayNextCheckin) {
-      bar.classList.add("end-round");
-    }
-
-    if (
+    const isFullRound =
       startsVisible &&
       endsVisible &&
-      !sameDayPreviousCheckout &&
-      !sameDayNextCheckin &&
-      rightUnit - leftUnit <= 1
-    ) {
+      !prevSameDayCheckout &&
+      !nextSameDayCheckin &&
+      widthUnits <= 1;
+
+    if (isFullRound) {
       bar.classList.add("full-round");
+    } else {
+      if (startsVisible && !prevSameDayCheckout) bar.classList.add("start-round");
+      if (endsVisible && !nextSameDayCheckin) bar.classList.add("end-round");
     }
 
     bar.style.left = `calc(${leftUnit} * var(--day-width) + 2px)`;
-    bar.style.width = `calc(${rightUnit - leftUnit} * var(--day-width) - 4px)`;
+    bar.style.width = `calc(${widthUnits} * var(--day-width) - 4px)`;
 
-    const widthUnits = rightUnit - leftUnit;
-
-    if (startsVisible && !sameDayPreviousCheckout) {
+    if (startsVisible && !prevSameDayCheckout) {
       const label = document.createElement("span");
       label.className = "bar-text left";
       label.textContent = "Check-in";
@@ -262,7 +255,7 @@ function renderBookingBars(row, property) {
       bar.appendChild(label);
     }
 
-    if (endsVisible && !sameDayNextCheckin) {
+    if (endsVisible && !nextSameDayCheckin) {
       const label = document.createElement("span");
       label.className = "bar-text right";
       label.textContent = "Checkout";
@@ -276,25 +269,25 @@ function renderBookingBars(row, property) {
 function renderTurnoverOut(row, index) {
   if (row.querySelector(`[data-turnover-out="${index}"]`)) return;
 
-  const div = document.createElement("div");
-  div.className = "turnover-out";
-  div.dataset.turnoverOut = index;
-  div.style.left = `calc(${index} * var(--day-width) + 2px)`;
-  div.style.width = `calc((var(--day-width) / 2) - 4px)`;
-  div.innerHTML = `<span class="turnover-text">Out</span>`;
-  row.appendChild(div);
+  const pill = document.createElement("div");
+  pill.className = "turnover-pill";
+  pill.dataset.turnoverOut = index;
+  pill.style.left = `calc(${index} * var(--day-width) + 3px)`;
+  pill.style.width = `calc((var(--day-width) / 2) - 6px)`;
+  pill.innerHTML = `<span class="turnover-pill-text">Out</span>`;
+  row.appendChild(pill);
 }
 
 function renderTurnoverIn(row, index) {
   if (row.querySelector(`[data-turnover-in="${index}"]`)) return;
 
-  const div = document.createElement("div");
-  div.className = "turnover-in";
-  div.dataset.turnoverIn = index;
-  div.style.left = `calc(${index} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
-  div.style.width = `calc((var(--day-width) / 2) - 4px)`;
-  div.innerHTML = `<span class="turnover-text">In</span>`;
-  row.appendChild(div);
+  const pill = document.createElement("div");
+  pill.className = "turnover-pill";
+  pill.dataset.turnoverIn = index;
+  pill.style.left = `calc(${index} * var(--day-width) + (var(--day-width) / 2) + 3px)`;
+  pill.style.width = `calc((var(--day-width) / 2) - 6px)`;
+  pill.innerHTML = `<span class="turnover-pill-text">In</span>`;
+  row.appendChild(pill);
 }
 
 function isCoveredByAnyBooking(property, date) {
@@ -302,7 +295,6 @@ function isCoveredByAnyBooking(property, date) {
 
   return bookings.some(booking => {
     if (!booking.checkIn || !booking.checkOut) return false;
-
     return date >= booking.checkIn && date <= booking.checkOut;
   });
 }
