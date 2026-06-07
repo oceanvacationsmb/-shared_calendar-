@@ -3,17 +3,15 @@
 }
 
 :root {
-  --left-col: 220px;
-  --day-col: 74px;
-  --row-height: 46px;
-  --header-height: 54px;
+  --left-col: 230px;
+  --day-col: 86px;
+  --row-height: 52px;
+  --header-height: 58px;
 
-  --green: #5c9d8b;
-  --green-dark: #4c8d7b;
-  --red-line: #f48181;
+  --green: #5e9c8d;
+  --red-line: #f28b82;
   --pink: #ec4899;
   --border: #e5e7eb;
-  --soft: #f8fafc;
   --text: #1f2937;
   --muted: #6b7280;
 }
@@ -21,37 +19,36 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #ffffff;
+  background: #fff;
   color: var(--text);
 }
 
 .app-shell {
   width: 100%;
   min-height: 100vh;
-  background: #ffffff;
 }
 
+/* top */
 .top-bar {
   height: 76px;
-  padding: 12px 18px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--border);
-  background: #ffffff;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 16px;
 }
 
 .title-box h1 {
   margin: 0;
   font-size: 22px;
-  letter-spacing: 0.4px;
 }
 
 .title-box p {
-  margin: 3px 0 0;
-  color: var(--muted);
+  margin: 4px 0 0;
   font-size: 13px;
+  color: var(--muted);
 }
 
 .top-actions {
@@ -62,9 +59,9 @@ body {
 
 #searchInput {
   width: 230px;
-  border: 1px solid #2563eb;
+  border: 1px solid #93c5fd;
   outline: none;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 10px 12px;
   font-size: 14px;
 }
@@ -72,7 +69,7 @@ body {
 .result-count {
   background: #f3f4f6;
   color: #374151;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 10px 12px;
   font-size: 13px;
   white-space: nowrap;
@@ -81,9 +78,9 @@ body {
 .clear-btn,
 .today-btn {
   border: 1px solid #d1d5db;
-  background: #ffffff;
+  background: #fff;
   color: #111827;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 9px 13px;
   font-size: 13px;
   cursor: pointer;
@@ -93,6 +90,7 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+/* layout */
 .calendar-shell {
   display: grid;
   grid-template-columns: var(--left-col) 1fr;
@@ -102,7 +100,7 @@ body {
 
 .property-panel {
   border-right: 1px solid var(--border);
-  background: #ffffff;
+  background: #fff;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -112,15 +110,15 @@ body {
 .property-header {
   height: var(--header-height);
   border-bottom: 1px solid var(--border);
-  background: #ffffff;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 14px;
   font-size: 13px;
-  font-weight: bold;
+  font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  background: #fff;
 }
 
 .property-list {
@@ -132,8 +130,8 @@ body {
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  background: #ffffff;
+  padding: 0 14px;
+  background: #fff;
 }
 
 .property-name {
@@ -145,11 +143,12 @@ body {
   text-overflow: ellipsis;
 }
 
+/* calendar area */
 .calendar-wrap {
   overflow: auto;
-  background: #ffffff;
-  outline: none;
+  background: #fff;
   position: relative;
+  outline: none;
 }
 
 .calendar {
@@ -164,12 +163,12 @@ body {
   height: var(--header-height);
   display: grid;
   grid-template-columns: repeat(90, var(--day-col));
-  background: #ffffff;
+  background: #fff;
   border-bottom: 1px solid var(--border);
 }
 
 .date-cell {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid #edf0f3;
   padding: 8px 4px 4px;
   text-align: center;
   position: relative;
@@ -178,7 +177,7 @@ body {
 .date-month {
   font-size: 10px;
   color: #9ca3af;
-  height: 12px;
+  min-height: 12px;
 }
 
 .date-weekday {
@@ -187,15 +186,15 @@ body {
 }
 
 .date-number {
-  margin-top: 1px;
+  margin-top: 2px;
   font-size: 12px;
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 .date-cell.today .date-weekday,
 .date-cell.today .date-number {
   color: #111827;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .date-cell.today::before {
@@ -203,11 +202,11 @@ body {
   position: absolute;
   top: 24px;
   left: 50%;
-  width: 46px;
-  height: 27px;
+  width: 44px;
+  height: 28px;
   transform: translateX(-50%);
   background: #f3f4f6;
-  border-radius: 9px;
+  border-radius: 10px;
   z-index: -1;
 }
 
@@ -217,7 +216,7 @@ body {
   bottom: 0;
   width: 2px;
   background: var(--pink);
-  z-index: 10;
+  z-index: 12;
 }
 
 .calendar-row {
@@ -226,14 +225,13 @@ body {
   grid-template-columns: repeat(90, var(--day-col));
   border-bottom: 1px solid var(--border);
   position: relative;
-  background: #ffffff;
+  background: #fff;
 }
 
 .day-cell {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid #f3f4f6;
   position: relative;
-  background: #ffffff;
-  overflow: hidden;
+  background: #fff;
 }
 
 .no-guest {
@@ -241,80 +239,83 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d1d5db;
+  color: #e5e7eb;
   font-size: 10px;
+  user-select: none;
 }
 
-/* connected daily reservation pieces */
-.stay-piece {
+/* solid booking bar */
+.booking-bar {
   position: absolute;
-  top: 9px;
-  left: 0;
-  right: 0;
-  height: 28px;
+  top: 10px;
+  height: 32px;
   background: var(--green);
   color: white;
-  font-size: 10px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
+  z-index: 8;
   overflow: hidden;
+  border-radius: 0;
 }
 
-.stay-piece::before {
+.booking-bar::before {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: var(--red-line);
 }
 
-.stay-start {
-  left: 4px;
-  border-radius: 16px 0 0 16px;
-  justify-content: flex-start;
-  padding-left: 10px;
+.booking-bar.starts {
+  border-radius: 18px 0 0 18px;
 }
 
-.stay-middle {
-  border-radius: 0;
+.booking-bar.ends {
+  border-radius: 0 18px 18px 0;
 }
 
-.stay-end {
-  right: 4px;
-  border-radius: 0 16px 16px 0;
-  justify-content: flex-end;
-  padding-right: 10px;
+.booking-bar.starts.ends {
+  border-radius: 18px;
 }
 
-.stay-single {
-  left: 4px;
-  right: 4px;
-  border-radius: 16px;
-}
-
-/* same-day checkout/check-in split in one date box */
-.turnover-cell {
+.bar-label {
   position: absolute;
-  top: 9px;
-  left: 3px;
-  right: 3px;
-  height: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  z-index: 9;
+}
+
+.bar-label.left {
+  left: 12px;
+}
+
+.bar-label.center {
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.bar-label.right {
+  right: 12px;
+}
+
+/* same-day turnover */
+.turnover-split {
+  position: absolute;
+  top: 10px;
+  height: 32px;
+  z-index: 9;
   display: flex;
-  gap: 3px;
 }
 
 .turnover-half {
-  width: 50%;
-  height: 28px;
+  height: 32px;
   background: var(--green);
   color: white;
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 10px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -328,34 +329,36 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   background: var(--red-line);
 }
 
 .turnover-out {
-  border-radius: 0 16px 16px 0;
+  border-radius: 0 18px 18px 0;
 }
 
 .turnover-in {
-  border-radius: 16px 0 0 16px;
+  border-radius: 18px 0 0 18px;
 }
 
+/* states */
 .loading,
 .error {
   padding: 24px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .error {
   color: #991b1b;
 }
 
+/* responsive */
 @media (max-width: 900px) {
   :root {
-    --left-col: 170px;
-    --day-col: 66px;
-    --row-height: 44px;
-    --header-height: 52px;
+    --left-col: 180px;
+    --day-col: 78px;
+    --row-height: 48px;
+    --header-height: 56px;
   }
 
   .top-bar {
@@ -378,26 +381,20 @@ body {
   }
 
   .property-name {
+    font-size: 12px;
+  }
+
+  .bar-label {
     font-size: 11px;
-  }
-
-  .stay-piece {
-    height: 27px;
-    font-size: 8px;
-  }
-
-  .turnover-half {
-    height: 27px;
-    font-size: 7px;
   }
 }
 
 @media (max-width: 560px) {
   :root {
-    --left-col: 135px;
-    --day-col: 60px;
-    --row-height: 42px;
-    --header-height: 50px;
+    --left-col: 140px;
+    --day-col: 68px;
+    --row-height: 46px;
+    --header-height: 54px;
   }
 
   .title-box h1 {
@@ -416,23 +413,19 @@ body {
     font-size: 11px;
   }
 
-  .no-guest {
-    font-size: 8px;
+  .bar-label {
+    font-size: 9px;
   }
 
-  .stay-piece {
-    height: 26px;
-    top: 8px;
-    font-size: 7px;
+  .bar-label.left {
+    left: 8px;
   }
 
-  .turnover-cell {
-    top: 8px;
-    height: 26px;
+  .bar-label.right {
+    right: 8px;
   }
 
   .turnover-half {
-    height: 26px;
-    font-size: 6.5px;
+    font-size: 8px;
   }
 }
