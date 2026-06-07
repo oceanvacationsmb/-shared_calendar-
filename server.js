@@ -10,14 +10,6 @@ app.use(express.json());
 const GUESTY_CLIENT_ID = process.env.GUESTY_CLIENT_ID;
 const GUESTY_CLIENT_SECRET = process.env.GUESTY_CLIENT_SECRET;
 
-// Add your Guesty listing IDs here
-const PROPERTIES = [
-  {
-    nickname: "827B Murrells Inlet",
-    listingId: "68db1a3f34efe70012fd1284"
-  }
-];
-
 function todayString() {
   return new Date().toISOString().split("T")[0];
 }
@@ -53,9 +45,7 @@ async function getGuestyToken() {
   return data.access_token;
 }
 
-async function getListingCalendar(token, listingId, from, to) {
-  const url = `https://booking.guesty.com/api/listings/${listingId}/calendar?from=${from}&to=${to}`;
-
+async function guestyGet(token, url) {
   const response = await fetch(url, {
     method: "GET",
     headers: {
@@ -69,12 +59,56 @@ async function getListingCalendar(token, listingId, from, to) {
   if (!response.ok) {
     throw new Error(JSON.stringify({
       status: response.status,
-      listingId,
+      url,
       guestyError: data
     }));
   }
 
   return data;
+}
+
+function normalizeListings(rawData) {
+  let list = [];
+
+  if (Array.isArray(rawData)) list = rawData;
+  else if (Array.isArray(rawData.results)) list = rawData.results;
+  else if (Array.isArray(rawData.data)) list = rawData.data;
+  else if (Array.isArray(rawData.listings)) list = rawData.listings;
+
+  return list
+    .map(item => {
+      const listingId =
+        item._id ||
+        item.id ||
+        item.listingId ||
+        item.listing_id;
+
+      const nickname =
+        item.nickname ||
+        item.nickName ||
+        item.title ||
+        item.name ||
+        item.publicName ||
+        item.internalName ||
+        listingId;
+
+      return {
+        listingId,
+        nickname
+      };
+    })
+    .filter(item => item.listingId);
+}
+
+async function getAllListings(token) {
+  const url = "https://booking.guesty.com/api/listings?limit=100";
+  const rawData = await guestyGet(token, url);
+  return normalizeListings(rawData);
+}
+
+async function getListingCalendar(token, listingId, from, to) {
+  const url = `https://booking.guesty.com/api/listings/${listingId}/calendar?from=${from}&to=${to}`;
+  return await guestyGet(token, url);
 }
 
 function getCalendarDays(rawData) {
@@ -162,25 +196,25 @@ function normalizeBookingsFromCalendar(rawData) {
 }
 
 function buildDailyEvents(bookings, from, to) {
-  const events = [];
+  const days = [];
   let date = from;
 
   while (date < to) {
-    const dayEvents = [];
-
     const checkout = bookings.find(b => b.checkOut === date);
     const checkin = bookings.find(b => b.checkIn === date);
     const stay = bookings.find(b => date > b.checkIn && date < b.checkOut);
 
+    let events = [];
+
     if (checkout && checkin) {
-      dayEvents.push({
+      events.push({
         date,
         type: "turnover",
         label: "Checkout / Check-in"
       });
     } else {
       if (checkout) {
-        dayEvents.push({
+        events.push({
           date,
           type: "checkout",
           label: "Checkout"
@@ -188,7 +222,7 @@ function buildDailyEvents(bookings, from, to) {
       }
 
       if (checkin) {
-        dayEvents.push({
+        events.push({
           date,
           type: "checkin",
           label: "Check-in"
@@ -196,7 +230,7 @@ function buildDailyEvents(bookings, from, to) {
       }
 
       if (stay) {
-        dayEvents.push({
+        events.push({
           date,
           type: "stay",
           label: "Guest stay"
@@ -204,15 +238,15 @@ function buildDailyEvents(bookings, from, to) {
       }
     }
 
-    events.push({
+    days.push({
       date,
-      events: dayEvents
+      events
     });
 
     date = addDays(date, 1);
   }
 
-  return events;
+  return days;
 }
 
 app.get("/", (req, res) => {
@@ -224,13 +258,6 @@ app.get("/", (req, res) => {
 
 app.get("/api/test-guesty-auth", async (req, res) => {
   try {
-    if (!GUESTY_CLIENT_ID || !GUESTY_CLIENT_SECRET) {
-      return res.status(500).json({
-        ok: false,
-        message: "Missing Guesty environment variables"
-      });
-    }
-
     const token = await getGuestyToken();
 
     res.json({
@@ -241,7 +268,25 @@ app.get("/api/test-guesty-auth", async (req, res) => {
   } catch (err) {
     res.status(500).json({
       ok: false,
-      message: err.message || "Guesty auth failed"
+      message: err.message
+    });
+  }
+});
+
+app.get("/api/test-listings", async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const listings = await getAllListings(token);
+
+    res.json({
+      ok: true,
+      count: listings.length,
+      listings
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: err.message
     });
   }
 });
@@ -250,23 +295,32 @@ app.get("/api/test-listing-calendar", async (req, res) => {
   try {
     const token = await getGuestyToken();
 
-    const listingId = req.query.listingId || PROPERTIES[0].listingId;
+    const listings = await getAllListings(token);
+
+    if (!listings.length) {
+      return res.status(404).json({
+        ok: false,
+        message: "No listings found"
+      });
+    }
+
+    const listingId = req.query.listingId || listings[0].listingId;
     const from = req.query.from || todayString();
     const to = req.query.to || addDays(from, 30);
 
-    const data = await getListingCalendar(token, listingId, from, to);
+    const rawCalendar = await getListingCalendar(token, listingId, from, to);
 
     res.json({
       ok: true,
       listingId,
       from,
       to,
-      rawData: data
+      rawCalendar
     });
   } catch (err) {
     res.status(500).json({
       ok: false,
-      message: err.message || "Calendar test failed"
+      message: err.message
     });
   }
 });
@@ -278,32 +332,47 @@ app.get("/api/shared-calendar", async (req, res) => {
     const start = req.query.start || todayString();
     const end = req.query.end || addDays(start, 30);
 
+    const listings = await getAllListings(token);
+
     const properties = [];
 
-    for (const property of PROPERTIES) {
-      const rawCalendar = await getListingCalendar(
-        token,
-        property.listingId,
-        start,
-        end
-      );
+    for (const listing of listings) {
+      try {
+        const rawCalendar = await getListingCalendar(
+          token,
+          listing.listingId,
+          start,
+          end
+        );
 
-      const bookings = normalizeBookingsFromCalendar(rawCalendar);
-      const days = buildDailyEvents(bookings, start, end);
+        const bookings = normalizeBookingsFromCalendar(rawCalendar);
+        const days = buildDailyEvents(bookings, start, end);
 
-      properties.push({
-        nickname: property.nickname,
-        name: property.nickname,
-        listingId: property.listingId,
-        bookings,
-        days
-      });
+        properties.push({
+          nickname: listing.nickname,
+          name: listing.nickname,
+          listingId: listing.listingId,
+          bookings,
+          days
+        });
+      } catch (err) {
+        properties.push({
+          nickname: listing.nickname,
+          name: listing.nickname,
+          listingId: listing.listingId,
+          error: true,
+          message: err.message,
+          bookings: [],
+          days: buildDailyEvents([], start, end)
+        });
+      }
     }
 
     res.json({
       ok: true,
       start,
       end,
+      count: properties.length,
       properties
     });
   } catch (err) {
