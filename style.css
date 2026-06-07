@@ -18,8 +18,6 @@
   --blue-text: #1e3a8a;
   --red: #fee2e2;
   --red-text: #991b1b;
-  --orange: #ffedd5;
-  --orange-text: #9a3412;
   --brand: #0f766e;
 }
 
@@ -65,7 +63,6 @@ button {
   border-radius: 10px;
   cursor: pointer;
   font-weight: bold;
-  letter-spacing: 0.3px;
 }
 
 button:hover {
@@ -88,6 +85,30 @@ button:hover {
   border-radius: 8px;
   font-size: 13px;
   font-weight: bold;
+}
+
+.legend-pill.turnover-demo {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #fb923c;
+}
+
+.legend-pill.turnover-demo span {
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.legend-pill.turnover-demo span:first-child {
+  background: var(--red);
+  color: var(--red-text);
+}
+
+.legend-pill.turnover-demo span:last-child {
+  background: var(--green);
+  color: var(--green-text);
 }
 
 .scroll-note {
@@ -194,8 +215,6 @@ button:hover {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 5px;
-  line-height: 1.15;
   overflow: hidden;
 }
 
@@ -214,34 +233,33 @@ button:hover {
   color: var(--red-text);
 }
 
+/* same-day checkout/check-in split box */
 .turnover {
-  background: linear-gradient(to right, var(--red) 50%, var(--green) 50%);
-  color: var(--orange-text);
+  padding: 0;
+  background: transparent;
   border: 1px solid #fb923c;
-  position: relative;
-  font-size: 10.5px;
 }
 
-.turnover::before {
-  content: "Checkout";
-  position: absolute;
-  left: 4px;
-  width: calc(50% - 6px);
-  text-align: center;
+.turnover-half {
+  width: 50%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1.1;
+}
+
+.turnover-checkout {
+  background: var(--red);
   color: var(--red-text);
+  border-right: 1px solid #fb923c;
 }
 
-.turnover::after {
-  content: "Check-in";
-  position: absolute;
-  right: 4px;
-  width: calc(50% - 6px);
-  text-align: center;
+.turnover-checkin {
+  background: var(--green);
   color: var(--green-text);
-}
-
-.turnover {
-  color: transparent;
 }
 
 .empty {
@@ -288,13 +306,18 @@ button:hover {
     padding: 10px 13px;
   }
 
+  .property-cell {
+    font-size: 12.5px;
+  }
+
   .event {
     font-size: 10.5px;
     min-height: 39px;
   }
 
-  .property-cell {
-    font-size: 12.5px;
+  .turnover-half {
+    font-size: 8.5px;
+    min-height: 39px;
   }
 }
 
@@ -327,6 +350,11 @@ button:hover {
     padding: 6px 7px;
   }
 
+  .legend-pill.turnover-demo span {
+    font-size: 11px;
+    padding: 6px 7px;
+  }
+
   .scroll-note {
     font-size: 12px;
   }
@@ -343,12 +371,11 @@ button:hover {
   .event {
     font-size: 9.5px;
     min-height: 36px;
-    padding: 4px;
   }
 
-  .turnover::before,
-  .turnover::after {
-    font-size: 8.5px;
+  .turnover-half {
+    font-size: 7.5px;
+    min-height: 36px;
   }
 
   .empty {
