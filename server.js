@@ -54,7 +54,7 @@ async function getGuestyToken() {
   return data.access_token;
 }
 
-async function guestyGet(token, url) {
+async function guestyGetRaw(token, url) {
   const response = await fetch(url, {
     method: "GET",
     headers: {
@@ -63,17 +63,36 @@ async function guestyGet(token, url) {
     }
   });
 
-  const data = await response.json();
+  let data;
 
-  if (!response.ok) {
+  try {
+    data = await response.json();
+  } catch (err) {
+    data = {
+      rawText: await response.text().catch(() => "")
+    };
+  }
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    url,
+    data
+  };
+}
+
+async function guestyGet(token, url) {
+  const result = await guestyGetRaw(token, url);
+
+  if (!result.ok) {
     throw new Error(JSON.stringify({
-      status: response.status,
+      status: result.status,
       url,
-      guestyError: data
+      guestyError: result.data
     }));
   }
 
-  return data;
+  return result.data;
 }
 
 function normalizeListings(rawData) {
@@ -381,6 +400,56 @@ app.get("/api/test-listings", async (req, res) => {
       ok: true,
       count: listings.length,
       listings
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/api/test-reservations-endpoints", async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+
+    const start = req.query.start || todayString();
+    const end = req.query.end || addDays(start, 14);
+    const listingId = req.query.listingId || "68db1aadc739430011e4610a";
+
+    const urls = [
+      `https://booking.guesty.com/api/reservations?listingId=${listingId}&from=${start}&to=${end}`,
+      `https://booking.guesty.com/api/reservations?listingId=${listingId}&checkInFrom=${start}&checkInTo=${end}`,
+      `https://booking.guesty.com/api/reservations?listingId=${listingId}&checkOutFrom=${start}&checkOutTo=${end}`,
+      `https://booking.guesty.com/api/reservations?listingId=${listingId}`,
+      `https://booking.guesty.com/api/listings/${listingId}/reservations?from=${start}&to=${end}`,
+      `https://booking.guesty.com/api/listings/${listingId}/reservations`,
+      `https://booking.guesty.com/api/bookings?listingId=${listingId}&from=${start}&to=${end}`,
+      `https://booking.guesty.com/api/bookings?listingId=${listingId}`,
+      `https://booking.guesty.com/api/listings/${listingId}/bookings?from=${start}&to=${end}`,
+      `https://booking.guesty.com/api/listings/${listingId}/bookings`
+    ];
+
+    const results = [];
+
+    for (const url of urls) {
+      const result = await guestyGetRaw(token, url);
+
+      results.push({
+        url,
+        ok: result.ok,
+        status: result.status,
+        preview: result.data
+      });
+    }
+
+    res.json({
+      ok: true,
+      message: "Reservation endpoint test completed",
+      listingId,
+      start,
+      end,
+      results
     });
   } catch (err) {
     res.status(500).json({
