@@ -17,7 +17,7 @@ todayBtn.addEventListener("click", () => {
   const todayIndex = dates.indexOf(todayString());
 
   calendarWrap.scrollTo({
-    left: todayIndex > 0 ? Math.max(0, (todayIndex - 1) * getDayWidth()) : 0,
+    left: todayIndex >= 0 ? todayIndex * getDayWidth() : 0,
     behavior: "smooth"
   });
 });
@@ -203,10 +203,9 @@ function renderCalendar() {
     calendarEl.appendChild(row);
   });
 
-  calendarWrap.scrollLeft = 0;
-  calendarWrap.scrollTop = 0;
-  propertyListEl.scrollTop = 0;
-}
+  calendarWrap.scrollLeft = todayIndex >= 0 ? todayIndex * getDayWidth() : 0;
+calendarWrap.scrollTop = 0;
+propertyListEl.scrollTop = 0;
 
 function renderDateHeader() {
   renderMonthHeader();
