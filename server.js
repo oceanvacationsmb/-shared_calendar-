@@ -11,7 +11,7 @@ const GUESTY_REPORT_API_KEY = process.env.GUESTY_REPORT_API_KEY;
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
-const DAYS_TO_SHOW = 14;
+const DAYS_TO_SHOW = 90;
 const PAGE_LIMIT = 100;
 
 function cleanReportKey() {
@@ -108,9 +108,7 @@ function findReservationArrays(obj, found = []) {
       );
     });
 
-    if (looksLikeReservations) {
-      found.push(obj);
-    }
+    if (looksLikeReservations) found.push(obj);
 
     obj.forEach(item => findReservationArrays(item, found));
     return found;
@@ -206,7 +204,7 @@ async function fetchAllReportReservations() {
   const allRows = [];
   let skip = 0;
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 30; i++) {
     const rawPage = await fetchReportPage(skip, PAGE_LIMIT);
     const rows = extractRowsFromReport(rawPage);
 
@@ -277,7 +275,7 @@ function buildDailyEvents(bookings, from, to) {
       events.push({
         date,
         type: "checkout",
-        label: "Checkout"
+        label: "Out"
       });
     }
 
@@ -285,7 +283,7 @@ function buildDailyEvents(bookings, from, to) {
       events.push({
         date,
         type: "checkin",
-        label: "Check-in"
+        label: "In"
       });
     }
 
@@ -293,7 +291,7 @@ function buildDailyEvents(bookings, from, to) {
       events.push({
         date,
         type: "stay",
-        label: "Guest stay"
+        label: "Stay"
       });
     }
 
