@@ -135,7 +135,7 @@ button {
 .calendar-shell {
   display: grid;
   grid-template-columns: var(--property-width) 1fr;
-  height: calc(100vh - 118px);
+  height: calc(100vh - 162px);
   overflow: hidden;
 }
 
