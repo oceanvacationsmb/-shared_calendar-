@@ -43,11 +43,9 @@ function addDays(dateString, days) {
 
 function buildDates(start, count) {
   const arr = [];
-
   for (let i = 0; i < count; i++) {
     arr.push(addDays(start, i));
   }
-
   return arr;
 }
 
@@ -211,12 +209,7 @@ function renderBookingBars(row, property) {
     let leftUnit = startsVisible ? checkInIndex : 0;
     let rightUnit = endsVisible ? checkOutIndex + 1 : dates.length;
 
-    /*
-      Same-day turnover:
-      OUT closes before center.
-      IN starts after center.
-      This creates:  )   (
-    */
+    // create visible gap:  )   (
     if (startsVisible && hasCheckoutSameDayBefore) {
       leftUnit = checkInIndex + 0.58;
     }
@@ -232,16 +225,18 @@ function renderBookingBars(row, property) {
     const bar = document.createElement("div");
     bar.className = "booking-bar";
 
-    if (startsVisible) {
-      bar.classList.add("start-round");
-    }
-
-    if (endsVisible) {
-      bar.classList.add("end-round");
-    }
-
-    if (startsVisible && endsVisible && widthUnits <= 1) {
+    /*
+      FIX:
+      - if both ends are visible -> full-round
+      - if only left visible -> start-round
+      - if only right visible -> end-round
+    */
+    if (startsVisible && endsVisible) {
       bar.classList.add("full-round");
+    } else if (startsVisible) {
+      bar.classList.add("start-round");
+    } else if (endsVisible) {
+      bar.classList.add("end-round");
     }
 
     bar.style.left = `calc(${leftUnit} * var(--day-width) + 2px)`;
@@ -277,7 +272,6 @@ function isCoveredByAnyBooking(property, date) {
 
   return bookings.some(booking => {
     if (!booking.checkIn || !booking.checkOut) return false;
-
     return date >= booking.checkIn && date <= booking.checkOut;
   });
 }
