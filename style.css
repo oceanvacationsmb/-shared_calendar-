@@ -233,6 +233,7 @@ body {
   border-right: 1px solid var(--border);
   position: relative;
   background: #ffffff;
+  overflow: hidden;
 }
 
 .no-guest {
@@ -244,23 +245,25 @@ body {
   font-size: 10px;
 }
 
-/* Continuous reservation bar */
-.booking-bar {
+/* connected daily reservation pieces */
+.stay-piece {
   position: absolute;
   top: 9px;
+  left: 0;
+  right: 0;
   height: 28px;
   background: var(--green);
-  color: #ffffff;
-  z-index: 4;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  justify-content: center;
   white-space: nowrap;
-  font-size: 10px;
-  font-weight: 700;
+  overflow: hidden;
 }
 
-.booking-bar::before {
+.stay-piece::before {
   content: "";
   position: absolute;
   top: 0;
@@ -268,52 +271,72 @@ body {
   right: 0;
   height: 3px;
   background: var(--red-line);
-  z-index: 5;
 }
 
-.booking-bar.starts {
+.stay-start {
+  left: 4px;
   border-radius: 16px 0 0 16px;
+  justify-content: flex-start;
+  padding-left: 10px;
 }
 
-.booking-bar.ends {
+.stay-middle {
+  border-radius: 0;
+}
+
+.stay-end {
+  right: 4px;
   border-radius: 0 16px 16px 0;
+  justify-content: flex-end;
+  padding-right: 10px;
 }
 
-.booking-bar.starts.ends {
+.stay-single {
+  left: 4px;
+  right: 4px;
   border-radius: 16px;
 }
 
-.booking-label {
+/* same-day checkout/check-in split in one date box */
+.turnover-cell {
   position: absolute;
-  z-index: 6;
-  top: 7px;
-  font-size: 10px;
-  font-weight: 800;
+  top: 9px;
+  left: 3px;
+  right: 3px;
+  height: 28px;
+  display: flex;
+  gap: 3px;
+}
+
+.turnover-half {
+  width: 50%;
+  height: 28px;
+  background: var(--green);
   color: white;
-  line-height: 1;
-  pointer-events: none;
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
-.booking-label-left {
-  left: 10px;
+.turnover-half::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--red-line);
 }
 
-.booking-label-center {
-  left: 50%;
-  transform: translateX(-50%);
-  opacity: 0.95;
-}
-
-.booking-label-right {
-  right: 10px;
-}
-
-/* Same-day checkout/check-in split */
-.booking-bar.ends.same-day-out {
+.turnover-out {
   border-radius: 0 16px 16px 0;
 }
 
-.booking-bar.starts.same-day-in {
+.turnover-in {
   border-radius: 16px 0 0 16px;
 }
 
@@ -358,13 +381,14 @@ body {
     font-size: 11px;
   }
 
-  .booking-bar {
+  .stay-piece {
     height: 27px;
-    font-size: 9px;
+    font-size: 8px;
   }
 
-  .booking-label {
-    font-size: 8px;
+  .turnover-half {
+    height: 27px;
+    font-size: 7px;
   }
 }
 
@@ -396,20 +420,19 @@ body {
     font-size: 8px;
   }
 
-  .booking-bar {
+  .stay-piece {
     height: 26px;
     top: 8px;
-  }
-
-  .booking-label {
     font-size: 7px;
   }
 
-  .booking-label-left {
-    left: 6px;
+  .turnover-cell {
+    top: 8px;
+    height: 26px;
   }
 
-  .booking-label-right {
-    right: 6px;
+  .turnover-half {
+    height: 26px;
+    font-size: 6.5px;
   }
 }
