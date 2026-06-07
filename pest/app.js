@@ -14,12 +14,7 @@ let properties = [];
 let isSyncingScroll = false;
 
 todayBtn.addEventListener("click", () => {
-  const todayIndex = dates.indexOf(todayString());
-
-  calendarWrap.scrollTo({
-    left: todayIndex >= 0 ? todayIndex * getDayWidth() : 0,
-    behavior: "smooth"
-  });
+  scrollToToday(true);
 });
 
 copyUrlBtn.addEventListener("click", async () => {
@@ -117,6 +112,17 @@ function getDayWidth() {
   return Number(value) || 76;
 }
 
+function scrollToToday(smooth = false) {
+  const todayIndex = dates.indexOf(todayString());
+  const todayScrollLeft = todayIndex >= 0 ? todayIndex * getDayWidth() : 0;
+
+  calendarWrap.scrollTo({
+    left: todayScrollLeft,
+    top: calendarWrap.scrollTop,
+    behavior: smooth ? "smooth" : "auto"
+  });
+}
+
 async function loadCalendar() {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
   propertyListEl.innerHTML = "";
@@ -128,7 +134,19 @@ async function loadCalendar() {
   dates = buildDates(start, DAYS_TO_SHOW + DAYS_BEFORE_TODAY);
 
   try {
-    const res = await fetch(`${API_URL}?start=${start}&end=${end}`);
+    const controller = new AbortController();
+
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 25000);
+
+    const res = await fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
@@ -141,7 +159,7 @@ async function loadCalendar() {
     calendarEl.innerHTML = `
       <div class="error">
         Calendar failed to load.<br>
-        ${err.message}
+        ${err.name === "AbortError" ? "Request timed out. Refresh once." : err.message}
       </div>
     `;
   }
@@ -203,18 +221,17 @@ function renderCalendar() {
     calendarEl.appendChild(row);
   });
 
-  const todayScrollLeft = todayIndex >= 0 ? todayIndex * getDayWidth() : 0;
+  calendarWrap.scrollTop = 0;
+  propertyListEl.scrollTop = 0;
 
-calendarWrap.scrollTop = 0;
-propertyListEl.scrollTop = 0;
+  setTimeout(() => {
+    scrollToToday(false);
+  }, 100);
 
-setTimeout(() => {
-  calendarWrap.scrollLeft = todayScrollLeft;
-}, 100);
-
-setTimeout(() => {
-  calendarWrap.scrollLeft = todayScrollLeft;
-}, 500);
+  setTimeout(() => {
+    scrollToToday(false);
+  }, 500);
+}
 
 function renderDateHeader() {
   renderMonthHeader();
