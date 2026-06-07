@@ -14,12 +14,7 @@ let properties = [];
 let isSyncingScroll = false;
 
 todayBtn.addEventListener("click", () => {
-  const todayIndex = dates.indexOf(todayString());
-
-  calendarWrap.scrollTo({
-    left: todayIndex > 0 ? Math.max(0, (todayIndex - 1) * getDayWidth()) : 0,
-    behavior: "smooth"
-  });
+  scrollToToday(true);
 });
 
 copyUrlBtn.addEventListener("click", async () => {
@@ -117,6 +112,17 @@ function getDayWidth() {
   return Number(value) || 76;
 }
 
+function scrollToToday(smooth = false) {
+  const todayIndex = dates.indexOf(todayString());
+  const todayScrollLeft = todayIndex >= 0 ? todayIndex * getDayWidth() : 0;
+
+  calendarWrap.scrollTo({
+    left: todayScrollLeft,
+    top: calendarWrap.scrollTop,
+    behavior: smooth ? "smooth" : "auto"
+  });
+}
+
 async function loadCalendar() {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
   propertyListEl.innerHTML = "";
@@ -203,9 +209,16 @@ function renderCalendar() {
     calendarEl.appendChild(row);
   });
 
-  calendarWrap.scrollLeft = 0;
   calendarWrap.scrollTop = 0;
-  propertyListEl.scrollTop = 0;
+propertyListEl.scrollTop = 0;
+
+setTimeout(() => {
+  scrollToToday(false);
+}, 100);
+
+setTimeout(() => {
+  scrollToToday(false);
+}, 500);
 }
 
 function renderDateHeader() {
