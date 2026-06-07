@@ -1,196 +1,218 @@
 const API_BASE = "https://shared-calendar-api.onrender.com";
-
-let currentWeekStart = getStartOfWeek(new Date());
+const DAYS_TO_SHOW = 14;
 
 const calendarEl = document.getElementById("calendar");
-const weekTitleEl = document.getElementById("weekTitle");
+const calendarWrap = document.getElementById("calendarWrap");
+const todayBtn = document.getElementById("todayBtn");
 
-document.getElementById("prevWeekBtn").addEventListener("click", () => {
-  currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-  loadCalendar();
+let dates = [];
+
+todayBtn.addEventListener("click", () => {
+  calendarWrap.scrollTo({
+    left: 0,
+    behavior: "smooth"
+  });
 });
 
-document.getElementById("nextWeekBtn").addEventListener("click", () => {
-  currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-  loadCalendar();
-});
+calendarWrap.addEventListener("wheel", event => {
+  if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+    calendarWrap.scrollLeft += event.deltaY;
+    event.preventDefault();
+  }
+}, { passive: false });
 
-document.getElementById("todayBtn").addEventListener("click", () => {
-  currentWeekStart = getStartOfWeek(new Date());
-  loadCalendar();
+window.addEventListener("keydown", event => {
+  if (event.key === "ArrowRight") {
+    calendarWrap.scrollLeft += 140;
+  }
+
+  if (event.key === "ArrowLeft") {
+    calendarWrap.scrollLeft -= 140;
+  }
+
+  if (event.key === "Home") {
+    calendarWrap.scrollLeft = 0;
+  }
 });
 
 loadCalendar();
 
-function getStartOfWeek(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
-  return d;
+function todayString() {
+  return new Date().toISOString().split("T")[0];
 }
 
-function formatDate(date) {
-  return date.toISOString().split("T")[0];
+function addDays(dateString, days) {
+  const d = new Date(dateString + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
 }
 
-function displayDate(date) {
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric"
-  });
+function displayDate(dateString) {
+  const d = new Date(dateString + "T00:00:00");
+
+  return {
+    weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
+    date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  };
 }
 
-function getWeekDays(start) {
-  const days = [];
+function buildDates(start, count) {
+  const arr = [];
 
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(d);
+  for (let i = 0; i < count; i++) {
+    arr.push(addDays(start, i));
   }
 
-  return days;
+  return arr;
 }
 
 async function loadCalendar() {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
 
-  const weekDays = getWeekDays(currentWeekStart);
-  const start = formatDate(weekDays[0]);
+  const start = todayString();
+  const end = addDays(start, DAYS_TO_SHOW);
 
-  const endDate = new Date(weekDays[6]);
-  endDate.setDate(endDate.getDate() + 1);
-  const end = formatDate(endDate);
-
-  weekTitleEl.textContent = `${displayDate(weekDays[0])} - ${displayDate(weekDays[6])}`;
+  dates = buildDates(start, DAYS_TO_SHOW);
 
   try {
     const res = await fetch(`${API_BASE}/api/shared-calendar?start=${start}&end=${end}`);
-
-    if (!res.ok) {
-      throw new Error("Calendar API not ready yet");
-    }
-
     const data = await res.json();
 
-    if (!data.ok) {
+    if (!res.ok || !data.ok) {
       throw new Error(data.message || "Calendar API error");
     }
 
-    renderCalendar(data.properties || [], weekDays);
-
+    renderCalendar(data.properties || []);
   } catch (err) {
     console.error(err);
 
     calendarEl.innerHTML = `
       <div class="error">
-        Calendar API is not connected yet.<br><br>
-        The page is ready. Next we need to add the backend route:
-        <br>
-        <code>/api/shared-calendar</code>
+        Calendar failed to load.<br>
+        ${err.message}
       </div>
     `;
   }
 }
 
-function renderCalendar(properties, weekDays) {
+function renderCalendar(properties) {
   if (!properties.length) {
-    calendarEl.innerHTML = `<div class="loading">No bookings found for this week.</div>`;
+    calendarEl.innerHTML = `<div class="loading">No properties found.</div>`;
     return;
   }
 
   calendarEl.innerHTML = "";
 
+  const headerRow = document.createElement("div");
+  headerRow.className = "calendar-row date-row";
+
+  const propertyHeader = document.createElement("div");
+  propertyHeader.className = "property-cell";
+  propertyHeader.textContent = "Property";
+  headerRow.appendChild(propertyHeader);
+
+  dates.forEach(date => {
+    const cell = document.createElement("div");
+    cell.className = "date-cell";
+
+    if (date === todayString()) {
+      cell.classList.add("today");
+    }
+
+    const formatted = displayDate(date);
+
+    cell.innerHTML = `
+      <div class="weekday">${formatted.weekday}</div>
+      <div class="date">${formatted.date}</div>
+    `;
+
+    headerRow.appendChild(cell);
+  });
+
+  calendarEl.appendChild(headerRow);
+
   properties.forEach(property => {
-    const card = document.createElement("section");
-    card.className = "property-card";
+    const row = document.createElement("div");
+    row.className = "calendar-row";
 
-    const title = document.createElement("div");
-    title.className = "property-title";
-    title.textContent = property.name;
+    const propertyCell = document.createElement("div");
+    propertyCell.className = "property-cell";
+    propertyCell.textContent = property.nickname || property.name || "Property";
+    row.appendChild(propertyCell);
 
-    const grid = document.createElement("div");
-    grid.className = "days-grid";
+    dates.forEach(date => {
+      const dayCell = document.createElement("div");
+      dayCell.className = "day-cell";
 
-    weekDays.forEach(day => {
-      const dayBox = document.createElement("div");
-      dayBox.className = "day";
-
-      if (formatDate(day) === formatDate(new Date())) {
-        dayBox.classList.add("today");
+      if (date === todayString()) {
+        dayCell.classList.add("today");
       }
 
-      const dayHeader = document.createElement("div");
-      dayHeader.className = "day-header";
-      dayHeader.textContent = displayDate(day);
-      dayBox.appendChild(dayHeader);
+      const event = getEventForDate(property, date);
 
-      const events = getEventsForDay(property.bookings || [], day);
-
-      if (!events.length) {
+      if (event) {
+        const eventEl = document.createElement("div");
+        eventEl.className = `event ${event.type}`;
+        eventEl.textContent = event.label;
+        dayCell.appendChild(eventEl);
+      } else {
         const empty = document.createElement("div");
         empty.className = "empty";
-        empty.textContent = "Open / No guest";
-        dayBox.appendChild(empty);
-      } else {
-        events.forEach(event => {
-          const eventEl = document.createElement("div");
-          eventEl.className = `event ${event.type}`;
-          eventEl.textContent = event.label;
-          dayBox.appendChild(eventEl);
-        });
+        empty.textContent = "—";
+        dayCell.appendChild(empty);
       }
 
-      grid.appendChild(dayBox);
+      row.appendChild(dayCell);
     });
 
-    card.appendChild(title);
-    card.appendChild(grid);
-    calendarEl.appendChild(card);
+    calendarEl.appendChild(row);
   });
+
+  calendarWrap.scrollLeft = 0;
 }
 
-function getEventsForDay(bookings, day) {
-  const dayStr = formatDate(day);
-  const events = [];
+function getEventForDate(property, date) {
+  if (Array.isArray(property.days)) {
+    const day = property.days.find(d => d.date === date);
 
-  bookings.forEach(booking => {
-    const checkIn = booking.checkIn;
-    const checkOut = booking.checkOut;
+    if (day && Array.isArray(day.events) && day.events.length) {
+      return day.events[0];
+    }
+  }
 
-    if (dayStr === checkIn && dayStr === checkOut) {
-      events.push({
+  if (Array.isArray(property.bookings)) {
+    const checkout = property.bookings.find(b => b.checkOut === date);
+    const checkin = property.bookings.find(b => b.checkIn === date);
+    const stay = property.bookings.find(b => date > b.checkIn && date < b.checkOut);
+
+    if (checkout && checkin) {
+      return {
         type: "turnover",
-        label: "Check-out + Check-in"
-      });
-      return;
+        label: "Checkout / Check-in"
+      };
     }
 
-    if (dayStr === checkIn) {
-      events.push({
+    if (checkout) {
+      return {
+        type: "checkout",
+        label: "Checkout"
+      };
+    }
+
+    if (checkin) {
+      return {
         type: "checkin",
         label: "Check-in"
-      });
-      return;
+      };
     }
 
-    if (dayStr === checkOut) {
-      events.push({
-        type: "checkout",
-        label: "Check-out"
-      });
-      return;
-    }
-
-    if (dayStr > checkIn && dayStr < checkOut) {
-      events.push({
+    if (stay) {
+      return {
         type: "stay",
         label: "Guest stay"
-      });
+      };
     }
-  });
+  }
 
-  return events;
+  return null;
 }
