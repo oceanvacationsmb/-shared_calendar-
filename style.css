@@ -288,15 +288,15 @@ button {
   user-select: none;
 }
 
-.no-checkin-half {
+.nci-half {
   position: absolute;
   top: 10px;
   height: 32px;
   z-index: 9;
-  border: 1px dashed #111827;
-  border-radius: 16px;
   background: #ffffff;
   color: #111827;
+  border: 1px dashed #111827;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
