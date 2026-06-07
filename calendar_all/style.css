@@ -138,6 +138,12 @@ button {
   border-color: #111827;
 }
 
+.area-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
 .list-btn {
   background: #fef08a;
   border-color: #ca8a04;
@@ -201,16 +207,16 @@ button {
   font-weight: 700;
 }
 
-.filtered-item-tags {
-  margin-top: 4px;
-  color: #111827;
-  font-weight: 900;
-}
-
 .filtered-item-guest {
   margin-top: 4px;
   color: #111827;
   font-weight: 800;
+}
+
+.filtered-item-tags {
+  margin-top: 4px;
+  color: #111827;
+  font-weight: 900;
 }
 
 /* Layout */
