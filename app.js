@@ -237,24 +237,8 @@ function renderBookingBars(row, property) {
     const startsVisible = checkInIndex >= 0;
     const endsVisible = checkOutIndex >= 0;
 
-    const hasCheckoutSameDayBefore = bookings.some(other =>
-      other !== booking && other.checkOut === booking.checkIn
-    );
-
-    const hasCheckinSameDayAfter = bookings.some(other =>
-      other !== booking && other.checkIn === booking.checkOut
-    );
-
-    let leftUnit = startsVisible ? checkInIndex : 0;
-    let rightUnit = endsVisible ? checkOutIndex + 1 : dates.length;
-
-    if (startsVisible && hasCheckoutSameDayBefore) {
-      leftUnit = checkInIndex + 0.58;
-    }
-
-    if (endsVisible && hasCheckinSameDayAfter) {
-      rightUnit = checkOutIndex + 0.42;
-    }
+    let leftUnit = startsVisible ? checkInIndex + 0.56 : 0;
+    let rightUnit = endsVisible ? checkOutIndex + 0.44 : dates.length;
 
     if (rightUnit <= leftUnit) return;
 
@@ -263,6 +247,11 @@ function renderBookingBars(row, property) {
     const bar = document.createElement("div");
     bar.className = "booking-bar";
 
+    /*
+      Always rounded:
+      Check-in starts like (
+      Checkout ends like )
+    */
     if (startsVisible && endsVisible) {
       bar.classList.add("full-round");
     } else if (startsVisible) {
@@ -277,7 +266,7 @@ function renderBookingBars(row, property) {
     if (startsVisible) {
       const label = document.createElement("span");
       label.className = "bar-text left";
-      label.textContent = hasCheckoutSameDayBefore ? "In" : "Check-in";
+      label.textContent = "Check-in";
       bar.appendChild(label);
     }
 
@@ -291,7 +280,7 @@ function renderBookingBars(row, property) {
     if (endsVisible) {
       const label = document.createElement("span");
       label.className = "bar-text right";
-      label.textContent = hasCheckinSameDayAfter ? "Out" : "Checkout";
+      label.textContent = "Checkout";
       bar.appendChild(label);
     }
 
