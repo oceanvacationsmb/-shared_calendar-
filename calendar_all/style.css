@@ -99,6 +99,12 @@ button {
   border-color: #111827;
 }
 
+.new-task-btn {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
 .filter-divider {
   width: 1px;
   height: 24px;
@@ -254,15 +260,35 @@ body.list-open .calendar-shell {
   height: var(--row-height);
   border-bottom: 1px solid var(--row-line);
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
   padding: 0 10px;
   font-size: 12px;
   font-weight: 700;
   color: #111827;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   background: #fcfcfd;
+}
+
+.property-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-badge {
+  margin-top: 3px;
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 1000;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 /* Calendar */
@@ -497,12 +523,141 @@ body.list-open .calendar-shell {
   color: #991b1b;
 }
 
+/* Modals */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.55);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 460px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 18px;
+}
+
+.modal-x {
+  border: 0;
+  background: #f3f4f6;
+  box-shadow: none;
+  border-radius: 999px;
+  font-size: 24px;
+  line-height: 1;
+  padding: 4px 12px;
+}
+
+.modal-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  margin: 12px 0 5px;
+  color: #374151;
+}
+
+.modal-select,
+.modal-textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 11px;
+  font-size: 15px;
+}
+
+.modal-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.modal-error {
+  margin-top: 10px;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.modal-btn {
+  border-radius: 10px;
+  box-shadow: none;
+  font-weight: 900;
+}
+
+.modal-btn.primary {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+.modal-btn.secondary {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.tasks-list {
+  display: grid;
+  gap: 10px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.task-item {
+  border: 1px solid #fecaca;
+  background: #fff7f7;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.task-text {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.task-date {
+  margin-top: 7px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.complete-task-btn {
+  margin-top: 10px;
+  background: #16a34a;
+  color: #ffffff;
+  border-color: #16a34a;
+  box-shadow: none;
+  font-weight: 900;
+}
+
 /* Mobile */
 @media (max-width: 800px) {
   :root {
     --property-width: 150px;
     --day-width: 66px;
-    --row-height: 48px;
+    --row-height: 54px;
     --month-height: 26px;
     --header-height: 54px;
   }
@@ -558,11 +713,34 @@ body.list-open .calendar-shell {
     padding: 0 6px;
   }
 
+  .task-badge {
+    font-size: 11px;
+  }
+
   .bar-text {
     font-size: 9px;
   }
 
   .month-label {
     font-size: 12px;
+  }
+
+  .modal {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-card {
+    max-width: none;
+    border-radius: 18px 18px 0 0;
+    padding: 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-btn {
+    width: 100%;
   }
 }
