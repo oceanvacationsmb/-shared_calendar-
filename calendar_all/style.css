@@ -68,45 +68,6 @@ button {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
-/* Legend */
-.legend {
-  height: 42px;
-  padding: 8px 18px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  font-size: 13px;
-  color: #374151;
-  background: #fafafa;
-  white-space: nowrap;
-  overflow-x: auto;
-}
-
-.dot {
-  width: 11px;
-  height: 11px;
-  display: inline-block;
-  border-radius: 3px;
-  margin-right: 5px;
-  vertical-align: -1px;
-}
-
-.dot.in,
-.dot.stay,
-.dot.out {
-  background: var(--green);
-}
-
-.dot.empty {
-  background: #111827;
-}
-
-.dot.nci {
-  background: #ffffff;
-  border: 1px dashed #111827;
-}
-
 /* Filters */
 .filters {
   height: 44px;
@@ -138,10 +99,36 @@ button {
   border-color: #111827;
 }
 
-.area-btn.active {
+.filter-divider {
+  width: 1px;
+  height: 24px;
+  background: #cbd5e1;
+  margin: 0 4px;
+  flex: 0 0 auto;
+}
+
+.city-select {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 32px;
+}
+
+.city-select.active {
   background: #2563eb;
   color: #ffffff;
   border-color: #2563eb;
+}
+
+.city-select option {
+  background: #ffffff;
+  color: #111827;
 }
 
 .list-btn {
@@ -223,12 +210,12 @@ button {
 .calendar-shell {
   display: grid;
   grid-template-columns: var(--property-width) 1fr;
-  height: calc(100vh - 162px);
+  height: calc(100vh - 120px);
   overflow: hidden;
 }
 
 body.list-open .calendar-shell {
-  height: calc(100vh - 295px);
+  height: calc(100vh - 253px);
 }
 
 .property-side {
@@ -535,15 +522,15 @@ body.list-open .calendar-shell {
     font-size: 12px;
   }
 
-  .legend {
-    height: auto;
-    padding: 8px 10px;
-    font-size: 12px;
-  }
-
   .filters {
     height: auto;
     padding: 7px 10px;
+  }
+
+  .city-select {
+    max-width: 90px;
+    padding: 7px 10px;
+    font-size: 11px;
   }
 
   .filtered-list-panel {
@@ -551,11 +538,11 @@ body.list-open .calendar-shell {
   }
 
   .calendar-shell {
-    height: calc(100vh - 164px);
+    height: calc(100vh - 122px);
   }
 
   body.list-open .calendar-shell {
-    height: calc(100vh - 310px);
+    height: calc(100vh - 268px);
   }
 
   .property-row {
@@ -574,31 +561,5 @@ body.list-open .calendar-shell {
 
   .month-label {
     font-size: 12px;
-  }
-}
-.city-select {
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #111827;
-  border-radius: 999px;
-  padding: 7px 14px;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
-  height: 32px;
-}
-
-.city-select.active {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-}
-
-@media (max-width: 800px) {
-  .city-select {
-    max-width: 90px;
-    padding: 7px 10px;
-    font-size: 11px;
   }
 }
