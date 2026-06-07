@@ -8,14 +8,15 @@ app.use(cors());
 app.use(express.json());
 
 const GUESTY_REPORT_API_KEY = process.env.GUESTY_REPORT_API_KEY;
+const GUESTY_ALL_REPORT_API_KEY = process.env.GUESTY_ALL_REPORT_API_KEY;
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
 const DAYS_TO_SHOW = 90;
 const PAGE_LIMIT = 100;
 
-function cleanReportKey() {
-  return String(GUESTY_REPORT_API_KEY || "")
+function cleanReportKey(key) {
+  return String(key || "")
     .replace("apiKey=", "")
     .replace("apikey=", "")
     .trim();
@@ -51,8 +52,8 @@ function overlapsRange(checkIn, checkOut, start, end) {
   return checkIn < end && checkOut > start;
 }
 
-async function fetchReportPage(skip = 0, limit = PAGE_LIMIT) {
-  const key = cleanReportKey();
+async function fetchReportPage(reportKey, skip = 0, limit = PAGE_LIMIT) {
+  const key = cleanReportKey(reportKey);
 
   const url =
     `${REPORT_API_URL}?timezone=${encodeURIComponent(TIMEZONE)}` +
@@ -108,7 +109,9 @@ function findReservationArrays(obj, found = []) {
       );
     });
 
-    if (looksLikeReservations) found.push(obj);
+    if (looksLikeReservations) {
+      found.push(obj);
+    }
 
     obj.forEach(item => findReservationArrays(item, found));
     return found;
@@ -200,12 +203,12 @@ function normalizeReservation(row) {
   };
 }
 
-async function fetchAllReportReservations() {
+async function fetchAllReportReservations(reportKey) {
   const allRows = [];
   let skip = 0;
 
-  for (let i = 0; i < 30; i++) {
-    const rawPage = await fetchReportPage(skip, PAGE_LIMIT);
+  for (let i = 0; i < 50; i++) {
+    const rawPage = await fetchReportPage(reportKey, skip, PAGE_LIMIT);
     const rows = extractRowsFromReport(rawPage);
 
     if (!rows.length) break;
@@ -275,7 +278,7 @@ function buildDailyEvents(bookings, from, to) {
       events.push({
         date,
         type: "checkout",
-        label: "Out"
+        label: "Checkout"
       });
     }
 
@@ -283,7 +286,7 @@ function buildDailyEvents(bookings, from, to) {
       events.push({
         date,
         type: "checkin",
-        label: "In"
+        label: "Check-in"
       });
     }
 
@@ -291,7 +294,7 @@ function buildDailyEvents(bookings, from, to) {
       events.push({
         date,
         type: "stay",
-        label: "Stay"
+        label: "Guest stay"
       });
     }
 
@@ -306,6 +309,51 @@ function buildDailyEvents(bookings, from, to) {
   return days;
 }
 
+async function buildCalendarResponse(reportKey, req) {
+  const cleanKey = cleanReportKey(reportKey);
+
+  if (!cleanKey) {
+    return {
+      ok: false,
+      statusCode: 500,
+      body: {
+        ok: false,
+        message: "Missing Guesty report API key"
+      }
+    };
+  }
+
+  const start = req.query.start || todayString();
+  const end = req.query.end || addDays(start, DAYS_TO_SHOW);
+
+  const rows = await fetchAllReportReservations(cleanKey);
+  const reservations = rows.map(normalizeReservation);
+
+  const confirmed = reservations.filter(res =>
+    res.status === "confirmed" &&
+    res.checkIn &&
+    res.checkOut &&
+    res.listingId
+  );
+
+  const properties = buildPropertiesFromReservations(reservations, start, end);
+
+  return {
+    ok: true,
+    statusCode: 200,
+    body: {
+      ok: true,
+      source: "guesty-report",
+      start,
+      end,
+      totalReservations: reservations.length,
+      confirmedReservations: confirmed.length,
+      count: properties.length,
+      properties
+    }
+  };
+}
+
 app.get("/", (req, res) => {
   res.json({
     ok: true,
@@ -315,14 +363,44 @@ app.get("/", (req, res) => {
 
 app.get("/api/test-report-api", async (req, res) => {
   try {
-    if (!cleanReportKey()) {
+    const key = cleanReportKey(GUESTY_REPORT_API_KEY);
+
+    if (!key) {
       return res.status(500).json({
         ok: false,
         message: "Missing GUESTY_REPORT_API_KEY"
       });
     }
 
-    const rawPage = await fetchReportPage(0, 5);
+    const rawPage = await fetchReportPage(key, 0, 5);
+    const rows = extractRowsFromReport(rawPage);
+    const reservations = rows.map(normalizeReservation);
+
+    res.json({
+      ok: true,
+      count: rows.length,
+      sample: reservations
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: err.message
+    });
+  }
+});
+
+app.get("/api/test-calendar-all", async (req, res) => {
+  try {
+    const key = cleanReportKey(GUESTY_ALL_REPORT_API_KEY);
+
+    if (!key) {
+      return res.status(500).json({
+        ok: false,
+        message: "Missing GUESTY_ALL_REPORT_API_KEY"
+      });
+    }
+
+    const rawPage = await fetchReportPage(key, 0, 5);
     const rows = extractRowsFromReport(rawPage);
     const reservations = rows.map(normalizeReservation);
 
@@ -341,44 +419,28 @@ app.get("/api/test-report-api", async (req, res) => {
 
 app.get("/api/shared-calendar", async (req, res) => {
   try {
-    if (!cleanReportKey()) {
-      return res.status(500).json({
-        ok: false,
-        message: "Missing GUESTY_REPORT_API_KEY"
-      });
-    }
-
-    const start = req.query.start || todayString();
-    const end = req.query.end || addDays(start, DAYS_TO_SHOW);
-
-    const rows = await fetchAllReportReservations();
-    const reservations = rows.map(normalizeReservation);
-
-    const confirmed = reservations.filter(res =>
-      res.status === "confirmed" &&
-      res.checkIn &&
-      res.checkOut &&
-      res.listingId
-    );
-
-    const properties = buildPropertiesFromReservations(reservations, start, end);
-
-    res.json({
-      ok: true,
-      source: "guesty-report",
-      start,
-      end,
-      totalReservations: reservations.length,
-      confirmedReservations: confirmed.length,
-      count: properties.length,
-      properties
-    });
+    const result = await buildCalendarResponse(GUESTY_REPORT_API_KEY, req);
+    res.status(result.statusCode).json(result.body);
   } catch (err) {
     console.error("Shared calendar error:", err);
 
     res.status(500).json({
       ok: false,
       message: err.message || "Shared calendar failed"
+    });
+  }
+});
+
+app.get("/api/calendar-all", async (req, res) => {
+  try {
+    const result = await buildCalendarResponse(GUESTY_ALL_REPORT_API_KEY, req);
+    res.status(result.statusCode).json(result.body);
+  } catch (err) {
+    console.error("Calendar all error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Calendar all failed"
     });
   }
 });
