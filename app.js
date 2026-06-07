@@ -209,26 +209,7 @@ function renderCalendar(properties) {
       const dayCell = document.createElement("div");
       dayCell.className = "day-cell";
 
-      const event = getEventForDate(property, date);
-
-      if (event) {
-        const eventEl = document.createElement("div");
-
-        if (event.type === "turnover") {
-          eventEl.className = "turnover";
-          eventEl.innerHTML = `
-            <div class="turnover-piece turnover-checkout-piece">Out</div>
-            <div class="turnover-piece turnover-checkin-piece">In</div>
-          `;
-        } else {
-          eventEl.className = `event ${event.type}`;
-          eventEl.innerHTML = `
-            <div class="event-label">${event.label}</div>
-          `;
-        }
-
-        dayCell.appendChild(eventEl);
-      } else {
+      if (!isDateCoveredByBooking(property, date)) {
         const noGuest = document.createElement("div");
         noGuest.className = "no-guest";
         noGuest.textContent = "No guest";
@@ -238,6 +219,7 @@ function renderCalendar(properties) {
       row.appendChild(dayCell);
     });
 
+    renderBookingBars(row, property);
     calendarEl.appendChild(row);
   });
 
@@ -245,42 +227,116 @@ function renderCalendar(properties) {
   propertyListEl.scrollTop = calendarWrap.scrollTop;
 }
 
-function getEventForDate(property, date) {
-  if (Array.isArray(property.bookings)) {
-    const checkout = property.bookings.find(b => b.checkOut === date);
-    const checkin = property.bookings.find(b => b.checkIn === date);
-    const stay = property.bookings.find(b => date > b.checkIn && date < b.checkOut);
+function renderBookingBars(row, property) {
+  if (!Array.isArray(property.bookings)) return;
 
-    if (checkout && checkin) {
-      return {
-        type: "turnover",
-        label: "Out / In"
-      };
+  property.bookings.forEach(booking => {
+    const checkIn = booking.checkIn;
+    const checkOut = booking.checkOut;
+
+    if (!checkIn || !checkOut) return;
+
+    const visibleStart = dates[0];
+    const visibleEnd = addDays(dates[dates.length - 1], 1);
+
+    if (checkOut < visibleStart || checkIn > visibleEnd) return;
+
+    const startsInRange = dates.includes(checkIn);
+    const endsInRange = dates.includes(checkOut);
+
+    const startIndex = Math.max(0, dates.indexOf(checkIn));
+    const checkoutIndex = dates.indexOf(checkOut);
+
+    let leftIndex = startIndex >= 0 ? startIndex : 0;
+    let endIndex = checkoutIndex >= 0 ? checkoutIndex : dates.length;
+
+    if (dates.indexOf(checkIn) < 0 && checkIn < visibleStart) {
+      leftIndex = 0;
     }
 
-    if (checkout) {
-      return {
-        type: "checkout",
-        label: "Out"
-      };
+    if (checkoutIndex < 0) {
+      endIndex = dates.length;
     }
 
-    if (checkin) {
-      return {
-        type: "checkin",
-        label: "In"
-      };
+    const hasSameDayCheckin = property.bookings.some(other =>
+      other !== booking && other.checkIn === checkOut
+    );
+
+    const hasSameDayCheckout = property.bookings.some(other =>
+      other !== booking && other.checkOut === checkIn
+    );
+
+    let leftExtra = "";
+    let widthExtra = "";
+
+    if (hasSameDayCheckout && startsInRange) {
+      leftExtra = " + (var(--day-col) / 2)";
     }
 
-    if (stay) {
-      return {
-        type: "stay",
-        label: "Stay"
-      };
+    if (hasSameDayCheckin && endsInRange) {
+      widthExtra = " - (var(--day-col) / 2)";
     }
-  }
 
-  return null;
+    const durationDays = Math.max(1, endIndex - leftIndex + (endsInRange ? 1 : 0));
+
+    const bar = document.createElement("div");
+    bar.className = "booking-bar";
+
+    if (startsInRange) bar.classList.add("starts");
+    if (endsInRange) bar.classList.add("ends");
+
+    bar.style.left = `calc(${leftIndex} * var(--day-col)${leftExtra} + 3px)`;
+    bar.style.width = `calc(${durationDays} * var(--day-col)${widthExtra} - 6px)`;
+
+    const label = document.createElement("div");
+    label.className = "booking-label";
+
+    if (startsInRange && endsInRange && durationDays <= 2) {
+      label.classList.add("stay-label");
+      label.textContent = "Stay";
+    } else if (startsInRange) {
+      label.classList.add("checkin-label");
+      label.textContent = "Check-in";
+    } else if (endsInRange) {
+      label.classList.add("checkout-label");
+      label.textContent = "Checkout";
+    } else {
+      label.classList.add("stay-label");
+      label.textContent = "Guest stay";
+    }
+
+    if (hasSameDayCheckin && endsInRange) {
+      label.className = "booking-label turnover-out";
+      label.textContent = "Checkout";
+    }
+
+    if (hasSameDayCheckout && startsInRange) {
+      label.className = "booking-label turnover-in";
+      label.textContent = "Check-in";
+    }
+
+    bar.appendChild(label);
+    row.appendChild(bar);
+  });
+}
+
+function isDateCoveredByBooking(property, date) {
+  if (!Array.isArray(property.bookings)) return false;
+
+  return property.bookings.some(booking => {
+    if (!booking.checkIn || !booking.checkOut) return false;
+
+    const hasSameDayCheckin = property.bookings.some(other =>
+      other !== booking && other.checkIn === booking.checkOut
+    );
+
+    if (date > booking.checkIn && date < booking.checkOut) return true;
+    if (date === booking.checkIn) return true;
+
+    if (date === booking.checkOut && hasSameDayCheckin) return true;
+
+    return false;
+  });
 }
 
 function escapeHtml(value) {
