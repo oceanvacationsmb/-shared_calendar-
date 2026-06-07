@@ -699,11 +699,12 @@ function getActiveFilterNames() {
 
   if (activeFilters.elevator) names.push("ELEVATOR");
   if (activeFilters.confPmt) names.push("CONFIRM PMT");
+
   if (activeFilters.area === "SOUTH") {
-  names.push("SOUTH END");
-} else if (activeFilters.area) {
-  names.push(activeFilters.area);
-}
+    names.push("SOUTH END");
+  } else if (activeFilters.area) {
+    names.push(activeFilters.area);
+  }
 
   return names.length ? names : ["ALL"];
 }
