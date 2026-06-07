@@ -9,30 +9,53 @@ app.use(express.json());
 
 const GUESTY_REPORT_API_KEY = process.env.GUESTY_REPORT_API_KEY;
 
-async function fetchReportWithMethod(methodName, options) {
-  const baseUrl =
-    "https://report.guesty.com/api/shared-reservations-reports?timezone=America/New_York&skip=0&limit=100";
+const REPORT_APP_URL = "https://report.guesty.com/apps/reservations";
+const REPORT_API_URL =
+  "https://report.guesty.com/api/shared-reservations-reports?timezone=America/New_York&skip=0&limit=100";
 
-  let url = baseUrl;
-  const headers = {
-    accept: "application/json"
-  };
+function cleanApiKey() {
+  return String(GUESTY_REPORT_API_KEY || "")
+    .replace("apiKey=", "")
+    .replace("apikey=", "")
+    .trim();
+}
 
-  if (options.queryKey) {
-    url += `&${options.queryKey}=${encodeURIComponent(GUESTY_REPORT_API_KEY)}`;
-  }
+async function getCookiesFromGuestyApp() {
+  const apiKey = cleanApiKey();
 
-  if (options.headerKey) {
-    headers[options.headerKey] = GUESTY_REPORT_API_KEY;
-  }
-
-  if (options.bearer) {
-    headers.authorization = `Bearer ${GUESTY_REPORT_API_KEY}`;
-  }
-
-  const response = await fetch(url, {
+  const response = await fetch(`${REPORT_APP_URL}?apiKey=${encodeURIComponent(apiKey)}`, {
     method: "GET",
-    headers
+    redirect: "manual",
+    headers: {
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "user-agent": "Mozilla/5.0"
+    }
+  });
+
+  const rawSetCookie = response.headers.get("set-cookie");
+
+  return {
+    status: response.status,
+    setCookie: rawSetCookie || "",
+    cookieHeader: rawSetCookie
+      ? rawSetCookie
+          .split(",")
+          .map(part => part.split(";")[0].trim())
+          .join("; ")
+      : ""
+  };
+}
+
+async function fetchReportWithCookies(cookieHeader) {
+  const response = await fetch(REPORT_API_URL, {
+    method: "GET",
+    headers: {
+      "accept": "application/json",
+      "user-agent": "Mozilla/5.0",
+      "referer": `${REPORT_APP_URL}?apiKey=${encodeURIComponent(cleanApiKey())}`,
+      "origin": "https://report.guesty.com",
+      "cookie": cookieHeader
+    }
   });
 
   let data;
@@ -46,7 +69,6 @@ async function fetchReportWithMethod(methodName, options) {
   }
 
   return {
-    methodName,
     ok: response.ok,
     status: response.status,
     data
@@ -60,7 +82,7 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/api/test-report-api", async (req, res) => {
+app.get("/api/test-report-cookie", async (req, res) => {
   try {
     if (!GUESTY_REPORT_API_KEY) {
       return res.status(500).json({
@@ -69,41 +91,23 @@ app.get("/api/test-report-api", async (req, res) => {
       });
     }
 
-    const tests = [];
-
-    tests.push(await fetchReportWithMethod("query_apiKey", {
-      queryKey: "apiKey"
-    }));
-
-    tests.push(await fetchReportWithMethod("query_apikey", {
-      queryKey: "apikey"
-    }));
-
-    tests.push(await fetchReportWithMethod("header_x_api_key", {
-      headerKey: "x-api-key"
-    }));
-
-    tests.push(await fetchReportWithMethod("header_apiKey", {
-      headerKey: "apiKey"
-    }));
-
-    tests.push(await fetchReportWithMethod("header_apikey", {
-      headerKey: "apikey"
-    }));
-
-    tests.push(await fetchReportWithMethod("bearer_token", {
-      bearer: true
-    }));
+    const cookieResult = await getCookiesFromGuestyApp();
+    const reportResult = await fetchReportWithCookies(cookieResult.cookieHeader);
 
     res.json({
       ok: true,
-      message: "Report API test completed",
-      tests
+      message: "Cookie report test completed",
+      appOpenStatus: cookieResult.status,
+      hasCookie: Boolean(cookieResult.cookieHeader),
+      cookiePreview: cookieResult.cookieHeader
+        ? cookieResult.cookieHeader.substring(0, 80) + "..."
+        : null,
+      reportResult
     });
   } catch (err) {
     res.status(500).json({
       ok: false,
-      message: err.message || "Report API test failed"
+      message: err.message || "Report cookie test failed"
     });
   }
 });
