@@ -203,9 +203,18 @@ function renderCalendar() {
     calendarEl.appendChild(row);
   });
 
-  calendarWrap.scrollLeft = todayIndex >= 0 ? todayIndex * getDayWidth() : 0;
+  const todayScrollLeft = todayIndex >= 0 ? todayIndex * getDayWidth() : 0;
+
 calendarWrap.scrollTop = 0;
 propertyListEl.scrollTop = 0;
+
+setTimeout(() => {
+  calendarWrap.scrollLeft = todayScrollLeft;
+}, 100);
+
+setTimeout(() => {
+  calendarWrap.scrollLeft = todayScrollLeft;
+}, 500);
 
 function renderDateHeader() {
   renderMonthHeader();
