@@ -576,3 +576,29 @@ body.list-open .calendar-shell {
     font-size: 12px;
   }
 }
+.city-select {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  height: 32px;
+}
+
+.city-select.active {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+@media (max-width: 800px) {
+  .city-select {
+    max-width: 90px;
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+}
