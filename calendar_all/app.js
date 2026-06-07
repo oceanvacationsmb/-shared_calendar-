@@ -496,12 +496,8 @@ function hasMovingFilter() {
 }
 
 function matchesBookingFilters(booking, property) {
-  if (activeFilters.area) {
-    const area = getPropertyArea(property);
-
-    if (area !== activeFilters.area) {
-      return false;
-    }
+  if (activeFilters.area && !propertyMatchesSelectedArea(property)) {
+    return false;
   }
 
   if (activeFilters.elevator && !isYesValue(booking.elevator)) {
@@ -516,8 +512,19 @@ function matchesBookingFilters(booking, property) {
 }
 
 function propertyMatchesArea(property) {
+  return propertyMatchesSelectedArea(property);
+}
+
+function propertyMatchesSelectedArea(property) {
   if (!activeFilters.area) return true;
-  return getPropertyArea(property) === activeFilters.area;
+
+  const area = getPropertyArea(property);
+
+  if (activeFilters.area === "SOUTH") {
+    return area === "SSB" || area === "MI";
+  }
+
+  return area === activeFilters.area;
 }
 
 function isYesValue(value) {
@@ -692,7 +699,11 @@ function getActiveFilterNames() {
 
   if (activeFilters.elevator) names.push("ELEVATOR");
   if (activeFilters.confPmt) names.push("CONFIRM PMT");
-  if (activeFilters.area) names.push(activeFilters.area);
+  if (activeFilters.area === "SOUTH") {
+  names.push("SOUTH END");
+} else if (activeFilters.area) {
+  names.push(activeFilters.area);
+}
 
   return names.length ? names : ["ALL"];
 }
