@@ -265,12 +265,29 @@ function renderBookingBars(row, property) {
       bar.appendChild(label);
     }
 
-    if (widthUnits >= 3) {
-      const label = document.createElement("span");
-      label.className = "bar-text center";
-      label.textContent = "Guest stay";
-      bar.appendChild(label);
-    }
+    const extraLabels = [];
+
+if (booking.elevator) {
+  extraLabels.push("ELEVATOR");
+}
+
+if (booking.confPmt) {
+  extraLabels.push("CONF PMT");
+}
+
+if (widthUnits >= 3) {
+  const label = document.createElement("span");
+  label.className = extraLabels.length ? "bar-text center has-extra" : "bar-text center";
+  label.textContent = extraLabels.length
+    ? `Guest stay • ${extraLabels.join(" • ")}`
+    : "Guest stay";
+  bar.appendChild(label);
+} else if (extraLabels.length) {
+  const label = document.createElement("span");
+  label.className = "bar-text center has-extra";
+  label.textContent = extraLabels.join(" • ");
+  bar.appendChild(label);
+}
 
     if (endsVisible) {
       const label = document.createElement("span");
