@@ -236,17 +236,17 @@ function renderMonthHeader() {
   });
 
   groups.forEach(group => {
-  const cell = document.createElement("div");
-  cell.className = "month-cell";
-  cell.style.width = `calc(${group.count} * var(--day-width))`;
+    const cell = document.createElement("div");
+    cell.className = "month-cell";
+    cell.style.width = `calc(${group.count} * var(--day-width))`;
 
-  const label = document.createElement("span");
-  label.className = "month-label";
-  label.textContent = group.month;
+    const label = document.createElement("span");
+    label.className = "month-label";
+    label.textContent = group.month;
 
-  cell.appendChild(label);
-  monthRow.appendChild(cell);
-});
+    cell.appendChild(label);
+    monthRow.appendChild(cell);
+  });
 
   calendarEl.appendChild(monthRow);
 }
@@ -272,10 +272,14 @@ function renderBookingBars(row, property) {
     const startsVisible = checkInIndex >= 0;
     const endsVisible = checkOutIndex >= 0;
 
+    const hasCheckinSameDayAfter = bookings.some(other =>
+      other !== booking && other.checkIn === booking.checkOut
+    );
+
     /*
       Always half-day:
-      check-in starts from middle of check-in day
-      checkout ends in middle of checkout day
+      IN starts from middle of check-in day
+      OUT ends in middle of checkout day
     */
     let leftUnit = startsVisible ? checkInIndex + 0.56 : 0;
     let rightUnit = endsVisible ? checkOutIndex + 0.44 : dates.length;
@@ -287,11 +291,6 @@ function renderBookingBars(row, property) {
     const bar = document.createElement("div");
     bar.className = "booking-bar";
 
-    /*
-      Always rounded:
-      Check-in = (
-      Checkout = )
-    */
     if (startsVisible && endsVisible) {
       bar.classList.add("full-round");
     } else if (startsVisible) {
@@ -306,26 +305,50 @@ function renderBookingBars(row, property) {
     if (startsVisible) {
       const label = document.createElement("span");
       label.className = "bar-text left";
-      label.textContent = "Check-in";
+      label.textContent = "IN";
       bar.appendChild(label);
     }
 
     if (widthUnits >= 3) {
       const label = document.createElement("span");
       label.className = "bar-text center";
-      label.textContent = "Guest stay";
+      label.textContent = "GUEST";
       bar.appendChild(label);
     }
 
     if (endsVisible) {
       const label = document.createElement("span");
       label.className = "bar-text right";
-      label.textContent = "Checkout";
+      label.textContent = "OUT";
       bar.appendChild(label);
     }
 
     row.appendChild(bar);
+
+    /*
+      If checkout day has no same-day check-in:
+      first half = OUT
+      second half = NO CHECK-IN
+    */
+    if (endsVisible && !hasCheckinSameDayAfter) {
+      renderNoCheckinHalf(row, checkOutIndex);
+    }
   });
+}
+
+function renderNoCheckinHalf(row, dateIndex) {
+  if (row.querySelector(`[data-no-checkin="${dateIndex}"]`)) return;
+
+  const box = document.createElement("div");
+  box.className = "no-checkin-half";
+  box.dataset.noCheckin = dateIndex;
+
+  box.style.left = `calc(${dateIndex} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
+  box.style.width = `calc((var(--day-width) / 2) - 4px)`;
+
+  box.textContent = "No IN";
+
+  row.appendChild(box);
 }
 
 function isCoveredByAnyBooking(property, date) {
