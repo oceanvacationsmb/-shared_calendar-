@@ -12,10 +12,11 @@
   --red-line: #f48181;
   --pink: #ec4899;
 
-  --border: #e5e7eb;
-  --light-border: #f1f5f9;
-  --text: #111827;
-  --muted: #6b7280;
+  --border: #d1d5db;
+--light-border: #d7dee7;
+--row-line: #cbd5e1;
+--text: #111827;
+--muted: #6b7280;
 }
 
 body {
@@ -109,14 +110,14 @@ button {
 }
 
 .property-side {
-  border-right: 1px solid var(--border);
-  background: white;
+  border-right: 1px solid var(--row-line);
+  background: #fcfcfd;
   overflow: hidden;
 }
 
 .property-head {
   height: var(--header-height);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--row-line);
   display: flex;
   align-items: center;
   padding: 0 12px;
@@ -125,6 +126,7 @@ button {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.4px;
+  background: #f8fafc;
 }
 
 #propertyList {
@@ -141,7 +143,7 @@ button {
 
 .property-row {
   height: var(--row-height);
-  border-bottom: 1px solid var(--light-border);
+  border-bottom: 1px solid var(--row-line);
   display: flex;
   align-items: center;
   padding: 0 12px;
@@ -151,6 +153,7 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  background: #fcfcfd;
 }
 
 /* Calendar */
@@ -225,7 +228,7 @@ button {
   height: var(--row-height);
   display: grid;
   grid-template-columns: repeat(95, var(--day-width));
-  border-bottom: 1px solid var(--light-border);
+  border-bottom: 1px solid var(--row-line);
   position: relative;
   background: white;
 }
