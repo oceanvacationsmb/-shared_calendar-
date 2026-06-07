@@ -272,7 +272,7 @@ button {
 }
 
 .date-cell.today {
-  background: #f3f4f6;
+  background: #fef08a;
 }
 
 .date-cell.today .date-weekday,
@@ -309,7 +309,7 @@ button {
 }
 
 .day-cell.today {
-  background: #fafafa;
+  background: #fef9c3;
 }
 
 .no-stay {
