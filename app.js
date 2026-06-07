@@ -43,17 +43,14 @@ function addDays(dateString, days) {
 
 function buildDates(start, count) {
   const arr = [];
-
   for (let i = 0; i < count; i++) {
     arr.push(addDays(start, i));
   }
-
   return arr;
 }
 
 function displayDate(dateString) {
   const d = new Date(dateString + "T00:00:00");
-
   return {
     month: d.toLocaleDateString("en-US", { month: "short" }),
     weekday: d.toLocaleDateString("en-US", { weekday: "short" }),
@@ -112,7 +109,6 @@ function renderCalendar() {
   renderDateHeader();
 
   const todayIndex = dates.indexOf(todayString());
-
   if (todayIndex >= 0) {
     const line = document.createElement("div");
     line.className = "today-line";
@@ -200,61 +196,55 @@ function renderBookingBars(row, property) {
     const startsVisible = checkInIndex >= 0;
     const endsVisible = checkOutIndex >= 0;
 
-    const hasCheckoutSameDayBefore = bookings.some(other =>
+    const prevSameDayCheckout = bookings.some(other =>
       other !== booking && other.checkOut === booking.checkIn
     );
 
-    const hasCheckinSameDayAfter = bookings.some(other =>
+    const nextSameDayCheckin = bookings.some(other =>
       other !== booking && other.checkIn === booking.checkOut
     );
 
     let leftUnit = startsVisible ? checkInIndex : 0;
     let rightUnit = endsVisible ? checkOutIndex + 1 : dates.length;
 
-    /*
-      Same-day turnover:
-      previous reservation closes on first half of the date = )
-      next reservation opens on second half of the date = (
-    */
-    if (startsVisible && hasCheckoutSameDayBefore) {
+    if (startsVisible && prevSameDayCheckout) {
       leftUnit = checkInIndex + 0.5;
+      renderTurnoverIn(row, checkInIndex);
     }
 
-    if (endsVisible && hasCheckinSameDayAfter) {
+    if (endsVisible && nextSameDayCheckin) {
       rightUnit = checkOutIndex + 0.5;
+      renderTurnoverOut(row, checkOutIndex);
     }
 
     if (rightUnit <= leftUnit) return;
 
-    const widthUnits = rightUnit - leftUnit;
-
     const bar = document.createElement("div");
     bar.className = "booking-bar";
 
-    /*
-      IMPORTANT:
-      Even when turnover happens, we DO round the actual bar.
-      This creates the real ) ( look.
-    */
-    if (startsVisible) {
-      bar.classList.add("start-round");
-    }
+    const widthUnits = rightUnit - leftUnit;
 
-    if (endsVisible) {
-      bar.classList.add("end-round");
-    }
+    const isFullRound =
+      startsVisible &&
+      endsVisible &&
+      !prevSameDayCheckout &&
+      !nextSameDayCheckin &&
+      widthUnits <= 1;
 
-    if (startsVisible && endsVisible && widthUnits <= 1) {
+    if (isFullRound) {
       bar.classList.add("full-round");
+    } else {
+      if (startsVisible && !prevSameDayCheckout) bar.classList.add("start-round");
+      if (endsVisible && !nextSameDayCheckin) bar.classList.add("end-round");
     }
 
     bar.style.left = `calc(${leftUnit} * var(--day-width) + 2px)`;
     bar.style.width = `calc(${widthUnits} * var(--day-width) - 4px)`;
 
-    if (startsVisible) {
+    if (startsVisible && !prevSameDayCheckout) {
       const label = document.createElement("span");
       label.className = "bar-text left";
-      label.textContent = hasCheckoutSameDayBefore ? "In" : "Check-in";
+      label.textContent = "Check-in";
       bar.appendChild(label);
     }
 
@@ -265,10 +255,10 @@ function renderBookingBars(row, property) {
       bar.appendChild(label);
     }
 
-    if (endsVisible) {
+    if (endsVisible && !nextSameDayCheckin) {
       const label = document.createElement("span");
       label.className = "bar-text right";
-      label.textContent = hasCheckinSameDayAfter ? "Out" : "Checkout";
+      label.textContent = "Checkout";
       bar.appendChild(label);
     }
 
@@ -276,12 +266,35 @@ function renderBookingBars(row, property) {
   });
 }
 
+function renderTurnoverOut(row, index) {
+  if (row.querySelector(`[data-turnover-out="${index}"]`)) return;
+
+  const pill = document.createElement("div");
+  pill.className = "turnover-pill";
+  pill.dataset.turnoverOut = index;
+  pill.style.left = `calc(${index} * var(--day-width) + 3px)`;
+  pill.style.width = `calc((var(--day-width) / 2) - 6px)`;
+  pill.innerHTML = `<span class="turnover-pill-text">Out</span>`;
+  row.appendChild(pill);
+}
+
+function renderTurnoverIn(row, index) {
+  if (row.querySelector(`[data-turnover-in="${index}"]`)) return;
+
+  const pill = document.createElement("div");
+  pill.className = "turnover-pill";
+  pill.dataset.turnoverIn = index;
+  pill.style.left = `calc(${index} * var(--day-width) + (var(--day-width) / 2) + 3px)`;
+  pill.style.width = `calc((var(--day-width) / 2) - 6px)`;
+  pill.innerHTML = `<span class="turnover-pill-text">In</span>`;
+  row.appendChild(pill);
+}
+
 function isCoveredByAnyBooking(property, date) {
   const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
   return bookings.some(booking => {
     if (!booking.checkIn || !booking.checkOut) return false;
-
     return date >= booking.checkIn && date <= booking.checkOut;
   });
 }
