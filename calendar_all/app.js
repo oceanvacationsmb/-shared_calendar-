@@ -11,7 +11,7 @@ const showAllBtn = document.getElementById("showAllBtn");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 const listToggleBtn = document.getElementById("listToggleBtn");
-const areaButtons = document.querySelectorAll(".area-btn");
+const cityFilterSelect = document.getElementById("cityFilterSelect");
 
 const filteredListPanel = document.getElementById("filteredListPanel");
 const filteredListTitle = document.getElementById("filteredListTitle");
@@ -38,13 +38,16 @@ showAllBtn.addEventListener("click", () => {
   activeFilters.elevator = false;
   activeFilters.confPmt = false;
   activeFilters.area = null;
+  cityFilterSelect.value = "";
   isListOpen = false;
   updateFilterButtons();
   render();
 });
 
+
 elevatorFilterBtn.addEventListener("click", () => {
   activeFilters.area = null;
+  cityFilterSelect.value = "";
   activeFilters.elevator = !activeFilters.elevator;
 
   updateFilterButtons();
@@ -53,29 +56,22 @@ elevatorFilterBtn.addEventListener("click", () => {
 
 confPmtFilterBtn.addEventListener("click", () => {
   activeFilters.area = null;
+  cityFilterSelect.value = "";
   activeFilters.confPmt = !activeFilters.confPmt;
 
   updateFilterButtons();
   render();
 });
 
-areaButtons.forEach(btn => {
-  btn.addEventListener("click", () => {
-    const area = btn.dataset.area;
+cityFilterSelect.addEventListener("change", () => {
+  activeFilters.elevator = false;
+  activeFilters.confPmt = false;
+  isListOpen = false;
 
-    activeFilters.elevator = false;
-    activeFilters.confPmt = false;
-    isListOpen = false;
+  activeFilters.area = cityFilterSelect.value || null;
 
-    if (activeFilters.area === area) {
-      activeFilters.area = null;
-    } else {
-      activeFilters.area = area;
-    }
-
-    updateFilterButtons();
-    render();
-  });
+  updateFilterButtons();
+  render();
 });
 
 listToggleBtn.addEventListener("click", () => {
@@ -687,9 +683,8 @@ function updateFilterButtons() {
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
 
-  areaButtons.forEach(btn => {
-    btn.classList.toggle("active", activeFilters.area === btn.dataset.area);
-  });
+  cityFilterSelect.value = activeFilters.area || "";
+cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area));
 
   updateFilteredList();
 }
