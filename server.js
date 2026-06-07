@@ -86,10 +86,10 @@ function normalizeListings(rawData) {
       const nickname =
         item.nickname ||
         item.nickName ||
+        item.internalName ||
         item.title ||
         item.name ||
         item.publicName ||
-        item.internalName ||
         listingId;
 
       return {
@@ -97,7 +97,8 @@ function normalizeListings(rawData) {
         nickname
       };
     })
-    .filter(item => item.listingId);
+    .filter(item => item.listingId)
+    .sort((a, b) => String(a.nickname).localeCompare(String(b.nickname)));
 }
 
 async function getAllListings(token) {
@@ -140,10 +141,7 @@ function isBookedDay(day) {
     ""
   ).toLowerCase();
 
-  if (day.reservationId || day.reservation || day.bookingId || day.booking) {
-    return true;
-  }
-
+  if (day.reservationId || day.reservation || day.bookingId || day.booking) return true;
   if (day.isAvailable === false) return true;
   if (day.available === false) return true;
   if (day.booked === true) return true;
@@ -188,9 +186,7 @@ function normalizeBookingsFromCalendar(rawData) {
     }
   }
 
-  if (currentBooking) {
-    bookings.push(currentBooking);
-  }
+  if (currentBooking) bookings.push(currentBooking);
 
   return bookings;
 }
@@ -291,49 +287,14 @@ app.get("/api/test-listings", async (req, res) => {
   }
 });
 
-app.get("/api/test-listing-calendar", async (req, res) => {
-  try {
-    const token = await getGuestyToken();
-
-    const listings = await getAllListings(token);
-
-    if (!listings.length) {
-      return res.status(404).json({
-        ok: false,
-        message: "No listings found"
-      });
-    }
-
-    const listingId = req.query.listingId || listings[0].listingId;
-    const from = req.query.from || todayString();
-    const to = req.query.to || addDays(from, 30);
-
-    const rawCalendar = await getListingCalendar(token, listingId, from, to);
-
-    res.json({
-      ok: true,
-      listingId,
-      from,
-      to,
-      rawCalendar
-    });
-  } catch (err) {
-    res.status(500).json({
-      ok: false,
-      message: err.message
-    });
-  }
-});
-
 app.get("/api/shared-calendar", async (req, res) => {
   try {
     const token = await getGuestyToken();
 
     const start = req.query.start || todayString();
-    const end = req.query.end || addDays(start, 30);
+    const end = req.query.end || addDays(start, 14);
 
     const listings = await getAllListings(token);
-
     const properties = [];
 
     for (const listing of listings) {
