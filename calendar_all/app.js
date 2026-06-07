@@ -1,5 +1,5 @@
 const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
-const DAYS_TO_SHOW = 90;
+const DAYS_TO_SHOW = 60;
 const DAYS_BEFORE_TODAY = 5;
 
 const calendarEl = document.getElementById("calendar");
@@ -10,10 +10,17 @@ const propertyListEl = document.getElementById("propertyList");
 const showAllBtn = document.getElementById("showAllBtn");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
+const listToggleBtn = document.getElementById("listToggleBtn");
+const filteredListPanel = document.getElementById("filteredListPanel");
+const filteredListTitle = document.getElementById("filteredListTitle");
+const filteredListCount = document.getElementById("filteredListCount");
+const filteredListBody = document.getElementById("filteredListBody");
 
 let dates = [];
 let properties = [];
 let isSyncingScroll = false;
+let isListOpen = false;
+let renderTimer = null;
 
 let activeFilters = {
   elevator: false,
@@ -27,6 +34,7 @@ todayBtn.addEventListener("click", () => {
 showAllBtn.addEventListener("click", () => {
   activeFilters.elevator = false;
   activeFilters.confPmt = false;
+  isListOpen = false;
   updateFilterButtons();
   render();
 });
@@ -43,6 +51,12 @@ confPmtFilterBtn.addEventListener("click", () => {
   render();
 });
 
+listToggleBtn.addEventListener("click", () => {
+  isListOpen = !isListOpen;
+  updateFilterButtons();
+  updateFilteredList();
+});
+
 /* Keep property names locked with calendar rows */
 calendarWrap.addEventListener("scroll", () => {
   if (isSyncingScroll) return;
@@ -53,6 +67,10 @@ calendarWrap.addEventListener("scroll", () => {
   requestAnimationFrame(() => {
     isSyncingScroll = false;
   });
+
+  if (hasAnyActiveFilter()) {
+    scheduleFilteredRerender();
+  }
 });
 
 propertyListEl.addEventListener("scroll", () => {
@@ -119,7 +137,9 @@ function getDayWidth() {
 
 function scrollToToday(smooth = false) {
   const todayIndex = dates.indexOf(todayString());
-  const todayScrollLeft = todayIndex >= 0 ? todayIndex * getDayWidth() : 0;
+
+  const targetIndex = todayIndex >= 0 ? Math.max(0, todayIndex - 1) : 0;
+  const todayScrollLeft = targetIndex * getDayWidth();
 
   calendarWrap.scrollTo({
     left: todayScrollLeft,
@@ -160,6 +180,14 @@ async function loadCalendar() {
 
     properties = data.properties || [];
     render();
+
+    setTimeout(() => {
+      scrollToToday(false);
+    }, 100);
+
+    setTimeout(() => {
+      scrollToToday(false);
+    }, 500);
   } catch (err) {
     calendarEl.innerHTML = `
       <div class="error">
@@ -170,10 +198,20 @@ async function loadCalendar() {
   }
 }
 
-function render() {
+function render(options = {}) {
+  const oldLeft = calendarWrap.scrollLeft;
+  const oldTop = calendarWrap.scrollTop;
+
   renderProperties();
   renderCalendar();
   updateFilterButtons();
+  updateFilteredList();
+
+  if (options.preserveScroll) {
+    calendarWrap.scrollLeft = oldLeft;
+    calendarWrap.scrollTop = oldTop;
+    propertyListEl.scrollTop = oldTop;
+  }
 }
 
 function renderProperties() {
@@ -229,16 +267,7 @@ function renderCalendar() {
     calendarEl.appendChild(row);
   });
 
-  calendarWrap.scrollTop = 0;
-  propertyListEl.scrollTop = 0;
-
-  setTimeout(() => {
-    scrollToToday(false);
-  }, 100);
-
-  setTimeout(() => {
-    scrollToToday(false);
-  }, 500);
+  propertyListEl.scrollTop = calendarWrap.scrollTop;
 }
 
 function renderDateHeader() {
@@ -375,9 +404,21 @@ function renderBookingBars(row, property) {
     if (widthUnits >= 1.4) {
       const label = document.createElement("span");
       label.className = extraLabels.length ? "bar-text center has-extra" : "bar-text center";
-      label.textContent = extraLabels.length
-        ? `GUEST • ${extraLabels.join(" • ")}`
-        : "GUEST";
+
+      const guestName = cleanGuestName(booking.guestName || booking.guestFullName || booking.fullName);
+      const guestPhone = cleanPhone(booking.guestPhone || booking.phone);
+
+      if (guestPhone) {
+        label.innerHTML = `
+          <a class="guest-call" href="tel:${guestPhone}">${escapeHtml(guestName)}</a>
+          ${extraLabels.length ? ` • ${escapeHtml(extraLabels.join(" • "))}` : ""}
+        `;
+      } else {
+        label.textContent = extraLabels.length
+          ? `${guestName} • ${extraLabels.join(" • ")}`
+          : guestName;
+      }
+
       bar.appendChild(label);
     } else if (extraLabels.length) {
       const label = document.createElement("span");
@@ -443,10 +484,27 @@ function isYesValue(value) {
   return value === true || String(value || "").trim().toLowerCase() === "yes";
 }
 
+function getCurrentVisibleRange() {
+  const dayWidth = getDayWidth();
+
+  const leftIndex = Math.max(0, Math.floor(calendarWrap.scrollLeft / dayWidth));
+  const rightIndex = Math.min(
+    dates.length - 1,
+    Math.ceil((calendarWrap.scrollLeft + calendarWrap.clientWidth) / dayWidth)
+  );
+
+  return {
+    start: dates[leftIndex] || dates[0],
+    end: dates[rightIndex] || dates[dates.length - 1]
+  };
+}
+
 function getVisibleProperties() {
   if (!hasAnyActiveFilter()) {
     return properties;
   }
+
+  const visibleRange = getCurrentVisibleRange();
 
   return properties.filter(property => {
     const bookings = Array.isArray(property.bookings) ? property.bookings : [];
@@ -455,16 +513,136 @@ function getVisibleProperties() {
       if (!matchesActiveFilters(booking)) return false;
       if (!booking.checkIn || !booking.checkOut) return false;
 
-      const firstDate = dates[0];
-      const lastDate = dates[dates.length - 1];
-
-      return booking.checkOut >= firstDate && booking.checkIn <= lastDate;
+      return booking.checkOut >= visibleRange.start && booking.checkIn <= visibleRange.end;
     });
   });
+}
+
+function getFilteredBookingsInView() {
+  if (!hasAnyActiveFilter()) return [];
+
+  const visibleRange = getCurrentVisibleRange();
+  const items = [];
+
+  properties.forEach(property => {
+    const bookings = Array.isArray(property.bookings) ? property.bookings : [];
+
+    bookings.forEach(booking => {
+      if (!matchesActiveFilters(booking)) return;
+      if (!booking.checkIn || !booking.checkOut) return;
+
+      const overlaps = booking.checkOut >= visibleRange.start && booking.checkIn <= visibleRange.end;
+      if (!overlaps) return;
+
+      const tags = [];
+
+      if (isYesValue(booking.elevator)) tags.push("ELEVATOR");
+      if (isYesValue(booking.confPmt)) tags.push("CONF PMT");
+
+      items.push({
+        property: property.nickname || property.name || "Property",
+        checkIn: booking.checkIn,
+        checkOut: booking.checkOut,
+        guestName: cleanGuestName(booking.guestName || booking.guestFullName || booking.fullName),
+        guestPhone: cleanPhone(booking.guestPhone || booking.phone),
+        tags
+      });
+    });
+  });
+
+  items.sort((a, b) => {
+    const dateCompare = a.checkIn.localeCompare(b.checkIn);
+    if (dateCompare !== 0) return dateCompare;
+    return a.property.localeCompare(b.property);
+  });
+
+  return items;
+}
+
+function updateFilteredList() {
+  const showListOption = hasAnyActiveFilter();
+
+  listToggleBtn.classList.toggle("hidden", !showListOption);
+
+  if (!showListOption) {
+    filteredListPanel.classList.add("hidden");
+    document.body.classList.remove("list-open");
+    return;
+  }
+
+  filteredListPanel.classList.toggle("hidden", !isListOpen);
+  document.body.classList.toggle("list-open", isListOpen);
+
+  listToggleBtn.textContent = isListOpen ? "Hide list" : "Click for list";
+  listToggleBtn.classList.toggle("active", isListOpen);
+
+  if (!isListOpen) return;
+
+  const items = getFilteredBookingsInView();
+  const activeNames = [];
+
+  if (activeFilters.elevator) activeNames.push("ELEVATOR");
+  if (activeFilters.confPmt) activeNames.push("CONF PMT");
+
+  filteredListTitle.textContent = `${activeNames.join(" + ")} stays in current view`;
+  filteredListCount.textContent = `${items.length} stay${items.length === 1 ? "" : "s"}`;
+
+  if (!items.length) {
+    filteredListBody.innerHTML = `
+      <div class="filtered-item">
+        <div class="filtered-item-title">No matching stays in this visible date range</div>
+        <div class="filtered-item-dates">Scroll left or right to find more.</div>
+      </div>
+    `;
+    return;
+  }
+
+  filteredListBody.innerHTML = items.map(item => {
+    const guestHtml = item.guestPhone
+      ? `<a href="tel:${item.guestPhone}">${escapeHtml(item.guestName)}</a>`
+      : escapeHtml(item.guestName);
+
+    return `
+      <div class="filtered-item">
+        <div class="filtered-item-title">${escapeHtml(item.property)}</div>
+        <div class="filtered-item-dates">IN ${escapeHtml(item.checkIn)} → OUT ${escapeHtml(item.checkOut)}</div>
+        <div class="filtered-item-guest">Guest: ${guestHtml}</div>
+        <div class="filtered-item-tags">${escapeHtml(item.tags.join(" • "))}</div>
+      </div>
+    `;
+  }).join("");
 }
 
 function updateFilterButtons() {
   showAllBtn.classList.toggle("active", !hasAnyActiveFilter());
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
+
+  updateFilteredList();
+}
+
+function scheduleFilteredRerender() {
+  clearTimeout(renderTimer);
+
+  renderTimer = setTimeout(() => {
+    render({ preserveScroll: true });
+  }, 120);
+}
+
+function cleanGuestName(value) {
+  const text = String(value || "").trim();
+  return text || "Guest";
+}
+
+function cleanPhone(value) {
+  return String(value || "").replace(/[^\d+]/g, "");
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
