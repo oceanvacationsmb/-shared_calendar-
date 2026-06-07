@@ -3,11 +3,12 @@
 }
 
 :root {
-  --property-width: 240px;
+  --property-width: 190px;
   --day-width: 76px;
   --row-height: 52px;
   --month-height: 28px;
   --header-height: 58px;
+  --total-days: 65;
 
   --green: #5c9d8b;
   --red-line: #f48181;
@@ -93,13 +94,17 @@ button {
 
 .dot.in,
 .dot.stay,
-.dot.out,
-.dot.turnover {
+.dot.out {
   background: var(--green);
 }
 
 .dot.empty {
   background: #111827;
+}
+
+.dot.nci {
+  background: #ffffff;
+  border: 1px dashed #111827;
 }
 
 /* Filters */
@@ -133,12 +138,91 @@ button {
   border-color: #111827;
 }
 
+.list-btn {
+  background: #fef08a;
+  border-color: #ca8a04;
+  color: #111827;
+}
+
+.list-btn.active {
+  background: #ca8a04;
+  color: #ffffff;
+  border-color: #ca8a04;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Filtered list */
+.filtered-list-panel {
+  border-bottom: 1px solid var(--border);
+  background: #fffef2;
+  padding: 10px 18px;
+}
+
+.filtered-list-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+#filteredListCount {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.filtered-list-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.filtered-item {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.filtered-item-title {
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.filtered-item-dates {
+  color: #374151;
+  font-weight: 700;
+}
+
+.filtered-item-tags {
+  margin-top: 4px;
+  color: #111827;
+  font-weight: 900;
+}
+
+.filtered-item-guest {
+  margin-top: 4px;
+  color: #111827;
+  font-weight: 800;
+}
+
 /* Layout */
 .calendar-shell {
   display: grid;
   grid-template-columns: var(--property-width) 1fr;
   height: calc(100vh - 162px);
   overflow: hidden;
+}
+
+body.list-open .calendar-shell {
+  height: calc(100vh - 295px);
 }
 
 .property-side {
@@ -152,7 +236,7 @@ button {
   border-bottom: 1px solid var(--row-line);
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 10px;
   font-size: 12px;
   font-weight: bold;
   color: var(--muted);
@@ -178,9 +262,9 @@ button {
   border-bottom: 1px solid var(--row-line);
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 600;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
   color: #111827;
   white-space: nowrap;
   overflow: hidden;
@@ -196,7 +280,7 @@ button {
 }
 
 .calendar {
-  min-width: calc(95 * var(--day-width));
+  min-width: calc(var(--total-days) * var(--day-width));
   position: relative;
 }
 
@@ -241,7 +325,7 @@ button {
   z-index: 30;
   height: var(--header-height);
   display: grid;
-  grid-template-columns: repeat(95, var(--day-width));
+  grid-template-columns: repeat(var(--total-days), var(--day-width));
   background: white;
   border-bottom: 1px solid var(--border);
 }
@@ -294,7 +378,7 @@ button {
 .calendar-row {
   height: var(--row-height);
   display: grid;
-  grid-template-columns: repeat(95, var(--day-width));
+  grid-template-columns: repeat(var(--total-days), var(--day-width));
   border-bottom: 1px solid var(--row-line);
   position: relative;
   background: white;
@@ -319,7 +403,7 @@ button {
   user-select: none;
 }
 
-/* NCI = no check-in after checkout */
+/* NCI */
 .nci-half {
   position: absolute;
   top: 10px;
@@ -378,7 +462,7 @@ button {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .bar-text.left {
@@ -399,6 +483,16 @@ button {
   letter-spacing: 0.2px;
 }
 
+.guest-call {
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 900;
+}
+
+.guest-call:hover {
+  text-decoration: underline;
+}
+
 /* Loading */
 .loading,
 .error {
@@ -413,7 +507,7 @@ button {
 /* Mobile */
 @media (max-width: 800px) {
   :root {
-    --property-width: 155px;
+    --property-width: 135px;
     --day-width: 66px;
     --row-height: 48px;
     --month-height: 26px;
@@ -446,18 +540,26 @@ button {
     padding: 7px 10px;
   }
 
+  .filtered-list-panel {
+    padding: 8px 10px;
+  }
+
   .calendar-shell {
     height: calc(100vh - 164px);
   }
 
+  body.list-open .calendar-shell {
+    height: calc(100vh - 310px);
+  }
+
   .property-row {
-    font-size: 11px;
-    padding: 0 8px;
+    font-size: 10px;
+    padding: 0 6px;
   }
 
   .property-head {
-    font-size: 11px;
-    padding: 0 8px;
+    font-size: 10px;
+    padding: 0 6px;
   }
 
   .bar-text {
