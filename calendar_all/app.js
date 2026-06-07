@@ -1,5 +1,5 @@
 const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
-const DAYS_TO_SHOW = 90;
+const DAYS_TO_SHOW = 185;
 const DAYS_BEFORE_TODAY = 5;
 
 const calendarEl = document.getElementById("calendar");
