@@ -12,15 +12,21 @@
   --white: #ffffff;
   --text: #1f2937;
   --muted: #6b7280;
+
   --green: #dcfce7;
   --green-text: #166534;
+
   --blue: #dbeafe;
   --blue-text: #1e3a8a;
+
   --red: #fee2e2;
   --red-text: #991b1b;
+
+  --orange-border: #fb923c;
   --brand: #0f766e;
 }
 
+/* Page */
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -32,6 +38,7 @@ body {
   padding: 12px;
 }
 
+/* Header */
 .top-bar {
   display: flex;
   justify-content: space-between;
@@ -69,6 +76,7 @@ button:hover {
   background: #115e59;
 }
 
+/* Legend */
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -87,12 +95,33 @@ button:hover {
   font-weight: bold;
 }
 
+/* Legend colors */
+.legend-pill.checkin,
+.checkin {
+  background: var(--green);
+  color: var(--green-text);
+}
+
+.legend-pill.stay,
+.stay {
+  background: var(--blue);
+  color: var(--blue-text);
+}
+
+.legend-pill.checkout,
+.checkout {
+  background: var(--red);
+  color: var(--red-text);
+}
+
+/* Legend split sample */
 .legend-pill.turnover-demo {
   display: flex;
   gap: 0;
   padding: 0;
   overflow: hidden;
-  border: 1px solid #fb923c;
+  border: 1px solid var(--orange-border);
+  border-radius: 8px;
 }
 
 .legend-pill.turnover-demo span {
@@ -104,6 +133,7 @@ button:hover {
 .legend-pill.turnover-demo span:first-child {
   background: var(--red);
   color: var(--red-text);
+  border-right: 1px solid var(--orange-border);
 }
 
 .legend-pill.turnover-demo span:last-child {
@@ -111,12 +141,14 @@ button:hover {
   color: var(--green-text);
 }
 
+/* Note */
 .scroll-note {
   color: var(--muted);
   font-size: 13px;
   margin: 0 0 8px 4px;
 }
 
+/* Main calendar box */
 .calendar-wrap {
   overflow: auto;
   max-height: calc(100vh - 145px);
@@ -127,10 +159,12 @@ button:hover {
   outline: none;
 }
 
+/* 1 left property column + 14 date columns */
 .calendar {
   min-width: calc(var(--left-col) + (14 * var(--day-col)));
 }
 
+/* Rows */
 .calendar-row {
   display: grid;
   grid-template-columns: var(--left-col) repeat(14, var(--day-col));
@@ -141,6 +175,7 @@ button:hover {
   border-bottom: none;
 }
 
+/* Sticky date row */
 .date-row {
   position: sticky;
   top: 0;
@@ -148,6 +183,7 @@ button:hover {
   background: #f9fafb;
 }
 
+/* Sticky property column */
 .property-cell {
   position: sticky;
   left: 0;
@@ -164,12 +200,14 @@ button:hover {
   box-shadow: 3px 0 8px rgba(0,0,0,0.04);
 }
 
+/* Top-left Property cell */
 .date-row .property-cell {
   z-index: 80;
   background: #f9fafb;
   min-height: var(--header-height);
 }
 
+/* Date headers */
 .date-cell {
   background: #f9fafb;
   border-right: 1px solid var(--border);
@@ -194,6 +232,7 @@ button:hover {
   color: #065f46;
 }
 
+/* Date boxes */
 .day-cell {
   border-right: 1px solid var(--border);
   min-height: var(--row-height);
@@ -205,6 +244,7 @@ button:hover {
   background: #ecfdf5;
 }
 
+/* Events */
 .event {
   width: 100%;
   min-height: 42px;
@@ -218,26 +258,11 @@ button:hover {
   overflow: hidden;
 }
 
-.checkin {
-  background: var(--green);
-  color: var(--green-text);
-}
-
-.stay {
-  background: var(--blue);
-  color: var(--blue-text);
-}
-
-.checkout {
-  background: var(--red);
-  color: var(--red-text);
-}
-
-/* same-day checkout/check-in split box */
+/* Same-day checkout/check-in split box */
 .turnover {
   padding: 0;
   background: transparent;
-  border: 1px solid #fb923c;
+  border: 1px solid var(--orange-border);
 }
 
 .turnover-half {
@@ -249,12 +274,13 @@ button:hover {
   font-size: 10px;
   font-weight: bold;
   line-height: 1.1;
+  text-align: center;
 }
 
 .turnover-checkout {
   background: var(--red);
   color: var(--red-text);
-  border-right: 1px solid #fb923c;
+  border-right: 1px solid var(--orange-border);
 }
 
 .turnover-checkin {
@@ -262,6 +288,7 @@ button:hover {
   color: var(--green-text);
 }
 
+/* Empty */
 .empty {
   color: #cbd5e1;
   font-size: 12px;
@@ -269,6 +296,7 @@ button:hover {
   padding-top: 18px;
 }
 
+/* Loading / Error */
 .loading,
 .error {
   padding: 20px;
@@ -279,11 +307,13 @@ button:hover {
   color: var(--red-text);
 }
 
+/* Tablet */
 @media (max-width: 900px) {
   :root {
     --left-col: 210px;
     --day-col: 95px;
     --row-height: 58px;
+    --header-height: 56px;
   }
 
   .app-shell {
@@ -321,6 +351,7 @@ button:hover {
   }
 }
 
+/* Mobile */
 @media (max-width: 520px) {
   :root {
     --left-col: 165px;
