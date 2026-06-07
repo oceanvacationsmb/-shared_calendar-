@@ -124,7 +124,21 @@ button {
 }
 
 #propertyList {
-  overflow: hidden;
+  height: calc(100% - var(--header-height));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+#propertyList::-webkit-scrollbar {
+  display: none;
+}
+
+.calendar-wrap {
+  overflow: auto;
+  background: white;
+  -webkit-overflow-scrolling: touch;
 }
 
 .property-row {
