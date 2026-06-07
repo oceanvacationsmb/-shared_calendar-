@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>All Properties Calendar | Ocean Vacations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div>
+        <h1>All Properties Calendar</h1>
+        <p>Confirmed guest stays for all properties</p>
+      </div>
+
+      <button id="todayBtn">Today</button>
+    </header>
+
+    <div class="legend">
+      <span><b class="dot stay"></b> Guest stay</span>
+      <span><b class="dot in"></b> Check-in</span>
+      <span><b class="dot out"></b> Checkout</span>
+      <span><b class="dot turnover"></b> Checkout / Check-in</span>
+      <span><b class="dot empty"></b> No stay</span>
+    </div>
+
+    <main class="calendar-shell">
+      <aside class="property-side">
+        <div class="property-head">Property</div>
+        <div id="propertyList"></div>
+      </aside>
+
+      <section id="calendarWrap" class="calendar-wrap">
+        <div id="calendar" class="calendar">
+          <div class="loading">Loading calendar...</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
