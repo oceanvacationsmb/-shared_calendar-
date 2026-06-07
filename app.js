@@ -14,13 +14,6 @@ todayBtn.addEventListener("click", () => {
   });
 });
 
-calendarWrap.addEventListener("wheel", event => {
-  if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-    calendarWrap.scrollLeft += event.deltaY;
-    event.preventDefault();
-  }
-}, { passive: false });
-
 window.addEventListener("keydown", event => {
   if (event.key === "ArrowRight") {
     calendarWrap.scrollLeft += 140;
