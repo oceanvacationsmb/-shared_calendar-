@@ -9,8 +9,7 @@
   --header-height: 54px;
 
   --green: #5c9d8b;
-  --green-dark: #4c8d7b;
-  --red: #e76f6f;
+  --red-line: #f48181;
   --pink: #ec4899;
   --border: #e5e7eb;
   --soft: #f8fafc;
@@ -244,102 +243,72 @@ body {
   font-size: 10px;
 }
 
-.event {
+/* One continuous reservation bar */
+.booking-bar {
+  position: absolute;
+  top: 9px;
   height: 28px;
-  margin-top: 9px;
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
+  background: var(--green);
+  color: #ffffff;
+  z-index: 4;
   display: flex;
   align-items: center;
   overflow: hidden;
   white-space: nowrap;
-  position: relative;
+  font-size: 10px;
+  font-weight: 700;
 }
 
-.stay {
-  background: var(--green);
-  border-radius: 0;
-  justify-content: center;
+.booking-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--red-line);
+  z-index: 5;
 }
 
-.checkin {
-  background: var(--green);
+.booking-bar.starts {
   border-radius: 16px 0 0 16px;
-  margin-left: 4px;
-  justify-content: center;
 }
 
-.checkout {
-  background: var(--green);
+.booking-bar.ends {
   border-radius: 0 16px 16px 0;
-  margin-right: 4px;
-  justify-content: center;
 }
 
-.event-label {
-  padding: 0 5px;
+.booking-bar.starts.ends {
+  border-radius: 16px;
+}
+
+.booking-label {
+  width: 100%;
+  padding: 0 8px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.checkin::before,
-.stay::before,
-.checkout::before {
-  content: "";
-  position: absolute;
-  top: -3px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: #f48181;
-  border-radius: 4px;
+.booking-label.checkin-label {
+  text-align: left;
 }
 
-.turnover {
-  height: 28px;
-  margin: 9px 3px 0;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
-  gap: 3px;
+.booking-label.checkout-label {
+  text-align: right;
 }
 
-.turnover-piece {
-  height: 28px;
-  width: 50%;
-  color: white;
-  font-size: 9px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
+.booking-label.stay-label {
+  text-align: center;
 }
 
-.turnover-checkout-piece {
-  background: var(--green);
-  border-radius: 0 16px 16px 0;
+.booking-label.turnover-out {
+  text-align: right;
+  padding-right: 7px;
 }
 
-.turnover-checkin-piece {
-  background: var(--green);
-  border-radius: 16px 0 0 16px;
-}
-
-.turnover-checkout-piece::before,
-.turnover-checkin-piece::before {
-  content: "";
-  position: absolute;
-  top: -3px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: #f48181;
-  border-radius: 4px;
+.booking-label.turnover-in {
+  text-align: left;
+  padding-left: 7px;
 }
 
 .loading,
@@ -383,12 +352,9 @@ body {
     font-size: 11px;
   }
 
-  .event {
+  .booking-bar {
+    height: 27px;
     font-size: 9px;
-  }
-
-  .turnover-piece {
-    font-size: 8px;
   }
 }
 
@@ -417,6 +383,12 @@ body {
   }
 
   .no-guest {
+    font-size: 8px;
+  }
+
+  .booking-bar {
+    height: 26px;
+    top: 8px;
     font-size: 8px;
   }
 }
