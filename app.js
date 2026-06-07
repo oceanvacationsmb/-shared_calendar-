@@ -169,7 +169,7 @@ function renderCalendar() {
       if (!isCoveredByAnyBooking(property, date)) {
         const empty = document.createElement("div");
         empty.className = "no-stay";
-        empty.textContent = "No stay";
+        empty.textContent = "NO STAY";
         dayCell.appendChild(empty);
       }
 
