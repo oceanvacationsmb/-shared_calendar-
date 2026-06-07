@@ -5,16 +5,43 @@ const calendarEl = document.getElementById("calendar");
 const calendarWrap = document.getElementById("calendarWrap");
 const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
+const showAllBtn = document.getElementById("showAllBtn");
+const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
+const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 
 let dates = [];
 let properties = [];
 let isSyncingScroll = false;
+
+let activeFilters = {
+  elevator: false,
+  confPmt: false
+};
 
 todayBtn.addEventListener("click", () => {
   calendarWrap.scrollTo({
     left: 0,
     behavior: "smooth"
   });
+});
+
+showAllBtn.addEventListener("click", () => {
+  activeFilters.elevator = false;
+  activeFilters.confPmt = false;
+  updateFilterButtons();
+  render();
+});
+
+elevatorFilterBtn.addEventListener("click", () => {
+  activeFilters.elevator = !activeFilters.elevator;
+  updateFilterButtons();
+  render();
+});
+
+confPmtFilterBtn.addEventListener("click", () => {
+  activeFilters.confPmt = !activeFilters.confPmt;
+  updateFilterButtons();
+  render();
 });
 
 calendarWrap.addEventListener("scroll", () => {
@@ -118,7 +145,9 @@ function render() {
 function renderProperties() {
   propertyListEl.innerHTML = "";
 
-  properties.forEach(property => {
+  const visibleProperties = getVisibleProperties();
+
+  visibleProperties.forEach(property => {
     const row = document.createElement("div");
     row.className = "property-row";
     row.textContent = property.nickname || property.name || "Property";
@@ -140,9 +169,9 @@ function renderCalendar() {
     calendarEl.appendChild(line);
   }
 
-  properties.forEach(property => {
-    const row = document.createElement("div");
-    row.className = "calendar-row";
+  getVisibleProperties().forEach(property => {
+  const row = document.createElement("div");
+  row.className = "calendar-row";
 
     dates.forEach(date => {
       const dayCell = document.createElement("div");
@@ -205,7 +234,7 @@ function renderBookingBars(row, property) {
     ? [...property.bookings].sort((a, b) => a.checkIn.localeCompare(b.checkIn))
     : [];
 
-  bookings.forEach(booking => {
+    bookings.filter(matchesActiveFilters).forEach(booking => {
     if (!booking.checkIn || !booking.checkOut) return;
 
     const checkInIndex = dates.indexOf(booking.checkIn);
@@ -303,9 +332,48 @@ if (widthUnits >= 3) {
 function isCoveredByAnyBooking(property, date) {
   const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
-  return bookings.some(booking => {
+  return bookings.filter(matchesActiveFilters).some(booking => {
     if (!booking.checkIn || !booking.checkOut) return false;
 
     return date >= booking.checkIn && date <= booking.checkOut;
   });
+}
+
+function hasAnyActiveFilter() {
+  return activeFilters.elevator || activeFilters.confPmt;
+}
+
+function matchesActiveFilters(booking) {
+  if (!hasAnyActiveFilter()) return true;
+
+  if (activeFilters.elevator && booking.elevator) return true;
+  if (activeFilters.confPmt && booking.confPmt) return true;
+
+  return false;
+}
+
+function getVisibleProperties() {
+  if (!hasAnyActiveFilter()) {
+    return properties;
+  }
+
+  return properties.filter(property => {
+    const bookings = Array.isArray(property.bookings) ? property.bookings : [];
+
+    return bookings.some(booking => {
+      if (!matchesActiveFilters(booking)) return false;
+      if (!booking.checkIn || !booking.checkOut) return false;
+
+      const firstDate = dates[0];
+      const lastDate = dates[dates.length - 1];
+
+      return booking.checkOut >= firstDate && booking.checkIn <= lastDate;
+    });
+  });
+}
+
+function updateFilterButtons() {
+  showAllBtn.classList.toggle("active", !hasAnyActiveFilter());
+  elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
+  confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
 }
