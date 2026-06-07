@@ -143,6 +143,31 @@ function getDayDate(day) {
   );
 }
 
+function getBookingKey(day) {
+  const reservation =
+    day.reservation ||
+    day.booking ||
+    day.reservationData ||
+    day.bookingData ||
+    null;
+
+  return (
+    day.reservationId ||
+    day.reservation_id ||
+    day.bookingId ||
+    day.booking_id ||
+    day.confirmationCode ||
+    day.confirmation_code ||
+    day.blockId ||
+    day.block_id ||
+    reservation?._id ||
+    reservation?.id ||
+    reservation?.reservationId ||
+    reservation?.bookingId ||
+    null
+  );
+}
+
 function isBookedDay(day) {
   const status = String(
     day.status ||
@@ -152,7 +177,8 @@ function isBookedDay(day) {
     ""
   ).toLowerCase();
 
-  if (day.reservationId || day.reservation || day.bookingId || day.booking) return true;
+  if (getBookingKey(day)) return true;
+  if (day.reservation || day.booking) return true;
   if (day.isAvailable === false) return true;
   if (day.available === false) return true;
   if (day.booked === true) return true;
@@ -169,7 +195,8 @@ function normalizeBookingsFromCalendar(rawData) {
   const days = getCalendarDays(rawData)
     .map(day => ({
       date: getDayDate(day),
-      booked: isBookedDay(day)
+      booked: isBookedDay(day),
+      bookingKey: getBookingKey(day)
     }))
     .filter(day => day.date)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -178,26 +205,55 @@ function normalizeBookingsFromCalendar(rawData) {
   let currentBooking = null;
 
   for (const day of days) {
-    if (day.booked && !currentBooking) {
+    if (!day.booked) {
+      if (currentBooking) {
+        bookings.push(currentBooking);
+        currentBooking = null;
+      }
+      continue;
+    }
+
+    if (!currentBooking) {
       currentBooking = {
         checkIn: day.date,
-        checkOut: addDays(day.date, 1)
+        checkOut: addDays(day.date, 1),
+        bookingKey: day.bookingKey || null
       };
       continue;
     }
 
-    if (day.booked && currentBooking) {
+    const sameBooking =
+      currentBooking.bookingKey &&
+      day.bookingKey &&
+      currentBooking.bookingKey === day.bookingKey;
+
+    const noBookingKeys =
+      !currentBooking.bookingKey &&
+      !day.bookingKey;
+
+    if (sameBooking || noBookingKeys) {
       currentBooking.checkOut = addDays(day.date, 1);
       continue;
     }
 
-    if (!day.booked && currentBooking) {
-      bookings.push(currentBooking);
-      currentBooking = null;
-    }
+    // Different reservation starts immediately after previous reservation.
+    // This creates checkout/check-in on the same date.
+    bookings.push({
+      checkIn: currentBooking.checkIn,
+      checkOut: day.date,
+      bookingKey: currentBooking.bookingKey || null
+    });
+
+    currentBooking = {
+      checkIn: day.date,
+      checkOut: addDays(day.date, 1),
+      bookingKey: day.bookingKey || null
+    };
   }
 
-  if (currentBooking) bookings.push(currentBooking);
+  if (currentBooking) {
+    bookings.push(currentBooking);
+  }
 
   return bookings;
 }
