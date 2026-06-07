@@ -267,12 +267,17 @@ function renderMonthHeader() {
   });
 
   groups.forEach(group => {
-    const cell = document.createElement("div");
-    cell.className = "month-cell";
-    cell.textContent = group.month;
-    cell.style.width = `calc(${group.count} * var(--day-width))`;
-    monthRow.appendChild(cell);
-  });
+  const cell = document.createElement("div");
+  cell.className = "month-cell";
+  cell.style.width = `calc(${group.count} * var(--day-width))`;
+
+  const label = document.createElement("span");
+  label.className = "month-label";
+  label.textContent = group.month;
+
+  cell.appendChild(label);
+  monthRow.appendChild(cell);
+});
 
   calendarEl.appendChild(monthRow);
 }
