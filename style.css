@@ -9,6 +9,7 @@
   --header-height: 54px;
 
   --green: #5c9d8b;
+  --green-dark: #4c8d7b;
   --red-line: #f48181;
   --pink: #ec4899;
   --border: #e5e7eb;
@@ -243,7 +244,7 @@ body {
   font-size: 10px;
 }
 
-/* One continuous reservation bar */
+/* Continuous reservation bar */
 .booking-bar {
   position: absolute;
   top: 9px;
@@ -283,32 +284,37 @@ body {
 }
 
 .booking-label {
-  width: 100%;
-  padding: 0 8px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  position: absolute;
+  z-index: 6;
+  top: 7px;
+  font-size: 10px;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+  pointer-events: none;
 }
 
-.booking-label.checkin-label {
-  text-align: left;
+.booking-label-left {
+  left: 10px;
 }
 
-.booking-label.checkout-label {
-  text-align: right;
+.booking-label-center {
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.95;
 }
 
-.booking-label.stay-label {
-  text-align: center;
+.booking-label-right {
+  right: 10px;
 }
 
-.booking-label.turnover-out {
-  text-align: right;
-  padding-right: 7px;
+/* Same-day checkout/check-in split */
+.booking-bar.ends.same-day-out {
+  border-radius: 0 16px 16px 0;
 }
 
-.booking-label.turnover-in {
-  text-align: left;
-  padding-left: 7px;
+.booking-bar.starts.same-day-in {
+  border-radius: 16px 0 0 16px;
 }
 
 .loading,
@@ -356,6 +362,10 @@ body {
     height: 27px;
     font-size: 9px;
   }
+
+  .booking-label {
+    font-size: 8px;
+  }
 }
 
 @media (max-width: 560px) {
@@ -389,6 +399,17 @@ body {
   .booking-bar {
     height: 26px;
     top: 8px;
-    font-size: 8px;
+  }
+
+  .booking-label {
+    font-size: 7px;
+  }
+
+  .booking-label-left {
+    left: 6px;
+  }
+
+  .booking-label-right {
+    right: 6px;
   }
 }
