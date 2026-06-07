@@ -729,7 +729,6 @@ function getPropertyArea(property) {
   if (city === "myrtle beach") return "MB";
   if (city === "north myrtle beach") return "NMB";
   if (city === "surfside beach") return "SSB";
-  if (city === "garden city") return "GC";
   if (city === "murrells inlet") return "MI";
 
   const text = [
