@@ -8,6 +8,7 @@ const propertyListEl = document.getElementById("propertyList");
 
 let dates = [];
 let properties = [];
+let isSyncingScroll = false;
 
 todayBtn.addEventListener("click", () => {
   calendarWrap.scrollTo({
@@ -16,9 +17,43 @@ todayBtn.addEventListener("click", () => {
   });
 });
 
+/* Keep property names locked/synced with calendar rows */
 calendarWrap.addEventListener("scroll", () => {
+  if (isSyncingScroll) return;
+
+  isSyncingScroll = true;
   propertyListEl.scrollTop = calendarWrap.scrollTop;
+  requestAnimationFrame(() => {
+    isSyncingScroll = false;
+  });
 });
+
+propertyListEl.addEventListener("scroll", () => {
+  if (isSyncingScroll) return;
+
+  isSyncingScroll = true;
+  calendarWrap.scrollTop = propertyListEl.scrollTop;
+  requestAnimationFrame(() => {
+    isSyncingScroll = false;
+  });
+});
+
+/* Mobile touch support */
+propertyListEl.addEventListener(
+  "touchmove",
+  () => {
+    calendarWrap.scrollTop = propertyListEl.scrollTop;
+  },
+  { passive: true }
+);
+
+calendarWrap.addEventListener(
+  "touchmove",
+  () => {
+    propertyListEl.scrollTop = calendarWrap.scrollTop;
+  },
+  { passive: true }
+);
 
 loadCalendar();
 
@@ -43,9 +78,11 @@ function addDays(dateString, days) {
 
 function buildDates(start, count) {
   const arr = [];
+
   for (let i = 0; i < count; i++) {
     arr.push(addDays(start, i));
   }
+
   return arr;
 }
 
@@ -145,7 +182,8 @@ function renderCalendar() {
   });
 
   calendarWrap.scrollLeft = 0;
-  propertyListEl.scrollTop = calendarWrap.scrollTop;
+  calendarWrap.scrollTop = 0;
+  propertyListEl.scrollTop = 0;
 }
 
 function renderDateHeader() {
@@ -209,7 +247,6 @@ function renderBookingBars(row, property) {
     let leftUnit = startsVisible ? checkInIndex : 0;
     let rightUnit = endsVisible ? checkOutIndex + 1 : dates.length;
 
-    // create visible gap:  )   (
     if (startsVisible && hasCheckoutSameDayBefore) {
       leftUnit = checkInIndex + 0.58;
     }
@@ -225,12 +262,6 @@ function renderBookingBars(row, property) {
     const bar = document.createElement("div");
     bar.className = "booking-bar";
 
-    /*
-      FIX:
-      - if both ends are visible -> full-round
-      - if only left visible -> start-round
-      - if only right visible -> end-round
-    */
     if (startsVisible && endsVisible) {
       bar.classList.add("full-round");
     } else if (startsVisible) {
@@ -272,6 +303,7 @@ function isCoveredByAnyBooking(property, date) {
 
   return bookings.some(booking => {
     if (!booking.checkIn || !booking.checkOut) return false;
+
     return date >= booking.checkIn && date <= booking.checkOut;
   });
 }
