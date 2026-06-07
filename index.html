@@ -7,28 +7,30 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <header class="top-bar">
-      <div class="title-box">
+  <div class="page">
+    <header class="header">
+      <div>
         <h1>Shared Calendar</h1>
         <p>Pool / Pest Control Schedule</p>
       </div>
 
-      <div class="top-actions">
-        <input id="searchInput" type="text" placeholder="Search property..." />
-        <span id="resultCount" class="result-count">Loading...</span>
-        <button id="clearSearchBtn" class="clear-btn">Clear</button>
-        <button id="todayBtn" class="today-btn">Today</button>
-      </div>
+      <button id="todayBtn">Today</button>
     </header>
 
+    <div class="legend">
+      <span><b class="dot in"></b> Check-in</span>
+      <span><b class="dot stay"></b> Guest stay</span>
+      <span><b class="dot out"></b> Checkout</span>
+      <span><b class="dot turnover"></b> Checkout / Check-in</span>
+    </div>
+
     <main class="calendar-shell">
-      <aside class="property-panel">
-        <div class="property-header">Property</div>
-        <div id="propertyList" class="property-list"></div>
+      <aside class="property-side">
+        <div class="property-head">Property</div>
+        <div id="propertyList"></div>
       </aside>
 
-      <section id="calendarWrap" class="calendar-wrap" tabindex="0">
+      <section id="calendarWrap" class="calendar-wrap">
         <div id="calendar" class="calendar">
           <div class="loading">Loading calendar...</div>
         </div>
