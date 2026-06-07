@@ -1,5 +1,5 @@
 const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
-const DAYS_TO_SHOW = 185;
+const DAYS_TO_SHOW = 90;
 const DAYS_BEFORE_TODAY = 5;
 
 const calendarEl = document.getElementById("calendar");
@@ -139,7 +139,19 @@ async function loadCalendar() {
   dates = buildDates(start, DAYS_TO_SHOW + DAYS_BEFORE_TODAY);
 
   try {
-    const res = await fetch(`${API_URL}?start=${start}&end=${end}`);
+    const controller = new AbortController();
+
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, 25000);
+
+    const res = await fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+
     const data = await res.json();
 
     if (!res.ok || !data.ok) {
@@ -152,7 +164,7 @@ async function loadCalendar() {
     calendarEl.innerHTML = `
       <div class="error">
         Calendar failed to load.<br>
-        ${err.message}
+        ${err.name === "AbortError" ? "Request timed out. Refresh once." : err.message}
       </div>
     `;
   }
@@ -206,7 +218,7 @@ function renderCalendar() {
       if (!isCoveredByAnyBooking(property, date)) {
         const empty = document.createElement("div");
         empty.className = "no-stay";
-        empty.textContent = "NO STAY";
+        empty.textContent = "No stay";
         dayCell.appendChild(empty);
       }
 
@@ -218,15 +230,15 @@ function renderCalendar() {
   });
 
   calendarWrap.scrollTop = 0;
-propertyListEl.scrollTop = 0;
+  propertyListEl.scrollTop = 0;
 
-setTimeout(() => {
-  scrollToToday(false);
-}, 100);
+  setTimeout(() => {
+    scrollToToday(false);
+  }, 100);
 
-setTimeout(() => {
-  scrollToToday(false);
-}, 500);
+  setTimeout(() => {
+    scrollToToday(false);
+  }, 500);
 }
 
 function renderDateHeader() {
@@ -300,7 +312,9 @@ function renderBookingBars(row, property) {
     ? [...property.bookings].sort((a, b) => a.checkIn.localeCompare(b.checkIn))
     : [];
 
-  bookings.filter(matchesActiveFilters).forEach(booking => {
+  const visibleBookings = bookings.filter(matchesActiveFilters);
+
+  visibleBookings.forEach(booking => {
     if (!booking.checkIn || !booking.checkOut) return;
 
     const checkInIndex = dates.indexOf(booking.checkIn);
@@ -316,15 +330,10 @@ function renderBookingBars(row, property) {
     const startsVisible = checkInIndex >= 0;
     const endsVisible = checkOutIndex >= 0;
 
-    const hasCheckinSameDayAfter = bookings.filter(matchesActiveFilters).some(other =>
+    const hasCheckinSameDayAfter = visibleBookings.some(other =>
       other !== booking && other.checkIn === booking.checkOut
     );
 
-    /*
-      Always half-day:
-      IN starts in the second half of check-in day.
-      OUT ends in the first half of checkout day.
-    */
     let leftUnit = startsVisible ? checkInIndex + 0.56 : 0;
     let rightUnit = endsVisible ? checkOutIndex + 0.44 : dates.length;
 
@@ -386,11 +395,6 @@ function renderBookingBars(row, property) {
 
     row.appendChild(bar);
 
-    /*
-      ONLY show NCI when:
-      - this date is a checkout date
-      - there is NO check-in on the same date
-    */
     if (endsVisible && !hasCheckinSameDayAfter) {
       renderNciHalf(row, checkOutIndex);
     }
