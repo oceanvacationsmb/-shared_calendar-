@@ -24,11 +24,9 @@ loadCalendar();
 
 function todayString() {
   const d = new Date();
-
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
@@ -81,7 +79,6 @@ async function loadCalendar() {
     }
 
     properties = data.properties || [];
-
     render();
   } catch (err) {
     calendarEl.innerHTML = `
@@ -112,6 +109,47 @@ function renderProperties() {
 function renderCalendar() {
   calendarEl.innerHTML = "";
 
+  renderDateHeader();
+
+  const todayIndex = dates.indexOf(todayString());
+  if (todayIndex >= 0) {
+    const line = document.createElement("div");
+    line.className = "today-line";
+    line.style.left = `calc(${todayIndex} * var(--day-width) + (var(--day-width) / 2))`;
+    calendarEl.appendChild(line);
+  }
+
+  properties.forEach(property => {
+    const row = document.createElement("div");
+    row.className = "calendar-row";
+
+    dates.forEach(date => {
+      const dayCell = document.createElement("div");
+      dayCell.className = "day-cell";
+
+      if (date === todayString()) {
+        dayCell.classList.add("today");
+      }
+
+      if (!isCoveredByAnyBooking(property, date)) {
+        const empty = document.createElement("div");
+        empty.className = "no-stay";
+        empty.textContent = "No stay";
+        dayCell.appendChild(empty);
+      }
+
+      row.appendChild(dayCell);
+    });
+
+    renderBookingBars(row, property);
+    calendarEl.appendChild(row);
+  });
+
+  calendarWrap.scrollLeft = 0;
+  propertyListEl.scrollTop = calendarWrap.scrollTop;
+}
+
+function renderDateHeader() {
   const headerRow = document.createElement("div");
   headerRow.className = "date-row";
 
@@ -138,73 +176,133 @@ function renderCalendar() {
   });
 
   calendarEl.appendChild(headerRow);
-
-  properties.forEach(property => {
-    const row = document.createElement("div");
-    row.className = "calendar-row";
-
-    dates.forEach(date => {
-      const dayCell = document.createElement("div");
-      dayCell.className = "day-cell";
-
-      if (date === todayString()) {
-        dayCell.classList.add("today");
-      }
-
-      const status = getStatus(property, date);
-      const box = document.createElement("div");
-
-      box.className = `status ${status.type}`;
-      box.textContent = status.label;
-
-      dayCell.appendChild(box);
-      row.appendChild(dayCell);
-    });
-
-    calendarEl.appendChild(row);
-  });
-
-  calendarWrap.scrollLeft = 0;
-  propertyListEl.scrollTop = calendarWrap.scrollTop;
 }
 
-function getStatus(property, date) {
+function renderBookingBars(row, property) {
+  const bookings = Array.isArray(property.bookings)
+    ? [...property.bookings].sort((a, b) => a.checkIn.localeCompare(b.checkIn))
+    : [];
+
+  bookings.forEach(booking => {
+    if (!booking.checkIn || !booking.checkOut) return;
+
+    const checkInIndex = dates.indexOf(booking.checkIn);
+    const checkOutIndex = dates.indexOf(booking.checkOut);
+
+    const visibleStart = dates[0];
+    const visibleEnd = dates[dates.length - 1];
+
+    if (booking.checkOut < visibleStart || booking.checkIn > visibleEnd) {
+      return;
+    }
+
+    const startsVisible = checkInIndex >= 0;
+    const endsVisible = checkOutIndex >= 0;
+
+    const sameDayPreviousCheckout = bookings.some(other =>
+      other !== booking && other.checkOut === booking.checkIn
+    );
+
+    const sameDayNextCheckin = bookings.some(other =>
+      other !== booking && other.checkIn === booking.checkOut
+    );
+
+    let leftUnit = startsVisible ? checkInIndex : 0;
+    let rightUnit = endsVisible ? checkOutIndex + 1 : dates.length;
+
+    if (startsVisible && sameDayPreviousCheckout) {
+      leftUnit = checkInIndex + 0.5;
+      renderTurnoverIn(row, checkInIndex);
+    }
+
+    if (endsVisible && sameDayNextCheckin) {
+      rightUnit = checkOutIndex + 0.5;
+      renderTurnoverOut(row, checkOutIndex);
+    }
+
+    if (rightUnit <= leftUnit) return;
+
+    const bar = document.createElement("div");
+    bar.className = "booking-bar";
+
+    if (startsVisible && !sameDayPreviousCheckout) {
+      bar.classList.add("start-round");
+    }
+
+    if (endsVisible && !sameDayNextCheckin) {
+      bar.classList.add("end-round");
+    }
+
+    if (
+      startsVisible &&
+      endsVisible &&
+      !sameDayPreviousCheckout &&
+      !sameDayNextCheckin &&
+      rightUnit - leftUnit <= 1
+    ) {
+      bar.classList.add("full-round");
+    }
+
+    bar.style.left = `calc(${leftUnit} * var(--day-width) + 2px)`;
+    bar.style.width = `calc(${rightUnit - leftUnit} * var(--day-width) - 4px)`;
+
+    const widthUnits = rightUnit - leftUnit;
+
+    if (startsVisible && !sameDayPreviousCheckout) {
+      const label = document.createElement("span");
+      label.className = "bar-text left";
+      label.textContent = "Check-in";
+      bar.appendChild(label);
+    }
+
+    if (widthUnits >= 3) {
+      const label = document.createElement("span");
+      label.className = "bar-text center";
+      label.textContent = "Guest stay";
+      bar.appendChild(label);
+    }
+
+    if (endsVisible && !sameDayNextCheckin) {
+      const label = document.createElement("span");
+      label.className = "bar-text right";
+      label.textContent = "Checkout";
+      bar.appendChild(label);
+    }
+
+    row.appendChild(bar);
+  });
+}
+
+function renderTurnoverOut(row, index) {
+  if (row.querySelector(`[data-turnover-out="${index}"]`)) return;
+
+  const div = document.createElement("div");
+  div.className = "turnover-out";
+  div.dataset.turnoverOut = index;
+  div.style.left = `calc(${index} * var(--day-width) + 2px)`;
+  div.style.width = `calc((var(--day-width) / 2) - 4px)`;
+  div.innerHTML = `<span class="turnover-text">Out</span>`;
+  row.appendChild(div);
+}
+
+function renderTurnoverIn(row, index) {
+  if (row.querySelector(`[data-turnover-in="${index}"]`)) return;
+
+  const div = document.createElement("div");
+  div.className = "turnover-in";
+  div.dataset.turnoverIn = index;
+  div.style.left = `calc(${index} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
+  div.style.width = `calc((var(--day-width) / 2) - 4px)`;
+  div.innerHTML = `<span class="turnover-text">In</span>`;
+  row.appendChild(div);
+}
+
+function isCoveredByAnyBooking(property, date) {
   const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
-  const checkout = bookings.find(b => b.checkOut === date);
-  const checkin = bookings.find(b => b.checkIn === date);
-  const stay = bookings.find(b => date > b.checkIn && date < b.checkOut);
+  return bookings.some(booking => {
+    if (!booking.checkIn || !booking.checkOut) return false;
 
-  if (checkout && checkin) {
-    return {
-      type: "turnover",
-      label: "OUT / IN"
-    };
-  }
-
-  if (checkin) {
-    return {
-      type: "checkin",
-      label: "IN"
-    };
-  }
-
-  if (stay) {
-    return {
-      type: "stay",
-      label: "STAY"
-    };
-  }
-
-  if (checkout) {
-    return {
-      type: "checkout",
-      label: "OUT"
-    };
-  }
-
-  return {
-    type: "empty",
-    label: ""
-  };
+    return date >= booking.checkIn && date <= booking.checkOut;
+  });
 }
