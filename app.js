@@ -77,15 +77,6 @@ function displayDate(dateString) {
   };
 }
 
-function monthYear(dateString) {
-  const d = new Date(dateString + "T00:00:00");
-
-  return d.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric"
-  });
-}
-
 function buildDates(start, count) {
   const arr = [];
 
@@ -204,7 +195,7 @@ function renderCalendar(properties) {
   if (todayIndex >= 0) {
     const line = document.createElement("div");
     line.className = "today-line";
-    line.style.left = `${todayIndex * 120 + 60}px`;
+    line.style.left = `calc(${todayIndex} * var(--day-col) + (var(--day-col) / 2))`;
     calendarEl.appendChild(line);
   }
 
@@ -256,59 +247,6 @@ function renderCalendar(properties) {
 }
 
 function getEventForDate(property, date) {
-  const dayFromApi = Array.isArray(property.days)
-    ? property.days.find(d => d.date === date)
-    : null;
-
-  if (dayFromApi && Array.isArray(dayFromApi.events) && dayFromApi.events.length) {
-    const hasCheckout = dayFromApi.events.some(e =>
-      String(e.type).toLowerCase() === "checkout" ||
-      String(e.label).toLowerCase().includes("checkout")
-    );
-
-    const hasCheckin = dayFromApi.events.some(e =>
-      String(e.type).toLowerCase() === "checkin" ||
-      String(e.type).toLowerCase() === "check-in" ||
-      String(e.label).toLowerCase().includes("check-in") ||
-      String(e.label).toLowerCase().includes("checkin")
-    );
-
-    if (hasCheckout && hasCheckin) {
-      return {
-        type: "turnover",
-        label: "Checkout / Check-in"
-      };
-    }
-
-    if (hasCheckout) {
-      return {
-        type: "checkout",
-        label: "Checkout"
-      };
-    }
-
-    if (hasCheckin) {
-      return {
-        type: "checkin",
-        label: "Check-in"
-      };
-    }
-
-    const hasStay = dayFromApi.events.some(e =>
-      String(e.type).toLowerCase() === "stay" ||
-      String(e.label).toLowerCase().includes("stay")
-    );
-
-    if (hasStay) {
-      return {
-        type: "stay",
-        label: "Guest stay"
-      };
-    }
-
-    return dayFromApi.events[0];
-  }
-
   if (Array.isArray(property.bookings)) {
     const checkout = property.bookings.find(b => b.checkOut === date);
     const checkin = property.bookings.find(b => b.checkIn === date);
