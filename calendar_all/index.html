@@ -5,7 +5,7 @@
   <title>All Properties Calendar | Ocean Vacations</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <link rel="stylesheet" href="./style.css?v=80" />
+  <link rel="stylesheet" href="./style.css?v=90" />
 </head>
 <body>
   <div class="page">
@@ -23,10 +23,13 @@
 
       <button id="showAllBtn" class="filter-btn active">ALL</button>
 
-      <button class="filter-btn area-btn" data-area="MB">MB</button>
-      <button class="filter-btn area-btn" data-area="NMB">NMB</button>
-      <button class="filter-btn area-btn" data-area="SSB">SSB</button>
-      <button class="filter-btn area-btn" data-area="MI">MI</button>
+      <select id="cityFilterSelect" class="city-select">
+        <option value="">City</option>
+        <option value="MB">MB</option>
+        <option value="NMB">NMB</option>
+        <option value="SSB">SSB</option>
+        <option value="MI">MI</option>
+      </select>
 
       <span class="filter-divider"></span>
 
@@ -58,6 +61,6 @@
     </main>
   </div>
 
-  <script src="./app.js?v=80"></script>
+  <script src="./app.js?v=90"></script>
 </body>
 </html>
