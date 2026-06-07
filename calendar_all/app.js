@@ -350,7 +350,7 @@ function renderBookingBars(row, property) {
       extraLabels.push("CONF PMT");
     }
 
-    if (widthUnits >= 3) {
+    if (widthUnits >= 1.4) {
       const label = document.createElement("span");
       label.className = extraLabels.length ? "bar-text center has-extra" : "bar-text center";
       label.textContent = extraLabels.length
