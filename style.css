@@ -91,10 +91,7 @@ button {
 
 .dot.in,
 .dot.stay,
-.dot.out {
-  background: var(--green);
-}
-
+.dot.out,
 .dot.turnover {
   background: var(--green);
 }
@@ -238,7 +235,7 @@ button {
   user-select: none;
 }
 
-/* Main stay bar */
+/* Main guest stay bar */
 .booking-bar {
   position: absolute;
   top: 10px;
@@ -292,38 +289,6 @@ button {
 
 .bar-text.right {
   right: 12px;
-}
-
-/* Same-day turnover = TWO rounded mini pills */
-.turnover-pill {
-  position: absolute;
-  top: 10px;
-  height: 32px;
-  background: var(--green);
-  color: white;
-  z-index: 12;
-  overflow: hidden;
-  border-radius: 18px;
-}
-
-.turnover-pill::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: var(--red-line);
-}
-
-.turnover-pill-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 10px;
-  font-weight: 800;
-  white-space: nowrap;
 }
 
 /* Loading */
@@ -383,9 +348,5 @@ button {
 
   .bar-text {
     font-size: 9px;
-  }
-
-  .turnover-pill-text {
-    font-size: 8px;
   }
 }
