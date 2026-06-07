@@ -163,6 +163,10 @@ function cleanDate(value) {
   return String(value).substring(0, 10);
 }
 
+function cleanPhone(value) {
+  return String(value || "").replace(/[^\d+]/g, "");
+}
+
 function normalizeReservation(row) {
   const status = String(
     getField(row, "status") ||
@@ -188,6 +192,36 @@ function normalizeReservation(row) {
     listingId ||
     "Property";
 
+  const listingCity = String(
+    getField(row, "listing.address.city") ||
+    getField(row, "listing.city") ||
+    getField(row, "address.city") ||
+    row?.listing?.address?.city ||
+    row?.listing?.city ||
+    row?.address?.city ||
+    ""
+  ).trim();
+
+  const guestName = String(
+    getField(row, "guest.fullName") ||
+    getField(row, "guest.name") ||
+    getField(row, "guestFullName") ||
+    getField(row, "guestName") ||
+    row?.guest?.fullName ||
+    row?.guest?.name ||
+    ""
+  ).trim();
+
+  const guestPhone = cleanPhone(
+    getField(row, "guest.phone") ||
+    getField(row, "guest.phoneNumber") ||
+    getField(row, "guestPhone") ||
+    getField(row, "phone") ||
+    row?.guest?.phone ||
+    row?.guest?.phoneNumber ||
+    ""
+  );
+
   const checkIn =
     cleanDate(getField(row, "checkInDate") || row?.checkInDate || row?.checkIn);
 
@@ -204,10 +238,13 @@ function normalizeReservation(row) {
     status,
     listingId,
     nickname,
+    listingCity,
     checkIn,
     checkOut,
     elevator,
-    confPmt
+    confPmt,
+    guestName,
+    guestPhone
   };
 }
 
@@ -242,8 +279,17 @@ function buildPropertiesFromReservations(reservations, start, end) {
         listingId: res.listingId,
         nickname: res.nickname,
         name: res.nickname,
+        city: res.listingCity,
+        listingCity: res.listingCity,
         bookings: []
       });
+    }
+
+    const property = map.get(res.listingId);
+
+    if (!property.city && res.listingCity) {
+      property.city = res.listingCity;
+      property.listingCity = res.listingCity;
     }
 
     if (
@@ -252,12 +298,15 @@ function buildPropertiesFromReservations(reservations, start, end) {
       res.checkOut &&
       overlapsRange(res.checkIn, res.checkOut, start, end)
     ) {
-      map.get(res.listingId).bookings.push({
-  checkIn: res.checkIn,
-  checkOut: res.checkOut,
-  elevator: res.elevator,
-  confPmt: res.confPmt
-});
+      property.bookings.push({
+        checkIn: res.checkIn,
+        checkOut: res.checkOut,
+        elevator: res.elevator,
+        confPmt: res.confPmt,
+        guestName: res.guestName,
+        guestPhone: res.guestPhone,
+        listingCity: res.listingCity
+      });
     }
   });
 
