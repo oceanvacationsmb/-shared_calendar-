@@ -9,14 +9,10 @@
   --header-height: 88px;
 
   --guesty-green: #5c9d8b;
-  --guesty-green-dark: #4e8d7c;
   --guesty-red: #f48181;
-  --guesty-bg: #ffffff;
   --guesty-border: #e5e7eb;
-  --guesty-soft: #f6f8fb;
   --text: #1f2937;
   --muted: #6b7280;
-  --blue: #2563eb;
 }
 
 body {
@@ -32,7 +28,6 @@ body {
   background: #ffffff;
 }
 
-/* Top filter bar */
 .guesty-top {
   height: 92px;
   display: flex;
@@ -88,7 +83,6 @@ body {
   cursor: pointer;
 }
 
-/* Main layout */
 .calendar-shell {
   display: grid;
   grid-template-columns: var(--left-col) 1fr;
@@ -96,7 +90,6 @@ body {
   overflow: hidden;
 }
 
-/* Left property panel */
 .property-panel {
   border-right: 1px solid var(--guesty-border);
   background: #ffffff;
@@ -153,12 +146,6 @@ body {
   overflow: hidden;
 }
 
-.property-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .property-info {
   min-width: 0;
 }
@@ -181,7 +168,6 @@ body {
   margin-top: 5px;
 }
 
-/* Calendar scroll area */
 .calendar-wrap {
   overflow: auto;
   background: #ffffff;
@@ -191,9 +177,9 @@ body {
 
 .calendar {
   min-width: calc(14 * var(--day-col));
+  position: relative;
 }
 
-/* Date header */
 .date-row {
   position: sticky;
   top: 0;
@@ -251,7 +237,6 @@ body {
   z-index: 10;
 }
 
-/* Rows */
 .calendar-row {
   height: var(--row-height);
   display: grid;
@@ -276,7 +261,6 @@ body {
   font-size: 13px;
 }
 
-/* Guesty-like bar pieces */
 .event {
   height: 48px;
   margin-top: 17px;
@@ -287,6 +271,7 @@ body {
   align-items: center;
   overflow: hidden;
   white-space: nowrap;
+  position: relative;
 }
 
 .stay {
@@ -328,13 +313,12 @@ body {
   flex: 0 0 auto;
 }
 
-/* Red top line like Guesty */
 .checkin::before,
 .stay::before,
 .checkout::before {
   content: "";
   position: absolute;
-  top: 13px;
+  top: -4px;
   left: 0;
   right: 0;
   height: 4px;
@@ -342,7 +326,6 @@ body {
   border-radius: 4px;
 }
 
-/* Same-date checkout/check-in split */
 .turnover {
   height: 48px;
   margin: 17px 6px 0;
@@ -371,7 +354,6 @@ body {
   background: var(--guesty-green);
 }
 
-/* Loading / error */
 .loading,
 .error {
   padding: 24px;
@@ -382,7 +364,6 @@ body {
   color: #991b1b;
 }
 
-/* Mobile / tablet */
 @media (max-width: 900px) {
   :root {
     --left-col: 260px;
