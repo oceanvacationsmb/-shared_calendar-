@@ -1,4 +1,6 @@
 const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
+const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
+
 const DAYS_TO_SHOW = 60;
 const DAYS_BEFORE_TODAY = 5;
 
@@ -7,6 +9,7 @@ const calendarWrap = document.getElementById("calendarWrap");
 const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
 
+const newTaskBtn = document.getElementById("newTaskBtn");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 const listToggleBtn = document.getElementById("listToggleBtn");
@@ -17,11 +20,27 @@ const filteredListTitle = document.getElementById("filteredListTitle");
 const filteredListCount = document.getElementById("filteredListCount");
 const filteredListBody = document.getElementById("filteredListBody");
 
+const newTaskModal = document.getElementById("newTaskModal");
+const closeNewTaskBtn = document.getElementById("closeNewTaskBtn");
+const cancelNewTaskBtn = document.getElementById("cancelNewTaskBtn");
+const saveTaskBtn = document.getElementById("saveTaskBtn");
+const taskPropertySelect = document.getElementById("taskPropertySelect");
+const taskTextInput = document.getElementById("taskTextInput");
+const newTaskError = document.getElementById("newTaskError");
+
+const viewTasksModal = document.getElementById("viewTasksModal");
+const closeViewTasksBtn = document.getElementById("closeViewTasksBtn");
+const doneViewTasksBtn = document.getElementById("doneViewTasksBtn");
+const viewTasksTitle = document.getElementById("viewTasksTitle");
+const tasksList = document.getElementById("tasksList");
+
 let dates = [];
 let properties = [];
+let tasks = [];
 let isSyncingScroll = false;
 let isListOpen = false;
 let renderTimer = null;
+let selectedTaskProperty = null;
 
 let activeFilters = {
   elevator: false,
@@ -31,6 +50,32 @@ let activeFilters = {
 
 todayBtn.addEventListener("click", () => {
   scrollToToday(true);
+});
+
+newTaskBtn.addEventListener("click", () => {
+  openNewTaskModal();
+});
+
+closeNewTaskBtn.addEventListener("click", closeNewTaskModal);
+cancelNewTaskBtn.addEventListener("click", closeNewTaskModal);
+
+saveTaskBtn.addEventListener("click", () => {
+  saveNewTask();
+});
+
+closeViewTasksBtn.addEventListener("click", closeViewTasksModal);
+doneViewTasksBtn.addEventListener("click", closeViewTasksModal);
+
+newTaskModal.addEventListener("click", event => {
+  if (event.target === newTaskModal) {
+    closeNewTaskModal();
+  }
+});
+
+viewTasksModal.addEventListener("click", event => {
+  if (event.target === viewTasksModal) {
+    closeViewTasksModal();
+  }
 });
 
 cityFilterSelect.addEventListener("change", () => {
@@ -176,21 +221,35 @@ async function loadCalendar() {
       controller.abort();
     }, 25000);
 
-    const res = await fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
-      cache: "no-store",
-      signal: controller.signal
-    });
+    const [calendarResponse, tasksResponse] = await Promise.all([
+      fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
+        cache: "no-store",
+        signal: controller.signal
+      }),
+      fetch(`${TASKS_API_URL}?v=${Date.now()}`, {
+        cache: "no-store",
+        signal: controller.signal
+      })
+    ]);
 
     clearTimeout(timeout);
 
-    const data = await res.json();
+    const data = await calendarResponse.json();
+    const tasksData = await tasksResponse.json();
 
-    if (!res.ok || !data.ok) {
+    if (!calendarResponse.ok || !data.ok) {
       throw new Error(data.message || "Calendar API error");
     }
 
+    if (!tasksResponse.ok || !tasksData.ok) {
+      throw new Error(tasksData.message || "Tasks API error");
+    }
+
     properties = data.properties || [];
+    tasks = tasksData.tasks || [];
+
     render();
+    fillTaskPropertySelect();
 
     setTimeout(() => {
       scrollToToday(false);
@@ -207,6 +266,21 @@ async function loadCalendar() {
       </div>
     `;
   }
+}
+
+async function reloadTasksOnly() {
+  const res = await fetch(`${TASKS_API_URL}?v=${Date.now()}`, {
+    cache: "no-store"
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data.ok) {
+    throw new Error(data.message || "Failed to reload tasks");
+  }
+
+  tasks = data.tasks || [];
+  render({ preserveScroll: true });
 }
 
 function render(options = {}) {
@@ -231,7 +305,26 @@ function renderProperties() {
   getVisibleProperties().forEach(property => {
     const row = document.createElement("div");
     row.className = "property-row";
-    row.textContent = property.nickname || property.name || "Property";
+
+    const name = document.createElement("div");
+    name.className = "property-name";
+    name.textContent = property.nickname || property.name || "Property";
+    row.appendChild(name);
+
+    const propertyTasks = getTasksForProperty(property);
+
+    if (propertyTasks.length) {
+      const badge = document.createElement("button");
+      badge.className = "task-badge";
+      badge.textContent = propertyTasks.length === 1 ? "TASK" : `TASKS (${propertyTasks.length})`;
+      badge.addEventListener("click", event => {
+        event.stopPropagation();
+        openViewTasksModal(property);
+      });
+
+      row.appendChild(badge);
+    }
+
     propertyListEl.appendChild(row);
   });
 }
@@ -742,6 +835,181 @@ function getPropertyArea(property) {
 
   return "MB";
 }
+
+/* Tasks */
+
+function fillTaskPropertySelect() {
+  taskPropertySelect.innerHTML = `<option value="">Select property</option>`;
+
+  properties.forEach(property => {
+    const option = document.createElement("option");
+    option.value = property.listingId;
+    option.textContent = property.nickname || property.name || "Property";
+    taskPropertySelect.appendChild(option);
+  });
+}
+
+function openNewTaskModal() {
+  newTaskError.classList.add("hidden");
+  newTaskError.textContent = "";
+  taskPropertySelect.value = "";
+  taskTextInput.value = "";
+  newTaskModal.classList.remove("hidden");
+}
+
+function closeNewTaskModal() {
+  newTaskModal.classList.add("hidden");
+}
+
+async function saveNewTask() {
+  const listingId = taskPropertySelect.value;
+  const property = properties.find(p => p.listingId === listingId);
+  const taskText = taskTextInput.value.trim();
+
+  newTaskError.classList.add("hidden");
+  newTaskError.textContent = "";
+
+  if (!listingId) {
+    showNewTaskError("Please pick a property.");
+    return;
+  }
+
+  if (!taskText) {
+    showNewTaskError("Please type the task.");
+    return;
+  }
+
+  saveTaskBtn.disabled = true;
+  saveTaskBtn.textContent = "Saving...";
+
+  try {
+    const res = await fetch(TASKS_API_URL, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        listingId,
+        propertyName: property?.nickname || property?.name || "Property",
+        taskText
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to save task");
+    }
+
+    closeNewTaskModal();
+    await reloadTasksOnly();
+  } catch (err) {
+    showNewTaskError(err.message);
+  } finally {
+    saveTaskBtn.disabled = false;
+    saveTaskBtn.textContent = "Save Task";
+  }
+}
+
+function showNewTaskError(message) {
+  newTaskError.textContent = message;
+  newTaskError.classList.remove("hidden");
+}
+
+function getTasksForProperty(property) {
+  return tasks.filter(task =>
+    String(task.listing_id) === String(property.listingId)
+  );
+}
+
+function openViewTasksModal(property) {
+  selectedTaskProperty = property;
+
+  const propertyName = property.nickname || property.name || "Property";
+  const propertyTasks = getTasksForProperty(property);
+
+  viewTasksTitle.textContent = `Tasks - ${propertyName}`;
+
+  if (!propertyTasks.length) {
+    tasksList.innerHTML = `
+      <div class="task-item">
+        <div class="task-text">No open tasks.</div>
+      </div>
+    `;
+  } else {
+    tasksList.innerHTML = propertyTasks.map(task => `
+      <div class="task-item" data-task-id="${escapeHtml(task.id)}">
+        <div class="task-text">${escapeHtml(task.task_text)}</div>
+        <div class="task-date">${formatTaskDate(task.created_at)}</div>
+        <button class="complete-task-btn" data-task-id="${escapeHtml(task.id)}">Complete</button>
+      </div>
+    `).join("");
+  }
+
+  tasksList.querySelectorAll(".complete-task-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      completeTask(btn.dataset.taskId);
+    });
+  });
+
+  viewTasksModal.classList.remove("hidden");
+}
+
+function closeViewTasksModal() {
+  viewTasksModal.classList.add("hidden");
+  selectedTaskProperty = null;
+}
+
+async function completeTask(taskId) {
+  if (!taskId) return;
+
+  try {
+    const res = await fetch(`${TASKS_API_URL}/${encodeURIComponent(taskId)}`, {
+      method: "DELETE",
+      cache: "no-store"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to complete task");
+    }
+
+    await reloadTasksOnly();
+
+    if (selectedTaskProperty) {
+      const stillHasTasks = getTasksForProperty(selectedTaskProperty).length > 0;
+
+      if (stillHasTasks) {
+        openViewTasksModal(selectedTaskProperty);
+      } else {
+        closeViewTasksModal();
+      }
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function formatTaskDate(value) {
+  if (!value) return "";
+
+  const d = new Date(value);
+
+  if (Number.isNaN(d.getTime())) {
+    return "";
+  }
+
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+/* Helpers */
 
 function cleanGuestName(value) {
   const text = String(value || "").trim();
