@@ -12,11 +12,9 @@ const GUESTY_CLIENT_SECRET = process.env.GUESTY_CLIENT_SECRET;
 
 function todayString() {
   const d = new Date();
-
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 }
 
@@ -123,17 +121,48 @@ async function getListingCalendar(token, listingId, from, to) {
   return await guestyGet(token, url);
 }
 
+function findDateArrays(obj, found = []) {
+  if (!obj || typeof obj !== "object") return found;
+
+  if (Array.isArray(obj)) {
+    const hasDateObjects = obj.some(item => {
+      if (!item || typeof item !== "object") return false;
+
+      return Boolean(
+        item.date ||
+        item.day ||
+        item.startDate ||
+        item.start ||
+        item.calendarDate
+      );
+    });
+
+    if (hasDateObjects) found.push(obj);
+
+    obj.forEach(item => findDateArrays(item, found));
+    return found;
+  }
+
+  Object.values(obj).forEach(value => findDateArrays(value, found));
+  return found;
+}
+
 function getCalendarDays(rawData) {
-  if (Array.isArray(rawData)) return rawData;
-  if (Array.isArray(rawData.days)) return rawData.days;
-  if (Array.isArray(rawData.calendar)) return rawData.calendar;
-  if (Array.isArray(rawData.data)) return rawData.data;
-  if (Array.isArray(rawData.results)) return rawData.results;
-  return [];
+  const arrays = findDateArrays(rawData);
+
+  if (!arrays.length) return [];
+
+  arrays.sort((a, b) => b.length - a.length);
+  return arrays[0];
+}
+
+function cleanDate(value) {
+  if (!value) return null;
+  return String(value).substring(0, 10);
 }
 
 function getDayDate(day) {
-  return (
+  return cleanDate(
     day.date ||
     day.day ||
     day.startDate ||
@@ -149,6 +178,8 @@ function getBookingKey(day) {
     day.booking ||
     day.reservationData ||
     day.bookingData ||
+    day.reservationInfo ||
+    day.bookingInfo ||
     null;
 
   return (
@@ -160,10 +191,13 @@ function getBookingKey(day) {
     day.confirmation_code ||
     day.blockId ||
     day.block_id ||
+    day.guestyReservationId ||
+    day.guesty_reservation_id ||
     reservation?._id ||
     reservation?.id ||
     reservation?.reservationId ||
     reservation?.bookingId ||
+    reservation?.confirmationCode ||
     null
   );
 }
@@ -172,27 +206,41 @@ function isBookedDay(day) {
   const status = String(
     day.status ||
     day.availability ||
-    day.available ||
     day.type ||
+    day.reason ||
+    day.blockType ||
+    day.block_type ||
     ""
   ).toLowerCase();
 
+  const availableValue =
+    day.available ??
+    day.isAvailable ??
+    day.availabilityStatus;
+
   if (getBookingKey(day)) return true;
-  if (day.reservation || day.booking) return true;
-  if (day.isAvailable === false) return true;
-  if (day.available === false) return true;
+  if (day.reservation || day.booking || day.reservationData || day.bookingData) return true;
+
+  if (availableValue === false) return true;
   if (day.booked === true) return true;
+  if (day.isBooked === true) return true;
+  if (day.occupied === true) return true;
+  if (day.isOccupied === true) return true;
 
   return (
     status.includes("booked") ||
     status.includes("reserved") ||
+    status.includes("reservation") ||
     status.includes("occupied") ||
-    status.includes("unavailable")
+    status.includes("unavailable") ||
+    status.includes("blocked")
   );
 }
 
 function normalizeBookingsFromCalendar(rawData) {
-  const days = getCalendarDays(rawData)
+  const rawDays = getCalendarDays(rawData);
+
+  const days = rawDays
     .map(day => ({
       date: getDayDate(day),
       booked: isBookedDay(day),
@@ -225,7 +273,7 @@ function normalizeBookingsFromCalendar(rawData) {
     const sameBooking =
       currentBooking.bookingKey &&
       day.bookingKey &&
-      currentBooking.bookingKey === day.bookingKey;
+      String(currentBooking.bookingKey) === String(day.bookingKey);
 
     const noBookingKeys =
       !currentBooking.bookingKey &&
@@ -236,8 +284,6 @@ function normalizeBookingsFromCalendar(rawData) {
       continue;
     }
 
-    // Different reservation starts immediately after previous reservation.
-    // This creates checkout/check-in on the same date.
     bookings.push({
       checkIn: currentBooking.checkIn,
       checkOut: day.date,
@@ -251,9 +297,7 @@ function normalizeBookingsFromCalendar(rawData) {
     };
   }
 
-  if (currentBooking) {
-    bookings.push(currentBooking);
-  }
+  if (currentBooking) bookings.push(currentBooking);
 
   return bookings;
 }
@@ -267,38 +311,30 @@ function buildDailyEvents(bookings, from, to) {
     const checkin = bookings.find(b => b.checkIn === date);
     const stay = bookings.find(b => date > b.checkIn && date < b.checkOut);
 
-    let events = [];
+    const events = [];
 
-    if (checkout && checkin) {
+    if (checkout) {
       events.push({
         date,
-        type: "turnover",
-        label: "Checkout / Check-in"
+        type: "checkout",
+        label: "Checkout"
       });
-    } else {
-      if (checkout) {
-        events.push({
-          date,
-          type: "checkout",
-          label: "Checkout"
-        });
-      }
+    }
 
-      if (checkin) {
-        events.push({
-          date,
-          type: "checkin",
-          label: "Check-in"
-        });
-      }
+    if (checkin) {
+      events.push({
+        date,
+        type: "checkin",
+        label: "Check-in"
+      });
+    }
 
-      if (stay) {
-        events.push({
-          date,
-          type: "stay",
-          label: "Guest stay"
-        });
-      }
+    if (!checkout && !checkin && stay) {
+      events.push({
+        date,
+        type: "stay",
+        label: "Guest stay"
+      });
     }
 
     days.push({
