@@ -105,6 +105,18 @@ button {
   border-color: #dc2626;
 }
 
+.tasks-filter-btn {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #111827;
+}
+
+.tasks-filter-btn.active {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #ffffff;
+}
+
 .filter-divider {
   width: 1px;
   height: 24px;
@@ -264,8 +276,8 @@ body.list-open .calendar-shell {
   align-items: flex-start;
   justify-content: center;
   padding: 0 10px;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 900;
   color: #111827;
   white-space: nowrap;
   overflow: hidden;
@@ -276,12 +288,13 @@ body.list-open .calendar-shell {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.12;
 }
 
 .task-badge {
-  margin-top: 3px;
+  margin-top: 4px;
   color: #dc2626;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 1000;
   background: transparent;
   border: 0;
@@ -680,10 +693,16 @@ body.list-open .calendar-shell {
   .filters {
     height: auto;
     padding: 7px 10px;
+    gap: 8px;
+  }
+
+  .filter-btn {
+    padding: 8px 11px;
+    font-size: 11px;
   }
 
   .city-select {
-    max-width: 115px;
+    max-width: 104px;
     padding: 7px 10px;
     font-size: 11px;
   }
@@ -701,7 +720,7 @@ body.list-open .calendar-shell {
   }
 
   .property-row {
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 900;
     padding: 0 6px;
     line-height: 1.15;
@@ -714,7 +733,8 @@ body.list-open .calendar-shell {
   }
 
   .task-badge {
-    font-size: 11px;
+    font-size: 13px;
+    margin-top: 5px;
   }
 
   .bar-text {

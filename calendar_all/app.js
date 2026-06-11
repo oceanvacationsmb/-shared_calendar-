@@ -10,6 +10,7 @@ const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
 
 const newTaskBtn = document.getElementById("newTaskBtn");
+const tasksFilterBtn = document.getElementById("tasksFilterBtn");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 const listToggleBtn = document.getElementById("listToggleBtn");
@@ -31,6 +32,7 @@ const newTaskError = document.getElementById("newTaskError");
 const viewTasksModal = document.getElementById("viewTasksModal");
 const closeViewTasksBtn = document.getElementById("closeViewTasksBtn");
 const doneViewTasksBtn = document.getElementById("doneViewTasksBtn");
+const addTaskForPropertyBtn = document.getElementById("addTaskForPropertyBtn");
 const viewTasksTitle = document.getElementById("viewTasksTitle");
 const tasksList = document.getElementById("tasksList");
 
@@ -45,6 +47,7 @@ let selectedTaskProperty = null;
 let activeFilters = {
   elevator: false,
   confPmt: false,
+  tasks: false,
   area: null
 };
 
@@ -65,6 +68,13 @@ saveTaskBtn.addEventListener("click", () => {
 
 closeViewTasksBtn.addEventListener("click", closeViewTasksModal);
 doneViewTasksBtn.addEventListener("click", closeViewTasksModal);
+addTaskForPropertyBtn.addEventListener("click", () => {
+  if (!selectedTaskProperty) return;
+
+  const property = selectedTaskProperty;
+  closeViewTasksModal();
+  openNewTaskModal(property);
+});
 
 newTaskModal.addEventListener("click", event => {
   if (event.target === newTaskModal) {
@@ -88,8 +98,19 @@ cityFilterSelect.addEventListener("change", () => {
   render();
 });
 
+tasksFilterBtn.addEventListener("click", () => {
+  activeFilters.tasks = !activeFilters.tasks;
+  activeFilters.elevator = false;
+  activeFilters.confPmt = false;
+  isListOpen = false;
+
+  updateFilterButtons();
+  render();
+});
+
 elevatorFilterBtn.addEventListener("click", () => {
   activeFilters.area = null;
+  activeFilters.tasks = false;
   cityFilterSelect.value = "";
 
   activeFilters.elevator = !activeFilters.elevator;
@@ -101,6 +122,7 @@ elevatorFilterBtn.addEventListener("click", () => {
 
 confPmtFilterBtn.addEventListener("click", () => {
   activeFilters.area = null;
+  activeFilters.tasks = false;
   cityFilterSelect.value = "";
 
   activeFilters.confPmt = !activeFilters.confPmt;
@@ -316,7 +338,7 @@ function renderProperties() {
     if (propertyTasks.length) {
       const badge = document.createElement("button");
       badge.className = "task-badge";
-      badge.textContent = propertyTasks.length === 1 ? "TASK" : `TASKS (${propertyTasks.length})`;
+      badge.textContent = propertyTasks.length === 1 ? "1 TASK" : `${propertyTasks.length} TASKS`;
       badge.addEventListener("click", event => {
         event.stopPropagation();
         openViewTasksModal(property);
@@ -581,7 +603,7 @@ function isCoveredByAnyBooking(property, date) {
 }
 
 function hasAnyActiveFilter() {
-  return Boolean(activeFilters.elevator || activeFilters.confPmt || activeFilters.area);
+  return Boolean(activeFilters.elevator || activeFilters.confPmt || activeFilters.tasks || activeFilters.area);
 }
 
 function hasMovingFilter() {
@@ -606,6 +628,18 @@ function matchesBookingFilters(booking, property) {
 
 function propertyMatchesArea(property) {
   return propertyMatchesSelectedArea(property);
+}
+
+function propertyMatchesPropertyFilters(property) {
+  if (!propertyMatchesSelectedArea(property)) {
+    return false;
+  }
+
+  if (activeFilters.tasks && getTasksForProperty(property).length === 0) {
+    return false;
+  }
+
+  return true;
 }
 
 function propertyMatchesSelectedArea(property) {
@@ -645,12 +679,16 @@ function getVisibleProperties() {
   }
 
   if (!hasMovingFilter()) {
-    return properties.filter(propertyMatchesArea);
+    return properties.filter(propertyMatchesPropertyFilters);
   }
 
   const visibleRange = getCurrentVisibleRange();
 
   return properties.filter(property => {
+    if (!propertyMatchesPropertyFilters(property)) {
+      return false;
+    }
+
     const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
     return bookings.some(booking => {
@@ -770,6 +808,7 @@ function updateFilteredList() {
 }
 
 function updateFilterButtons() {
+  tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
 
@@ -792,6 +831,7 @@ function getActiveFilterNames() {
 
   if (activeFilters.elevator) names.push("ELEVATOR");
   if (activeFilters.confPmt) names.push("CONFIRM PMT");
+  if (activeFilters.tasks) names.push("TASKS");
 
   if (activeFilters.area === "SOUTH") {
     names.push("SOUTH END");
@@ -849,12 +889,13 @@ function fillTaskPropertySelect() {
   });
 }
 
-function openNewTaskModal() {
+function openNewTaskModal(property = null) {
   newTaskError.classList.add("hidden");
   newTaskError.textContent = "";
-  taskPropertySelect.value = "";
+  taskPropertySelect.value = property?.listingId || "";
   taskTextInput.value = "";
   newTaskModal.classList.remove("hidden");
+  taskTextInput.focus();
 }
 
 function closeNewTaskModal() {
@@ -904,6 +945,10 @@ async function saveNewTask() {
 
     closeNewTaskModal();
     await reloadTasksOnly();
+
+    if (activeFilters.tasks) {
+      updateFilterButtons();
+    }
   } catch (err) {
     showNewTaskError(err.message);
   } finally {

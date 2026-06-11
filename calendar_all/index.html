@@ -9,7 +9,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./style.css?v=120" />
+  <link rel="stylesheet" href="./style.css?v=121" />
 </head>
 <body>
   <div class="page">
@@ -23,10 +23,8 @@
     </header>
 
     <div class="filters">
-      <button id="newTaskBtn" class="filter-btn new-task-btn">NEW TASK</button>
-
       <select id="cityFilterSelect" class="city-select">
-        <option value="">ALL</option>
+        <option value="">FILTER</option>
         <option value="MB">MB</option>
         <option value="NMB">NORTH END</option>
         <option value="SSB">SSB</option>
@@ -36,8 +34,10 @@
 
       <span class="filter-divider"></span>
 
+      <button id="tasksFilterBtn" class="filter-btn tasks-filter-btn">SEE ALL TASKS</button>
+      <button id="newTaskBtn" class="filter-btn new-task-btn">ADD TASK</button>
+      <button id="confPmtFilterBtn" class="filter-btn">TO CONF PMT</button>
       <button id="elevatorFilterBtn" class="filter-btn">ELEVATORS</button>
-      <button id="confPmtFilterBtn" class="filter-btn">CONFIRM PMT</button>
 
       <button id="listToggleBtn" class="filter-btn list-btn hidden">Click for list</button>
     </div>
@@ -100,11 +100,12 @@
       <div id="tasksList" class="tasks-list"></div>
 
       <div class="modal-actions">
+        <button id="addTaskForPropertyBtn" class="modal-btn primary">Add Task</button>
         <button id="doneViewTasksBtn" class="modal-btn secondary">Close</button>
       </div>
     </div>
   </div>
 
-  <script src="./app.js?v=120"></script>
+  <script src="./app.js?v=121"></script>
 </body>
 </html>
