@@ -1,5 +1,7 @@
 alter table public.calendar_tasks
   add column if not exists assignee_name text,
+  add column if not exists created_by_name text,
+  add column if not exists completed_by_name text,
   add column if not exists completed_at timestamptz;
 
 create table if not exists public.calendar_task_vendors (
@@ -16,6 +18,19 @@ values
   ('Dennis'),
   ('Paradise HVAC'),
   ('Stainley')
+on conflict (name) do nothing;
+
+create table if not exists public.calendar_task_creators (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
+
+insert into public.calendar_task_creators (name)
+values
+  ('Zack'),
+  ('Isaac'),
+  ('Ashley')
 on conflict (name) do nothing;
 
 create table if not exists public.calendar_task_media (

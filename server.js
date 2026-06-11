@@ -501,6 +501,14 @@ function getDefaultTaskVendors() {
   ];
 }
 
+function getDefaultTaskCreators() {
+  return [
+    "Zack",
+    "Isaac",
+    "Ashley"
+  ];
+}
+
 function sanitizeFileName(value) {
   return String(value || "upload")
     .replace(/[^a-zA-Z0-9._-]/g, "-")
@@ -577,6 +585,65 @@ async function saveTaskMedia(taskId, files = [], uploadedFor = "open") {
   }
 
   return saved;
+}
+
+async function cleanupOldCompletedTasks() {
+  const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString();
+
+  try {
+    const oldTasks = await supabaseRequest(
+      `calendar_tasks?status=eq.completed&completed_at=lt.${encodeURIComponent(cutoff)}&select=id`,
+      {
+        method: "GET"
+      }
+    );
+
+    const ids = (oldTasks || []).map(task => String(task.id)).filter(Boolean);
+
+    if (!ids.length) return;
+
+    const idList = ids.join(",");
+    const oldMedia = await supabaseRequest(
+      `calendar_task_media?task_id=in.(${encodeURIComponent(idList)})&select=storage_path`,
+      {
+        method: "GET"
+      }
+    );
+    const storagePaths = (oldMedia || []).map(item => item.storage_path).filter(Boolean);
+
+    if (storagePaths.length) {
+      await supabaseStorageRequest(
+        `object/${encodeURIComponent(TASK_MEDIA_BUCKET)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify({
+            prefixes: storagePaths
+          })
+        }
+      ).catch(err => {
+        console.error("Completed task storage cleanup error:", err);
+      });
+
+      await supabaseRequest(
+        `calendar_task_media?task_id=in.(${encodeURIComponent(idList)})`,
+        {
+          method: "DELETE"
+        }
+      );
+    }
+
+    await supabaseRequest(
+      `calendar_tasks?status=eq.completed&completed_at=lt.${encodeURIComponent(cutoff)}`,
+      {
+        method: "DELETE"
+      }
+    );
+  } catch (err) {
+    console.error("Completed task cleanup error:", err);
+  }
 }
 
 app.get("/", (req, res) => {
@@ -732,11 +799,144 @@ app.post("/api/calendar-task-vendors", async (req, res) => {
   }
 });
 
+app.get("/api/calendar-task-creators", async (req, res) => {
+  try {
+    const creators = await supabaseRequest(
+      "calendar_task_creators?select=*&order=name.asc",
+      {
+        method: "GET"
+      }
+    );
+
+    res.json({
+      ok: true,
+      creators: creators || []
+    });
+  } catch (err) {
+    console.error("Get task creators error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to load task creators",
+      defaultCreators: getDefaultTaskCreators()
+    });
+  }
+});
+
+app.post("/api/calendar-task-creators", async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+
+    if (!name) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing name"
+      });
+    }
+
+    const created = await supabaseRequest(
+      "calendar_task_creators?on_conflict=name",
+      {
+        method: "POST",
+        headers: {
+          Prefer: "return=representation,resolution=merge-duplicates"
+        },
+        body: JSON.stringify({ name })
+      }
+    );
+
+    res.json({
+      ok: true,
+      creator: Array.isArray(created) ? created[0] : created
+    });
+  } catch (err) {
+    console.error("Create task creator error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to save name"
+    });
+  }
+});
+
+app.patch("/api/calendar-task-creators/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const name = String(req.body.name || "").trim();
+
+    if (!id || !name) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing name"
+      });
+    }
+
+    const updated = await supabaseRequest(
+      `calendar_task_creators?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer: "return=representation"
+        },
+        body: JSON.stringify({ name })
+      }
+    );
+
+    res.json({
+      ok: true,
+      creator: Array.isArray(updated) ? updated[0] : updated
+    });
+  } catch (err) {
+    console.error("Update task creator error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to update name"
+    });
+  }
+});
+
+app.delete("/api/calendar-task-creators/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing name id"
+      });
+    }
+
+    await supabaseRequest(
+      `calendar_task_creators?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "DELETE"
+      }
+    );
+
+    res.json({
+      ok: true,
+      deleted: id
+    });
+  } catch (err) {
+    console.error("Delete task creator error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to delete name"
+    });
+  }
+});
+
 app.get("/api/calendar-tasks", async (req, res) => {
   try {
+    await cleanupOldCompletedTasks();
+
+    const status = req.query.status === "completed" ? "completed" : "open";
+    const orderColumn = status === "completed" ? "completed_at" : "created_at";
     const [tasks, media] = await Promise.all([
       supabaseRequest(
-        "calendar_tasks?status=eq.open&select=*&order=created_at.desc",
+        `calendar_tasks?status=eq.${status}&select=*&order=${orderColumn}.desc.nullslast`,
         {
           method: "GET"
         }
@@ -782,6 +982,7 @@ app.patch("/api/calendar-tasks/:id", async (req, res) => {
     const id = String(req.params.id || "").trim();
     const taskText = String(req.body.taskText || "").trim();
     const assigneeName = String(req.body.assigneeName || "").trim();
+    const createdByName = String(req.body.createdByName || "").trim();
 
     if (!id) {
       return res.status(400).json({
@@ -806,7 +1007,8 @@ app.patch("/api/calendar-tasks/:id", async (req, res) => {
         },
         body: JSON.stringify({
           task_text: taskText,
-          assignee_name: assigneeName || null
+          assignee_name: assigneeName || null,
+          created_by_name: createdByName || null
         })
       }
     );
@@ -831,6 +1033,7 @@ app.post("/api/calendar-tasks", async (req, res) => {
     const propertyName = String(req.body.propertyName || "").trim();
     const taskText = String(req.body.taskText || "").trim();
     const assigneeName = String(req.body.assigneeName || "").trim();
+    const createdByName = String(req.body.createdByName || "").trim();
     const mediaFiles = Array.isArray(req.body.mediaFiles) ? req.body.mediaFiles : [];
 
     if (!listingId || !taskText) {
@@ -852,6 +1055,7 @@ app.post("/api/calendar-tasks", async (req, res) => {
           property_name: propertyName,
           task_text: taskText,
           assignee_name: assigneeName || null,
+          created_by_name: createdByName || null,
           status: "open"
         })
       }
@@ -880,7 +1084,6 @@ app.post("/api/calendar-tasks", async (req, res) => {
 app.delete("/api/calendar-tasks/:id", async (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
-    const mediaFiles = Array.isArray(req.body?.mediaFiles) ? req.body.mediaFiles : [];
 
     if (!id) {
       return res.status(400).json({
@@ -889,7 +1092,15 @@ app.delete("/api/calendar-tasks/:id", async (req, res) => {
       });
     }
 
-    const media = await saveTaskMedia(id, mediaFiles, "complete");
+    const existing = await supabaseRequest(
+      `calendar_tasks?id=eq.${encodeURIComponent(id)}&select=*`,
+      {
+        method: "GET"
+      }
+    );
+    const completedByName = Array.isArray(existing) && existing[0]?.assignee_name
+      ? existing[0].assignee_name
+      : null;
 
     const updated = await supabaseRequest(
       `calendar_tasks?id=eq.${encodeURIComponent(id)}`,
@@ -900,7 +1111,8 @@ app.delete("/api/calendar-tasks/:id", async (req, res) => {
         },
         body: JSON.stringify({
           status: "completed",
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
+          completed_by_name: completedByName
         })
       }
     );
@@ -908,8 +1120,7 @@ app.delete("/api/calendar-tasks/:id", async (req, res) => {
     res.json({
       ok: true,
       completed: id,
-      task: Array.isArray(updated) ? updated[0] : updated,
-      media
+      task: Array.isArray(updated) ? updated[0] : updated
     });
   } catch (err) {
     console.error("Complete task error:", err);

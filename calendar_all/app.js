@@ -1,8 +1,9 @@
 const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
 const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
+const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
 
-const DAYS_TO_SHOW = 60;
+const DAYS_TO_SHOW = 45;
 const DAYS_BEFORE_TODAY = 5;
 
 const calendarEl = document.getElementById("calendar");
@@ -12,8 +13,11 @@ const propertyListEl = document.getElementById("propertyList");
 
 const newTaskBtn = document.getElementById("newTaskBtn");
 const tasksFilterBtn = document.getElementById("tasksFilterBtn");
+const completedTasksBtn = document.getElementById("completedTasksBtn");
+const totalTasksBadge = document.getElementById("totalTasksBadge");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
+const confPmtBadge = document.getElementById("confPmtBadge");
 const listToggleBtn = document.getElementById("listToggleBtn");
 const cityFilterSelect = document.getElementById("cityFilterSelect");
 
@@ -35,6 +39,12 @@ const newVendorInput = document.getElementById("newVendorInput");
 const saveVendorBtn = document.getElementById("saveVendorBtn");
 const taskMediaInput = document.getElementById("taskMediaInput");
 const taskMediaPreview = document.getElementById("taskMediaPreview");
+const taskCreatorSelect = document.getElementById("taskCreatorSelect");
+const showManageCreatorsBtn = document.getElementById("showManageCreatorsBtn");
+const manageCreatorsBox = document.getElementById("manageCreatorsBox");
+const newCreatorInput = document.getElementById("newCreatorInput");
+const saveCreatorBtn = document.getElementById("saveCreatorBtn");
+const creatorNamesList = document.getElementById("creatorNamesList");
 const newTaskError = document.getElementById("newTaskError");
 
 const viewTasksModal = document.getElementById("viewTasksModal");
@@ -44,26 +54,18 @@ const addTaskForPropertyBtn = document.getElementById("addTaskForPropertyBtn");
 const viewTasksTitle = document.getElementById("viewTasksTitle");
 const tasksList = document.getElementById("tasksList");
 
-const completeTaskModal = document.getElementById("completeTaskModal");
-const closeCompleteTaskBtn = document.getElementById("closeCompleteTaskBtn");
-const completeUploadBox = document.getElementById("completeUploadBox");
-const completeMediaInput = document.getElementById("completeMediaInput");
-const completeMediaPreview = document.getElementById("completeMediaPreview");
-const completeTaskError = document.getElementById("completeTaskError");
-const completeNoBtn = document.getElementById("completeNoBtn");
-const completeYesBtn = document.getElementById("completeYesBtn");
-const finishCompleteTaskBtn = document.getElementById("finishCompleteTaskBtn");
-
 let dates = [];
 let properties = [];
 let tasks = [];
+let completedTasks = [];
 let taskVendors = [];
+let taskCreators = [];
 let isSyncingScroll = false;
 let isListOpen = false;
 let renderTimer = null;
 let selectedTaskProperty = null;
 let editingTaskId = null;
-let pendingCompleteTaskId = null;
+let viewingCompletedTasks = false;
 
 let activeFilters = {
   elevator: false,
@@ -96,6 +98,16 @@ saveVendorBtn.addEventListener("click", () => {
   saveNewVendor();
 });
 
+showManageCreatorsBtn.addEventListener("click", () => {
+  manageCreatorsBox.classList.toggle("hidden");
+  renderCreatorNamesList();
+  newCreatorInput.focus();
+});
+
+saveCreatorBtn.addEventListener("click", () => {
+  saveNewCreator();
+});
+
 closeViewTasksBtn.addEventListener("click", closeViewTasksModal);
 doneViewTasksBtn.addEventListener("click", closeViewTasksModal);
 addTaskForPropertyBtn.addEventListener("click", () => {
@@ -106,25 +118,8 @@ addTaskForPropertyBtn.addEventListener("click", () => {
   openNewTaskModal(property);
 });
 
-closeCompleteTaskBtn.addEventListener("click", closeCompleteTaskModal);
-completeNoBtn.addEventListener("click", () => {
-  finishCompleteTask(false);
-});
-completeYesBtn.addEventListener("click", () => {
-  completeUploadBox.classList.remove("hidden");
-  completeYesBtn.classList.add("hidden");
-  finishCompleteTaskBtn.classList.remove("hidden");
-});
-finishCompleteTaskBtn.addEventListener("click", () => {
-  finishCompleteTask(true);
-});
-
 taskMediaInput.addEventListener("change", () => {
   renderFilePreview(taskMediaInput.files, taskMediaPreview);
-});
-
-completeMediaInput.addEventListener("change", () => {
-  renderFilePreview(completeMediaInput.files, completeMediaPreview);
 });
 
 newTaskModal.addEventListener("click", event => {
@@ -136,12 +131,6 @@ newTaskModal.addEventListener("click", event => {
 viewTasksModal.addEventListener("click", event => {
   if (event.target === viewTasksModal) {
     closeViewTasksModal();
-  }
-});
-
-completeTaskModal.addEventListener("click", event => {
-  if (event.target === completeTaskModal) {
-    closeCompleteTaskModal();
   }
 });
 
@@ -163,6 +152,10 @@ tasksFilterBtn.addEventListener("click", () => {
 
   updateFilterButtons();
   render();
+});
+
+completedTasksBtn.addEventListener("click", () => {
+  openCompletedTasksModal();
 });
 
 elevatorFilterBtn.addEventListener("click", () => {
@@ -300,7 +293,7 @@ async function loadCalendar() {
       controller.abort();
     }, 25000);
 
-    const [calendarResponse, tasksResponse, vendorsResponse] = await Promise.all([
+    const [calendarResponse, tasksResponse, vendorsResponse, creatorsResponse] = await Promise.all([
       fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
         cache: "no-store",
         signal: controller.signal
@@ -312,6 +305,10 @@ async function loadCalendar() {
       fetch(`${TASK_VENDORS_API_URL}?v=${Date.now()}`, {
         cache: "no-store",
         signal: controller.signal
+      }),
+      fetch(`${TASK_CREATORS_API_URL}?v=${Date.now()}`, {
+        cache: "no-store",
+        signal: controller.signal
       })
     ]);
 
@@ -320,6 +317,7 @@ async function loadCalendar() {
     const data = await calendarResponse.json();
     const tasksData = await tasksResponse.json();
     const vendorsData = await vendorsResponse.json();
+    const creatorsData = await creatorsResponse.json();
 
     if (!calendarResponse.ok || !data.ok) {
       throw new Error(data.message || "Calendar API error");
@@ -334,10 +332,14 @@ async function loadCalendar() {
     taskVendors = vendorsResponse.ok && vendorsData.ok
       ? vendorsData.vendors || []
       : (vendorsData.defaultVendors || []).map(name => ({ name }));
+    taskCreators = creatorsResponse.ok && creatorsData.ok
+      ? creatorsData.creators || []
+      : (creatorsData.defaultCreators || []).map(name => ({ name }));
 
     render();
     fillTaskPropertySelect();
     fillTaskVendorSelect();
+    fillTaskCreatorSelect();
 
     setTimeout(() => {
       scrollToToday(false);
@@ -404,7 +406,11 @@ function renderProperties() {
     if (propertyTasks.length) {
       const badge = document.createElement("button");
       badge.className = "task-badge";
-      badge.textContent = propertyTasks.length === 1 ? "1 TASK" : `${propertyTasks.length} TASKS`;
+      badge.innerHTML = `
+        <span class="task-badge-bell" aria-hidden="true">!</span>
+        <span>${propertyTasks.length}</span>
+      `;
+      badge.setAttribute("aria-label", `${propertyTasks.length} task${propertyTasks.length === 1 ? "" : "s"}`);
       badge.addEventListener("click", event => {
         event.stopPropagation();
         openViewTasksModal(property);
@@ -874,6 +880,8 @@ function updateFilteredList() {
 }
 
 function updateFilterButtons() {
+  updateTaskNotification();
+  updateConfPmtNotification();
   tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
@@ -882,6 +890,40 @@ function updateFilterButtons() {
   cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area));
 
   updateFilteredList();
+}
+
+function updateTaskNotification() {
+  const count = tasks.length;
+
+  totalTasksBadge.textContent = String(count);
+  totalTasksBadge.classList.toggle("hidden", count === 0);
+  tasksFilterBtn.classList.toggle("has-tasks", count > 0);
+}
+
+function updateConfPmtNotification() {
+  const count = getConfPmtReservationCount();
+
+  confPmtBadge.textContent = String(count);
+  confPmtBadge.classList.toggle("hidden", count === 0);
+  confPmtFilterBtn.classList.toggle("has-conf-pmt", count > 0);
+}
+
+function getConfPmtReservationCount() {
+  let count = 0;
+
+  properties.forEach(property => {
+    const bookings = Array.isArray(property.bookings) ? property.bookings : [];
+
+    bookings.forEach(booking => {
+      if (!isYesValue(booking.confPmt)) return;
+      if (!booking.checkIn || !booking.checkOut) return;
+      if (booking.checkOut < dates[0] || booking.checkIn > dates[dates.length - 1]) return;
+
+      count += 1;
+    });
+  });
+
+  return count;
 }
 
 function scheduleFilteredRerender() {
@@ -973,6 +1015,24 @@ function fillTaskVendorSelect(selectedName = "") {
   taskAssigneeSelect.value = selectedName || "";
 }
 
+function fillTaskCreatorSelect(selectedName = "") {
+  const names = taskCreators
+    .map(creator => creator.name || creator)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
+  taskCreatorSelect.innerHTML = `<option value="">Choose name</option>`;
+
+  names.forEach(name => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    taskCreatorSelect.appendChild(option);
+  });
+
+  taskCreatorSelect.value = selectedName || "";
+}
+
 async function saveNewVendor() {
   const name = newVendorInput.value.trim();
 
@@ -1016,6 +1076,127 @@ async function saveNewVendor() {
   }
 }
 
+async function saveNewCreator() {
+  const name = newCreatorInput.value.trim();
+
+  if (!name) {
+    showNewTaskError("Please type the name.");
+    return;
+  }
+
+  saveCreatorBtn.disabled = true;
+  saveCreatorBtn.textContent = "Saving...";
+
+  try {
+    const res = await fetch(TASK_CREATORS_API_URL, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ name })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to save name");
+    }
+
+    if (!taskCreators.some(creator => String(creator.name || creator).toLowerCase() === name.toLowerCase())) {
+      taskCreators.push(data.creator || { name });
+    }
+
+    fillTaskCreatorSelect(name);
+    renderCreatorNamesList();
+    newCreatorInput.value = "";
+    newTaskError.classList.add("hidden");
+  } catch (err) {
+    showNewTaskError(err.message);
+  } finally {
+    saveCreatorBtn.disabled = false;
+    saveCreatorBtn.textContent = "Save Name";
+  }
+}
+
+function renderCreatorNamesList() {
+  if (!taskCreators.length) {
+    creatorNamesList.innerHTML = `<div class="creator-empty">No names yet.</div>`;
+    return;
+  }
+
+  creatorNamesList.innerHTML = taskCreators
+    .slice()
+    .sort((a, b) => String(a.name || a).localeCompare(String(b.name || b)))
+    .map(creator => `
+      <div class="creator-name-row" data-creator-id="${escapeHtml(creator.id || "")}">
+        <input class="creator-name-input" value="${escapeHtml(creator.name || creator)}" ${creator.id ? "" : "disabled"} />
+        <button class="creator-update-btn" type="button" ${creator.id ? "" : "disabled"}>Update</button>
+        <button class="creator-delete-btn" type="button" ${creator.id ? "" : "disabled"}>Delete</button>
+      </div>
+    `).join("");
+
+  creatorNamesList.querySelectorAll(".creator-name-row").forEach(row => {
+    const id = row.dataset.creatorId;
+    const input = row.querySelector(".creator-name-input");
+    const updateBtn = row.querySelector(".creator-update-btn");
+    const deleteBtn = row.querySelector(".creator-delete-btn");
+
+    updateBtn.addEventListener("click", () => updateCreatorName(id, input.value.trim()));
+    deleteBtn.addEventListener("click", () => deleteCreatorName(id));
+  });
+}
+
+async function updateCreatorName(id, name) {
+  if (!id || !name) return;
+
+  try {
+    const res = await fetch(`${TASK_CREATORS_API_URL}/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ name })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to update name");
+    }
+
+    taskCreators = taskCreators.map(creator => String(creator.id) === String(id) ? data.creator : creator);
+    fillTaskCreatorSelect(taskCreatorSelect.value);
+    renderCreatorNamesList();
+  } catch (err) {
+    showNewTaskError(err.message);
+  }
+}
+
+async function deleteCreatorName(id) {
+  if (!id) return;
+
+  try {
+    const res = await fetch(`${TASK_CREATORS_API_URL}/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      cache: "no-store"
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to delete name");
+    }
+
+    taskCreators = taskCreators.filter(creator => String(creator.id) !== String(id));
+    fillTaskCreatorSelect();
+    renderCreatorNamesList();
+  } catch (err) {
+    showNewTaskError(err.message);
+  }
+}
+
 function openNewTaskModal(property = null, task = null) {
   editingTaskId = task?.id || null;
   newTaskError.classList.add("hidden");
@@ -1025,6 +1206,9 @@ function openNewTaskModal(property = null, task = null) {
   taskPropertySelect.value = task?.listing_id || property?.listingId || "";
   taskTextInput.value = task?.task_text || "";
   fillTaskVendorSelect(task?.assignee_name || "");
+  fillTaskCreatorSelect(task?.created_by_name || "");
+  manageCreatorsBox.classList.add("hidden");
+  renderCreatorNamesList();
   taskMediaInput.value = "";
   taskMediaPreview.innerHTML = "";
   saveTaskBtn.textContent = task ? "Save Changes" : "Save Task";
@@ -1044,6 +1228,7 @@ async function saveNewTask() {
   const property = properties.find(p => p.listingId === listingId);
   const taskText = taskTextInput.value.trim();
   const assigneeName = taskAssigneeSelect.value.trim();
+  const createdByName = taskCreatorSelect.value.trim();
 
   newTaskError.classList.add("hidden");
   newTaskError.textContent = "";
@@ -1074,6 +1259,7 @@ async function saveNewTask() {
         propertyName: property?.nickname || property?.name || "Property",
         taskText,
         assigneeName,
+        createdByName,
         mediaFiles
       })
     });
@@ -1111,6 +1297,8 @@ function getTasksForProperty(property) {
 
 function openViewTasksModal(property) {
   selectedTaskProperty = property;
+  viewingCompletedTasks = false;
+  addTaskForPropertyBtn.classList.remove("hidden");
 
   const propertyName = property.nickname || property.name || "Property";
   const propertyTasks = getTasksForProperty(property);
@@ -1128,6 +1316,7 @@ function openViewTasksModal(property) {
       <div class="task-item" data-task-id="${escapeHtml(task.id)}">
         <div class="task-text">${escapeHtml(task.task_text)}</div>
         ${task.assignee_name ? `<div class="task-assignee">Person: ${escapeHtml(task.assignee_name)}</div>` : ""}
+        ${task.created_by_name ? `<div class="task-assignee">Added by: ${escapeHtml(task.created_by_name)}</div>` : ""}
         <div class="task-date">${formatTaskDate(task.created_at)}</div>
         ${renderTaskMedia(task.media)}
         <div class="task-actions">
@@ -1149,7 +1338,7 @@ function openViewTasksModal(property) {
 
   tasksList.querySelectorAll(".complete-task-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      openCompleteTaskModal(btn.dataset.taskId);
+      completeTask(btn.dataset.taskId);
     });
   });
 
@@ -1158,47 +1347,19 @@ function openViewTasksModal(property) {
 
 function closeViewTasksModal(options = {}) {
   viewTasksModal.classList.add("hidden");
+  viewingCompletedTasks = false;
   if (!options.keepProperty) {
     selectedTaskProperty = null;
   }
 }
 
-function openCompleteTaskModal(taskId) {
-  pendingCompleteTaskId = taskId;
-  completeTaskError.classList.add("hidden");
-  completeTaskError.textContent = "";
-  completeUploadBox.classList.add("hidden");
-  completeMediaInput.value = "";
-  completeMediaPreview.innerHTML = "";
-  completeYesBtn.classList.remove("hidden");
-  finishCompleteTaskBtn.classList.add("hidden");
-  completeTaskModal.classList.remove("hidden");
-}
-
-function closeCompleteTaskModal() {
-  completeTaskModal.classList.add("hidden");
-  pendingCompleteTaskId = null;
-}
-
-async function finishCompleteTask(includeMedia) {
-  const taskId = pendingCompleteTaskId;
-
+async function completeTask(taskId) {
   if (!taskId) return;
 
-  completeNoBtn.disabled = true;
-  completeYesBtn.disabled = true;
-  finishCompleteTaskBtn.disabled = true;
-
   try {
-    const mediaFiles = includeMedia ? await filesToPayload(completeMediaInput.files) : [];
-
     const res = await fetch(`${TASKS_API_URL}/${encodeURIComponent(taskId)}`, {
       method: "DELETE",
-      cache: "no-store",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({ mediaFiles })
+      cache: "no-store"
     });
 
     const data = await res.json();
@@ -1208,7 +1369,6 @@ async function finishCompleteTask(includeMedia) {
     }
 
     await reloadTasksOnly();
-    closeCompleteTaskModal();
 
     if (selectedTaskProperty) {
       const stillHasTasks = getTasksForProperty(selectedTaskProperty).length > 0;
@@ -1220,12 +1380,48 @@ async function finishCompleteTask(includeMedia) {
       }
     }
   } catch (err) {
-    completeTaskError.textContent = err.message;
-    completeTaskError.classList.remove("hidden");
-  } finally {
-    completeNoBtn.disabled = false;
-    completeYesBtn.disabled = false;
-    finishCompleteTaskBtn.disabled = false;
+    alert(err.message);
+  }
+}
+
+async function openCompletedTasksModal() {
+  viewingCompletedTasks = true;
+  selectedTaskProperty = null;
+  viewTasksTitle.textContent = "Completed Tasks - last 45 days";
+  tasksList.innerHTML = `<div class="task-item"><div class="task-text">Loading completed tasks...</div></div>`;
+  addTaskForPropertyBtn.classList.add("hidden");
+  viewTasksModal.classList.remove("hidden");
+
+  try {
+    const res = await fetch(`${TASKS_API_URL}?status=completed&v=${Date.now()}`, {
+      cache: "no-store"
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to load completed tasks");
+    }
+
+    completedTasks = data.tasks || [];
+
+    if (!completedTasks.length) {
+      tasksList.innerHTML = `<div class="task-item"><div class="task-text">No completed tasks in the last 45 days.</div></div>`;
+      return;
+    }
+
+    tasksList.innerHTML = completedTasks.map(task => `
+      <div class="task-item completed-task-item" data-task-id="${escapeHtml(task.id)}">
+        <div class="task-text">${escapeHtml(task.task_text)}</div>
+        <div class="task-assignee">${escapeHtml(task.property_name || "Property")}</div>
+        ${task.assignee_name ? `<div class="task-assignee">Person: ${escapeHtml(task.assignee_name)}</div>` : ""}
+        ${task.created_by_name ? `<div class="task-assignee">Added by: ${escapeHtml(task.created_by_name)}</div>` : ""}
+        ${task.completed_by_name ? `<div class="task-assignee">Completed by: ${escapeHtml(task.completed_by_name)}</div>` : ""}
+        <div class="task-date">Completed: ${formatTaskDate(task.completed_at)}</div>
+        ${renderTaskMedia(task.media)}
+      </div>
+    `).join("");
+  } catch (err) {
+    tasksList.innerHTML = `<div class="task-item"><div class="task-text">${escapeHtml(err.message)}</div></div>`;
   }
 }
 
