@@ -72,7 +72,18 @@ async function gapsRequest(path, options = {}) {
     }
   });
   const text = await response.text();
-  const data = text ? JSON.parse(text) : {};
+  let data = {};
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      const preview = text.replace(/\s+/g, " ").slice(0, 120);
+      const error = new Error(`Gaps service did not return JSON. Check GAPS_API_URL. Response started with: ${preview}`);
+      error.statusCode = 502;
+      throw error;
+    }
+  }
 
   if (!response.ok) {
     const err = new Error(data.error || data.message || `Gaps API failed (${response.status})`);

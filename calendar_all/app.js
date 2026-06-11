@@ -13,7 +13,6 @@ const calendarEl = document.getElementById("calendar");
 const calendarWrap = document.getElementById("calendarWrap");
 const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
-const lockColumnsToggle = document.getElementById("lockColumnsToggle");
 
 const newTaskBtn = document.getElementById("newTaskBtn");
 const taskMenuBtn = document.getElementById("taskMenuBtn");
@@ -91,7 +90,6 @@ let renderTimer = null;
 let selectedTaskProperty = null;
 let editingTaskId = null;
 let viewingCompletedTasks = false;
-let lockColumnsCollapsed = getInitialLockColumnsCollapsed();
 let gapsPollTimer = null;
 
 let activeFilters = {
@@ -104,14 +102,6 @@ let activeFilters = {
 
 todayBtn.addEventListener("click", () => {
   scrollToToday(true);
-});
-
-applyLockColumnsState();
-
-lockColumnsToggle.addEventListener("click", () => {
-  lockColumnsCollapsed = !lockColumnsCollapsed;
-  localStorage.setItem("calendarLockColumnsCollapsed", lockColumnsCollapsed ? "1" : "0");
-  applyLockColumnsState();
 });
 
 newTaskBtn.addEventListener("click", () => {
@@ -369,24 +359,6 @@ function scrollToToday(smooth = false) {
   });
 }
 
-function getInitialLockColumnsCollapsed() {
-  const saved = localStorage.getItem("calendarLockColumnsCollapsed");
-
-  if (saved === "1") return true;
-  if (saved === "0") return false;
-
-  return window.matchMedia("(max-width: 800px)").matches;
-}
-
-function applyLockColumnsState() {
-  document.body.classList.toggle("lock-columns-collapsed", lockColumnsCollapsed);
-  lockColumnsToggle.textContent = lockColumnsCollapsed ? "›" : "‹";
-  lockColumnsToggle.setAttribute(
-    "aria-label",
-    lockColumnsCollapsed ? "Expand lock and task columns" : "Collapse lock and task columns"
-  );
-}
-
 async function loadCalendar() {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
   propertyListEl.innerHTML = "";
@@ -537,7 +509,6 @@ function renderProperties() {
       online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
       online.innerHTML = `
         <span class="wifi-bars" aria-hidden="true"><span></span><span></span><span></span></span>
-        <span class="lock-online-text">${lockStatus.online ? "ON" : "OFF"}</span>
       `;
       online.title = lockStatus.online ? "Lock online" : "Lock offline";
       online.setAttribute("aria-label", lockStatus.online ? "Lock online" : "Lock offline");
