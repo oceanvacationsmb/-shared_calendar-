@@ -1005,6 +1005,8 @@ function getActiveFilterNames() {
 
   if (activeFilters.area === "SOUTH") {
     names.push("SOUTH END");
+  } else if (activeFilters.area === "MB") {
+    names.push("CENTRAL MB");
   } else if (activeFilters.area) {
     names.push(activeFilters.area);
   }
