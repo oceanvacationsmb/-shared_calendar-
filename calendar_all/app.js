@@ -757,7 +757,7 @@ function renderCheckoutNoStayHalf(row, dateIndex) {
   box.style.left = `calc(${dateIndex} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
   box.style.width = `calc((var(--day-width) / 2) - 4px)`;
 
-  box.textContent = "NO STAY";
+  box.innerHTML = "<span>NO</span><span>STAY</span>";
 
   row.appendChild(box);
 }

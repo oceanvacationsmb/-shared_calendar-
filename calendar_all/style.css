@@ -748,10 +748,12 @@ body.list-open .calendar-shell {
   z-index: 9;
   color: #111827;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.05;
   white-space: nowrap;
   overflow: hidden;
   user-select: none;
