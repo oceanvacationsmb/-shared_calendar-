@@ -73,6 +73,8 @@
           </button>
         </div>
       </div>
+
+      <button id="gapsBtn" class="filter-btn gaps-btn" type="button">GAPS</button>
     </div>
 
     <div id="filteredListPanel" class="filtered-list-panel hidden">
@@ -86,7 +88,10 @@
     <main class="calendar-shell">
       <aside class="property-side">
         <div class="property-head">
-          <span class="property-head-name">Property</span>
+          <span class="property-head-name">
+            <span>Property</span>
+            <button id="lockColumnsToggle" class="lock-columns-toggle" type="button" aria-label="Collapse lock and task columns">‹</button>
+          </span>
           <span class="property-head-lock">Lock</span>
           <span class="property-head-task">Task</span>
         </div>
@@ -99,6 +104,22 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- Gaps Popup -->
+  <div id="gapsModal" class="modal hidden">
+    <div class="modal-card gaps-card">
+      <div class="modal-head">
+        <strong>Gaps</strong>
+        <button id="closeGapsBtn" class="modal-x">×</button>
+      </div>
+      <div class="gaps-actions">
+        <button id="loadGapsBtn" class="modal-btn secondary" type="button">Load Properties</button>
+        <button id="scanGapsBtn" class="modal-btn primary" type="button">Scan &amp; Adjust</button>
+      </div>
+      <div id="gapsStatus" class="gaps-status">Open gaps and scan without entering the password.</div>
+      <div id="gapsResults" class="gaps-results"></div>
+    </div>
   </div>
 
   <!-- New Task Popup -->

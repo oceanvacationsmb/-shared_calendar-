@@ -25,6 +25,8 @@ const LOCKS_API_SECRET = process.env.LOCKS_API_SECRET;
 const LOCKS_API_BEARER = process.env.LOCKS_API_BEARER || process.env.LOCKS_API_TOKEN || "";
 const LOCKS_API_COOKIE = process.env.LOCKS_API_COOKIE || "";
 const LOCKS_API_URL = process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "";
+const GAPS_API_URL = String(process.env.GAPS_API_URL || process.env.GUESTY_GAPS_URL || "").replace(/\/$/, "");
+const GAPS_ADMIN_KEY = process.env.GAPS_ADMIN_KEY || process.env.SETTINGS_ADMIN_KEY || "";
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
@@ -36,6 +38,50 @@ let locksCache = {
   expiresAt: 0,
   data: []
 };
+
+function gapsHeaders() {
+  const headers = {
+    accept: "application/json"
+  };
+
+  if (GAPS_ADMIN_KEY) {
+    headers["x-admin-key"] = GAPS_ADMIN_KEY;
+  }
+
+  return headers;
+}
+
+async function gapsRequest(path, options = {}) {
+  if (!GAPS_API_URL) {
+    const err = new Error("Missing GAPS_API_URL");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  if (!GAPS_ADMIN_KEY) {
+    const err = new Error("Missing GAPS_ADMIN_KEY");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const response = await fetch(`${GAPS_API_URL}${path}`, {
+    ...options,
+    headers: {
+      ...gapsHeaders(),
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : {};
+
+  if (!response.ok) {
+    const err = new Error(data.error || data.message || `Gaps API failed (${response.status})`);
+    err.statusCode = response.status;
+    throw err;
+  }
+
+  return data;
+}
 
 function cleanReportKey(key) {
   return String(key || "")
@@ -998,6 +1044,54 @@ app.get("/api/locks-status", async (req, res) => {
       ok: true,
       warning: err.message || "Failed to load locks",
       locks: locksCache.data || []
+    });
+  }
+});
+
+app.get("/api/gaps/enabled-listings", async (req, res) => {
+  try {
+    const data = await gapsRequest("/api/enabled-listings");
+    res.json({ ok: true, ...data });
+  } catch (err) {
+    console.error("Gaps enabled listings error:", err);
+
+    res.status(err.statusCode || 500).json({
+      ok: false,
+      message: err.message || "Failed to load enabled gap properties"
+    });
+  }
+});
+
+app.post("/api/gaps/scan", async (req, res) => {
+  try {
+    const data = await gapsRequest("/api/scan", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: "{}"
+    });
+    res.status(202).json({ ok: true, ...data });
+  } catch (err) {
+    console.error("Gaps scan start error:", err);
+
+    res.status(err.statusCode || 500).json({
+      ok: false,
+      message: err.message || "Failed to start gap scan"
+    });
+  }
+});
+
+app.get("/api/gaps/scan-status", async (req, res) => {
+  try {
+    const data = await gapsRequest("/api/scan-status");
+    res.json({ ok: true, job: data });
+  } catch (err) {
+    console.error("Gaps scan status error:", err);
+
+    res.status(err.statusCode || 500).json({
+      ok: false,
+      message: err.message || "Failed to load gap scan status"
     });
   }
 });

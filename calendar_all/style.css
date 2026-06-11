@@ -190,6 +190,13 @@ button {
   color: #78350f;
 }
 
+.gaps-btn {
+  background: #eef2ff;
+  border-color: #818cf8;
+  color: #1e1b4b;
+  min-width: 74px;
+}
+
 .task-badge-bell {
   width: 18px;
   height: 18px;
@@ -404,6 +411,30 @@ body.list-open .calendar-shell {
   white-space: nowrap;
 }
 
+.property-head-name {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.lock-columns-toggle {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 1000;
+  line-height: 1;
+  box-shadow: none;
+}
+
 .property-head-lock,
 .property-head-task {
   text-align: center;
@@ -589,6 +620,37 @@ body.list-open .calendar-shell {
   background: currentColor;
   transform: rotate(-35deg);
   border-radius: 999px;
+}
+
+body.lock-columns-collapsed {
+  --property-width: 226px;
+}
+
+body.lock-columns-collapsed .property-head {
+  grid-template-columns: minmax(0, 1fr) 58px 34px;
+}
+
+body.lock-columns-collapsed .property-status {
+  grid-template-columns: 58px 34px;
+  gap: 4px;
+}
+
+body.lock-columns-collapsed .property-lock {
+  gap: 2px;
+}
+
+body.lock-columns-collapsed .lock-battery {
+  min-width: 31px;
+  padding: 0 4px;
+}
+
+body.lock-columns-collapsed .lock-online {
+  min-width: 19px;
+  padding: 0 2px;
+}
+
+body.lock-columns-collapsed .lock-online.online .lock-online-text {
+  display: none;
 }
 
 @keyframes bell-ring {
@@ -1186,6 +1248,74 @@ body.list-open .calendar-shell {
   margin-top: 10px;
 }
 
+.gaps-card {
+  max-width: 760px;
+}
+
+.gaps-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.gaps-status {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+  font-weight: 800;
+}
+
+.gaps-status.success {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.gaps-status.error {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.gaps-results {
+  display: grid;
+  gap: 8px;
+  max-height: 55vh;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+
+.gaps-summary,
+.gaps-row,
+.gaps-result {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+  font-weight: 800;
+}
+
+.gaps-result-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gaps-result ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.gaps-empty {
+  color: #6b7280;
+  font-weight: 800;
+  margin-top: 6px;
+}
+
 /* Mobile */
 @media (max-width: 800px) {
   :root {
@@ -1233,13 +1363,17 @@ body.list-open .calendar-shell {
   }
 
   .tasks-filter-btn {
-    min-width: 118px;
+    min-width: 106px;
     gap: 5px;
   }
 
   .locks-filter-btn {
-    min-width: 96px;
+    min-width: 86px;
     gap: 5px;
+  }
+
+  .gaps-btn {
+    min-width: 52px;
   }
 
   .total-tasks-badge {
@@ -1270,7 +1404,7 @@ body.list-open .calendar-shell {
   }
 
   .city-select {
-    max-width: 88px;
+    max-width: 78px;
     padding: 7px 8px;
     font-size: 10px;
   }
@@ -1301,6 +1435,12 @@ body.list-open .calendar-shell {
     padding: 0 6px;
     grid-template-columns: minmax(0, 1fr) 88px 34px;
     column-gap: 4px;
+  }
+
+  .lock-columns-toggle {
+    width: 19px;
+    height: 19px;
+    font-size: 14px;
   }
 
   .property-status {
@@ -1341,6 +1481,39 @@ body.list-open .calendar-shell {
     font-size: 8px;
   }
 
+  body.lock-columns-collapsed {
+    --property-width: 205px;
+  }
+
+  body.lock-columns-collapsed .property-head {
+    grid-template-columns: minmax(0, 1fr) 57px 30px;
+  }
+
+  body.lock-columns-collapsed .property-status {
+    grid-template-columns: 57px 30px;
+    gap: 3px;
+    padding-left: 4px;
+  }
+
+  body.lock-columns-collapsed .property-row {
+    padding: 0 5px;
+  }
+
+  body.lock-columns-collapsed .property-task {
+    min-width: 28px;
+    padding-left: 3px;
+  }
+
+  body.lock-columns-collapsed .lock-battery {
+    min-width: 32px;
+    padding: 0 4px;
+  }
+
+  body.lock-columns-collapsed .lock-online {
+    min-width: 18px;
+    padding: 0 2px;
+  }
+
   .bar-text {
     font-size: 9px;
   }
@@ -1362,6 +1535,11 @@ body.list-open .calendar-shell {
 
   .modal-actions {
     flex-direction: column-reverse;
+  }
+
+  .gaps-actions {
+    grid-template-columns: 1fr;
+    display: grid;
   }
 
   .vendor-row,

@@ -3,6 +3,7 @@ const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tas
 const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
 const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
 const LOCKS_API_URL = "https://shared-calendar-api.onrender.com/api/locks-status";
+const GAPS_API_BASE_URL = "https://shared-calendar-api.onrender.com/api/gaps";
 
 const DAYS_TO_SHOW = 45;
 const DAYS_BEFORE_TODAY = 5;
@@ -12,6 +13,7 @@ const calendarEl = document.getElementById("calendar");
 const calendarWrap = document.getElementById("calendarWrap");
 const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
+const lockColumnsToggle = document.getElementById("lockColumnsToggle");
 
 const newTaskBtn = document.getElementById("newTaskBtn");
 const taskMenuBtn = document.getElementById("taskMenuBtn");
@@ -61,6 +63,13 @@ const newCreatorInput = document.getElementById("newCreatorInput");
 const saveCreatorBtn = document.getElementById("saveCreatorBtn");
 const creatorNamesList = document.getElementById("creatorNamesList");
 const newTaskError = document.getElementById("newTaskError");
+const gapsBtn = document.getElementById("gapsBtn");
+const gapsModal = document.getElementById("gapsModal");
+const closeGapsBtn = document.getElementById("closeGapsBtn");
+const loadGapsBtn = document.getElementById("loadGapsBtn");
+const scanGapsBtn = document.getElementById("scanGapsBtn");
+const gapsStatus = document.getElementById("gapsStatus");
+const gapsResults = document.getElementById("gapsResults");
 
 const viewTasksModal = document.getElementById("viewTasksModal");
 const closeViewTasksBtn = document.getElementById("closeViewTasksBtn");
@@ -82,6 +91,8 @@ let renderTimer = null;
 let selectedTaskProperty = null;
 let editingTaskId = null;
 let viewingCompletedTasks = false;
+let lockColumnsCollapsed = getInitialLockColumnsCollapsed();
+let gapsPollTimer = null;
 
 let activeFilters = {
   elevator: false,
@@ -93,6 +104,14 @@ let activeFilters = {
 
 todayBtn.addEventListener("click", () => {
   scrollToToday(true);
+});
+
+applyLockColumnsState();
+
+lockColumnsToggle.addEventListener("click", () => {
+  lockColumnsCollapsed = !lockColumnsCollapsed;
+  localStorage.setItem("calendarLockColumnsCollapsed", lockColumnsCollapsed ? "1" : "0");
+  applyLockColumnsState();
 });
 
 newTaskBtn.addEventListener("click", () => {
@@ -149,6 +168,20 @@ newTaskModal.addEventListener("click", event => {
 viewTasksModal.addEventListener("click", event => {
   if (event.target === viewTasksModal) {
     closeViewTasksModal();
+  }
+});
+
+gapsBtn.addEventListener("click", () => {
+  openGapsModal();
+});
+
+closeGapsBtn.addEventListener("click", closeGapsModal);
+loadGapsBtn.addEventListener("click", loadGapProperties);
+scanGapsBtn.addEventListener("click", startGapScan);
+
+gapsModal.addEventListener("click", event => {
+  if (event.target === gapsModal) {
+    closeGapsModal();
   }
 });
 
@@ -334,6 +367,24 @@ function scrollToToday(smooth = false) {
     top: calendarWrap.scrollTop,
     behavior: smooth ? "smooth" : "auto"
   });
+}
+
+function getInitialLockColumnsCollapsed() {
+  const saved = localStorage.getItem("calendarLockColumnsCollapsed");
+
+  if (saved === "1") return true;
+  if (saved === "0") return false;
+
+  return window.matchMedia("(max-width: 800px)").matches;
+}
+
+function applyLockColumnsState() {
+  document.body.classList.toggle("lock-columns-collapsed", lockColumnsCollapsed);
+  lockColumnsToggle.textContent = lockColumnsCollapsed ? "›" : "‹";
+  lockColumnsToggle.setAttribute(
+    "aria-label",
+    lockColumnsCollapsed ? "Expand lock and task columns" : "Collapse lock and task columns"
+  );
 }
 
 async function loadCalendar() {
@@ -1644,6 +1695,147 @@ function closeViewTasksModal(options = {}) {
   if (!options.keepProperty) {
     selectedTaskProperty = null;
   }
+}
+
+function openGapsModal() {
+  gapsModal.classList.remove("hidden");
+
+  if (!gapsResults.innerHTML.trim()) {
+    loadGapProperties();
+  }
+}
+
+function closeGapsModal() {
+  gapsModal.classList.add("hidden");
+  clearTimeout(gapsPollTimer);
+}
+
+function setGapsStatus(message, type = "") {
+  gapsStatus.className = `gaps-status ${type}`.trim();
+  gapsStatus.textContent = message;
+}
+
+async function gapsApi(path, options = {}) {
+  const res = await fetch(`${GAPS_API_BASE_URL}${path}?v=${Date.now()}`, {
+    cache: "no-store",
+    ...options
+  });
+  const data = await res.json();
+
+  if (!res.ok || !data.ok) {
+    throw new Error(data.message || "Gaps request failed");
+  }
+
+  return data;
+}
+
+async function loadGapProperties() {
+  clearTimeout(gapsPollTimer);
+  loadGapsBtn.disabled = true;
+
+  try {
+    setGapsStatus("Loading enabled gap properties...");
+    const data = await gapsApi("/enabled-listings");
+    const listings = data.listings || [];
+
+    gapsResults.innerHTML = listings.length
+      ? `
+        <div class="gaps-summary">${listings.length} enabled properties</div>
+        ${listings.map(listing => `
+          <div class="gaps-row">${escapeHtml(listing.title || listing.id || "Property")}</div>
+        `).join("")}
+      `
+      : `<div class="gaps-empty">No gap properties are enabled yet.</div>`;
+
+    setGapsStatus("Ready to scan.");
+  } catch (err) {
+    gapsResults.innerHTML = "";
+    setGapsStatus(err.message, "error");
+  } finally {
+    loadGapsBtn.disabled = false;
+  }
+}
+
+async function startGapScan() {
+  clearTimeout(gapsPollTimer);
+  scanGapsBtn.disabled = true;
+  loadGapsBtn.disabled = true;
+
+  try {
+    setGapsStatus("Starting gap scan...");
+    gapsResults.innerHTML = "";
+    await gapsApi("/scan", {
+      method: "POST"
+    });
+    pollGapScan();
+  } catch (err) {
+    setGapsStatus(err.message, "error");
+    scanGapsBtn.disabled = false;
+    loadGapsBtn.disabled = false;
+  }
+}
+
+async function pollGapScan() {
+  gapsPollTimer = null;
+
+  try {
+    const data = await gapsApi("/scan-status");
+    const job = data.job || {};
+
+    if (job.state === "running") {
+      setGapsStatus("Scanning enabled properties... this can take a few minutes.");
+      gapsPollTimer = setTimeout(pollGapScan, 2500);
+      return;
+    }
+
+    if (job.state === "failed") {
+      throw new Error(job.error || "Gap scan failed");
+    }
+
+    if (job.state !== "completed") {
+      setGapsStatus("Scan is waiting to start...");
+      gapsPollTimer = setTimeout(pollGapScan, 2500);
+      return;
+    }
+
+    renderGapResults(job.result || {});
+    setGapsStatus("Gap scan complete.", "success");
+  } catch (err) {
+    setGapsStatus(err.message, "error");
+  } finally {
+    if (!gapsPollTimer) {
+      scanGapsBtn.disabled = false;
+      loadGapsBtn.disabled = false;
+    }
+  }
+}
+
+function renderGapResults(data) {
+  const listings = data.listings || [];
+  const count = data.dryRun ? data.adjustmentCount : data.appliedCount;
+  const summary = data.dryRun
+    ? `${count || 0} proposed adjustments. DRY RUN is on.`
+    : `${count || 0} adjustments applied.`;
+
+  gapsResults.innerHTML = `
+    <div class="gaps-summary">${escapeHtml(summary)}</div>
+    ${listings.map(listing => {
+      const adjustments = listing.adjustments || [];
+      return `
+        <div class="gaps-result">
+          <div class="gaps-result-title">
+            <span>${escapeHtml(listing.title || listing.id || "Property")}</span>
+            <strong>${adjustments.length}</strong>
+          </div>
+          ${adjustments.length
+            ? `<ul>${adjustments.map(adjustment => `
+              <li>${escapeHtml(adjustment.date)}: ${escapeHtml(adjustment.fromMinNights)} -> ${escapeHtml(adjustment.toMinNights)} nights</li>
+            `).join("")}</ul>`
+            : `<div class="gaps-empty">No eligible gaps found.</div>`}
+        </div>
+      `;
+    }).join("")}
+  `;
 }
 
 async function completeTask(taskId) {
