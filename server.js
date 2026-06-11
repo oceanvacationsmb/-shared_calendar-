@@ -600,9 +600,12 @@ function normalizeLockItem(item) {
     item.property?.name ||
     item.listing?.nickname ||
     item.listing?.name ||
+    item.listings?.[0]?.nickname ||
+    item.listings?.[0]?.name ||
     item.listingName ||
     item.linkedListing?.nickname ||
     item.linkedListing?.name ||
+    item.doorLock ||
     "";
 
   const batteryRaw =
@@ -648,6 +651,32 @@ function extractLockItems(data) {
     data?.rows;
 
   if (Array.isArray(direct)) return direct;
+
+  const seen = new Set();
+  const stack = [data];
+
+  while (stack.length) {
+    const value = stack.pop();
+
+    if (!value || typeof value !== "object" || seen.has(value)) continue;
+    seen.add(value);
+
+    for (const child of Object.values(value)) {
+      if (Array.isArray(child)) {
+        const hasLocks = child.some(item => item && typeof item === "object" && (
+          "batteryLevel" in item ||
+          "online" in item ||
+          "doorLock" in item ||
+          "providerDisplayName" in item ||
+          Array.isArray(item.listings)
+        ));
+
+        if (hasLocks) return child;
+      } else if (child && typeof child === "object") {
+        stack.push(child);
+      }
+    }
+  }
 
   return [];
 }
