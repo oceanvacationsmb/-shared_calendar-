@@ -70,14 +70,17 @@ button {
 
 /* Filters */
 .filters {
-  height: 44px;
+  min-height: 44px;
   padding: 7px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   background: #ffffff;
-  overflow-x: auto;
+  overflow: visible;
+  position: relative;
+  z-index: 120;
 }
 
 .filter-btn {
@@ -109,10 +112,11 @@ button {
   background: #fff7ed;
   border-color: #fb923c;
   color: #111827;
-  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 146px;
+  justify-content: center;
 }
 
 .task-menu {
@@ -124,7 +128,7 @@ button {
   position: absolute;
   top: calc(100% + 7px);
   left: 0;
-  z-index: 100;
+  z-index: 1000;
   min-width: 190px;
   display: grid;
   gap: 4px;
@@ -146,6 +150,10 @@ button {
   text-align: left;
   font-size: 12px;
   font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .task-menu-item:hover,
@@ -159,11 +167,6 @@ button {
   color: #ffffff;
 }
 
-.tasks-filter-btn.has-tasks .task-filter-bell {
-  animation: bell-ring 1.3s ease-in-out infinite;
-}
-
-.task-filter-bell,
 .task-badge-bell {
   width: 18px;
   height: 18px;
@@ -179,11 +182,8 @@ button {
 }
 
 .total-tasks-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  min-width: 20px;
-  height: 20px;
+  min-width: 24px;
+  height: 24px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -193,8 +193,28 @@ button {
   color: #ffffff;
   font-size: 12px;
   font-weight: 1000;
-  box-shadow: 0 0 0 2px #ffffff;
+  box-shadow: none;
   animation: badge-pop 1.6s ease-in-out infinite;
+}
+
+.task-menu-count {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+.task-menu-caret {
+  font-size: 14px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .completed-tasks-btn {

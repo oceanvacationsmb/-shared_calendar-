@@ -13,7 +13,9 @@ const propertyListEl = document.getElementById("propertyList");
 
 const newTaskBtn = document.getElementById("newTaskBtn");
 const taskMenuBtn = document.getElementById("taskMenuBtn");
+const taskMenuLabel = document.getElementById("taskMenuLabel");
 const taskMenuDropdown = document.getElementById("taskMenuDropdown");
+const taskMenuActiveCount = document.getElementById("taskMenuActiveCount");
 const tasksFilterBtn = document.getElementById("tasksFilterBtn");
 const completedTasksBtn = document.getElementById("completedTasksBtn");
 const totalTasksBadge = document.getElementById("totalTasksBadge");
@@ -912,8 +914,12 @@ function updateTaskNotification() {
   const count = tasks.length;
 
   totalTasksBadge.textContent = String(count);
+  taskMenuActiveCount.textContent = String(count);
+  taskMenuLabel.textContent = activeFilters.tasks ? "Active Tasks" : "Tasks";
   totalTasksBadge.classList.toggle("hidden", count === 0);
+  taskMenuActiveCount.classList.toggle("hidden", count === 0);
   taskMenuBtn.classList.toggle("has-tasks", count > 0);
+  tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
 }
 
 function closeTaskMenu() {
