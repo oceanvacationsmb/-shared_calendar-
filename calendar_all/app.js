@@ -484,7 +484,10 @@ function renderProperties() {
 
       const online = document.createElement("span");
       online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
-      online.innerHTML = `<span class="wifi-bars" aria-hidden="true"><span></span><span></span><span></span></span>`;
+      online.innerHTML = `
+        <span class="wifi-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span class="lock-online-text">${lockStatus.online ? "ON" : "OFF"}</span>
+      `;
       online.title = lockStatus.online ? "Lock online" : "Lock offline";
       online.setAttribute("aria-label", lockStatus.online ? "Lock online" : "Lock offline");
       lockGroup.appendChild(online);
