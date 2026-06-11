@@ -23,6 +23,7 @@ const TASK_MEDIA_BUCKET = process.env.TASK_MEDIA_BUCKET || "calendar-task-media"
 const LOCKS_API_CLIENT = process.env.LOCKS_API_CLIENT;
 const LOCKS_API_SECRET = process.env.LOCKS_API_SECRET;
 const LOCKS_API_BEARER = process.env.LOCKS_API_BEARER || process.env.LOCKS_API_TOKEN || "";
+const LOCKS_API_COOKIE = process.env.LOCKS_API_COOKIE || "";
 const LOCKS_API_URL = process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "";
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
@@ -663,6 +664,10 @@ async function fetchLocksFromConfiguredApi() {
     headers.authorization = `Bearer ${token}`;
   } else if (LOCKS_API_CLIENT && LOCKS_API_SECRET) {
     headers.authorization = `Basic ${Buffer.from(`${LOCKS_API_CLIENT}:${LOCKS_API_SECRET}`).toString("base64")}`;
+  }
+
+  if (LOCKS_API_COOKIE) {
+    headers.cookie = LOCKS_API_COOKIE;
   }
 
   const response = await fetch(LOCKS_API_URL, {
