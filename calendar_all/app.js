@@ -602,7 +602,7 @@ function renderCalendar() {
       if (!isCoveredByAnyBooking(property, date)) {
         const empty = document.createElement("div");
         empty.className = "no-stay";
-        empty.textContent = "NO STAY";
+        empty.textContent = "OPEN";
         dayCell.appendChild(empty);
       }
 
@@ -687,7 +687,9 @@ function renderBookingBars(row, property) {
     ? [...property.bookings].sort((a, b) => a.checkIn.localeCompare(b.checkIn))
     : [];
 
-  const visibleBookings = bookings.filter(booking => matchesBookingFilters(booking, property));
+  const visibleBookings = shouldShowAllBookingsForFilteredProperty()
+    ? bookings
+    : bookings.filter(booking => matchesBookingFilters(booking, property));
 
   visibleBookings.forEach(booking => {
     if (!booking.checkIn || !booking.checkOut) return;
@@ -718,6 +720,14 @@ function renderBookingBars(row, property) {
 
     const bar = document.createElement("div");
     bar.className = "booking-bar";
+
+    if (isYesValue(booking.elevator)) {
+      bar.classList.add("elevator-booking");
+    }
+
+    if (isYesValue(booking.confPmt)) {
+      bar.classList.add("payment-issue-booking");
+    }
 
     if (startsVisible && endsVisible) {
       bar.classList.add("full-round");
@@ -793,12 +803,12 @@ function renderBookingBars(row, property) {
     row.appendChild(bar);
 
     if (endsVisible && !hasCheckinSameDayAfter) {
-      renderCheckoutNoStayHalf(row, checkOutIndex);
+      renderCheckoutOpenHalf(row, checkOutIndex);
     }
   });
 }
 
-function renderCheckoutNoStayHalf(row, dateIndex) {
+function renderCheckoutOpenHalf(row, dateIndex) {
   if (row.querySelector(`[data-checkout-no-stay="${dateIndex}"]`)) return;
 
   const box = document.createElement("div");
@@ -808,16 +818,22 @@ function renderCheckoutNoStayHalf(row, dateIndex) {
   box.style.left = `calc(${dateIndex} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
   box.style.width = `calc((var(--day-width) / 2) - 4px)`;
 
-  box.innerHTML = "<span>NO</span><span>STAY</span>";
+  box.textContent = "OPEN";
 
   row.appendChild(box);
 }
 
+function shouldShowAllBookingsForFilteredProperty() {
+  return Boolean(activeFilters.elevator || activeFilters.confPmt);
+}
+
 function isCoveredByAnyBooking(property, date) {
   const bookings = Array.isArray(property.bookings) ? property.bookings : [];
+  const relevantBookings = shouldShowAllBookingsForFilteredProperty()
+    ? bookings
+    : bookings.filter(booking => matchesBookingFilters(booking, property));
 
-  return bookings
-    .filter(booking => matchesBookingFilters(booking, property))
+  return relevantBookings
     .some(booking => {
       if (!booking.checkIn || !booking.checkOut) return false;
       return date >= booking.checkIn && date <= booking.checkOut;
