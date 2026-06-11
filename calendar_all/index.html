@@ -55,6 +55,24 @@
           </button>
         </div>
       </div>
+
+      <div class="task-menu lock-menu">
+        <button id="lockMenuBtn" class="filter-btn locks-filter-btn" type="button">
+          <span id="lockMenuLabel">LOCKS</span>
+          <span id="lockAlertBadge" class="total-tasks-badge hidden">0</span>
+          <span class="task-menu-caret" aria-hidden="true">⌄</span>
+        </button>
+        <div id="lockMenuDropdown" class="task-menu-dropdown hidden">
+          <button id="batteryFilterBtn" class="task-menu-item" type="button">
+            <span>BATTERY</span>
+            <span id="batteryBadge" class="task-menu-count hidden">0</span>
+          </button>
+          <button id="wifiFilterBtn" class="task-menu-item" type="button">
+            <span>WIFI</span>
+            <span id="wifiBadge" class="task-menu-count hidden">0</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <div id="filteredListPanel" class="filtered-list-panel hidden">
