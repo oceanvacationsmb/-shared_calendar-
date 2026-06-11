@@ -30,12 +30,7 @@ const confPmtBadge = document.getElementById("confPmtBadge");
 const cityFilterSelect = document.getElementById("cityFilterSelect");
 const lockMenuBtn = document.getElementById("lockMenuBtn");
 const lockMenuLabel = document.getElementById("lockMenuLabel");
-const lockMenuDropdown = document.getElementById("lockMenuDropdown");
 const lockAlertBadge = document.getElementById("lockAlertBadge");
-const batteryFilterBtn = document.getElementById("batteryFilterBtn");
-const batteryBadge = document.getElementById("batteryBadge");
-const wifiFilterBtn = document.getElementById("wifiFilterBtn");
-const wifiBadge = document.getElementById("wifiBadge");
 
 const filteredListPanel = document.getElementById("filteredListPanel");
 const filteredListTitle = document.getElementById("filteredListTitle");
@@ -221,7 +216,10 @@ taskMenuBtn.addEventListener("click", event => {
 lockMenuBtn.addEventListener("click", event => {
   event.stopPropagation();
   closeTaskMenu();
-  lockMenuDropdown.classList.toggle("hidden");
+  activeFilters.lock = activeFilters.lock === "issues" ? null : "issues";
+
+  updateFilterButtons();
+  render();
 });
 
 document.addEventListener("click", event => {
@@ -229,22 +227,6 @@ document.addEventListener("click", event => {
     closeTaskMenu();
     closeLockMenu();
   }
-});
-
-batteryFilterBtn.addEventListener("click", () => {
-  closeLockMenu();
-  activeFilters.lock = activeFilters.lock === "battery" ? null : "battery";
-
-  updateFilterButtons();
-  render();
-});
-
-wifiFilterBtn.addEventListener("click", () => {
-  closeLockMenu();
-  activeFilters.lock = activeFilters.lock === "wifi" ? null : "wifi";
-
-  updateFilterButtons();
-  render();
 });
 
 elevatorFilterBtn.addEventListener("click", () => {
@@ -870,15 +852,7 @@ function propertyMatchesLockFilter(property) {
 
   if (!lockStatus) return false;
 
-  if (activeFilters.lock === "battery") {
-    return hasBatteryIssue(lockStatus);
-  }
-
-  if (activeFilters.lock === "wifi") {
-    return lockStatus.online === false;
-  }
-
-  return true;
+  return hasLockIssue(lockStatus);
 }
 
 function propertyMatchesSelectedArea(property) {
@@ -1050,18 +1024,15 @@ function updateFilterButtons() {
   const taskCount = tasks.length;
   const elevatorCount = getElevatorReservationCount();
   const paymentIssueCount = getConfPmtReservationCount();
-  const batteryIssueCount = getBatteryIssueCount();
-  const offlineLockCount = getOfflineLockCount();
+  const lockIssueCount = getLockIssueCount();
 
   updateTaskNotification(taskCount, elevatorCount, paymentIssueCount);
-  updateLockNotification(batteryIssueCount, offlineLockCount);
+  updateLockNotification(lockIssueCount);
   updateElevatorNotification(elevatorCount);
   updateConfPmtNotification(paymentIssueCount);
   tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
-  batteryFilterBtn.classList.toggle("active", activeFilters.lock === "battery");
-  wifiFilterBtn.classList.toggle("active", activeFilters.lock === "wifi");
 
   cityFilterSelect.value = activeFilters.area || "";
   cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area));
@@ -1103,28 +1074,12 @@ function closeTaskMenu() {
 }
 
 function closeLockMenu() {
-  lockMenuDropdown.classList.add("hidden");
 }
 
-function updateLockNotification(batteryIssueCount, offlineLockCount) {
-  let label = "LOCKS";
-  let count = batteryIssueCount + offlineLockCount;
-
-  if (activeFilters.lock === "battery") {
-    label = "BATTERY";
-    count = batteryIssueCount;
-  } else if (activeFilters.lock === "wifi") {
-    label = "WIFI";
-    count = offlineLockCount;
-  }
-
-  lockMenuLabel.textContent = label;
+function updateLockNotification(count) {
+  lockMenuLabel.textContent = "LOCKS";
   lockAlertBadge.textContent = String(count);
-  batteryBadge.textContent = String(batteryIssueCount);
-  wifiBadge.textContent = String(offlineLockCount);
   lockAlertBadge.classList.toggle("hidden", count === 0);
-  batteryBadge.classList.toggle("hidden", batteryIssueCount === 0);
-  wifiBadge.classList.toggle("hidden", offlineLockCount === 0);
   lockMenuBtn.classList.toggle("active", Boolean(activeFilters.lock));
   lockMenuBtn.classList.toggle("has-lock-alerts", count > 0);
 }
@@ -1171,17 +1126,10 @@ function getElevatorReservationCount() {
   return count;
 }
 
-function getBatteryIssueCount() {
+function getLockIssueCount() {
   return properties.filter(property => {
     const lockStatus = getLockStatusForProperty(property);
-    return lockStatus && hasBatteryIssue(lockStatus);
-  }).length;
-}
-
-function getOfflineLockCount() {
-  return properties.filter(property => {
-    const lockStatus = getLockStatusForProperty(property);
-    return lockStatus && lockStatus.online === false;
+    return lockStatus && hasLockIssue(lockStatus);
   }).length;
 }
 
@@ -1199,8 +1147,7 @@ function getActiveFilterNames() {
   if (activeFilters.elevator) names.push("ELEVATOR");
   if (activeFilters.confPmt) names.push("PAYMENT ISSUES");
   if (activeFilters.tasks) names.push("TASKS");
-  if (activeFilters.lock === "battery") names.push("BATTERY");
-  if (activeFilters.lock === "wifi") names.push("WIFI");
+  if (activeFilters.lock) names.push("LOCKS");
 
   if (activeFilters.area === "SOUTH") {
     names.push("SOUTH END");
@@ -1323,6 +1270,10 @@ function hasBatteryIssue(lockStatus) {
 
   const status = String(lockStatus?.batteryStatus || "").toLowerCase();
   return status.includes("low") || status.includes("medium");
+}
+
+function hasLockIssue(lockStatus) {
+  return hasBatteryIssue(lockStatus) || lockStatus?.online === false;
 }
 
 /* Tasks */
