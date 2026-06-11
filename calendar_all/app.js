@@ -551,7 +551,7 @@ function renderCalendar() {
       if (!isCoveredByAnyBooking(property, date)) {
         const empty = document.createElement("div");
         empty.className = "no-stay";
-        empty.textContent = "No stay";
+        empty.textContent = "NO STAY";
         dayCell.appendChild(empty);
       }
 
@@ -742,22 +742,22 @@ function renderBookingBars(row, property) {
     row.appendChild(bar);
 
     if (endsVisible && !hasCheckinSameDayAfter) {
-      renderNciHalf(row, checkOutIndex);
+      renderCheckoutNoStayHalf(row, checkOutIndex);
     }
   });
 }
 
-function renderNciHalf(row, dateIndex) {
-  if (row.querySelector(`[data-nci="${dateIndex}"]`)) return;
+function renderCheckoutNoStayHalf(row, dateIndex) {
+  if (row.querySelector(`[data-checkout-no-stay="${dateIndex}"]`)) return;
 
   const box = document.createElement("div");
-  box.className = "nci-half";
-  box.dataset.nci = dateIndex;
+  box.className = "checkout-no-stay";
+  box.dataset.checkoutNoStay = dateIndex;
 
   box.style.left = `calc(${dateIndex} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
   box.style.width = `calc((var(--day-width) / 2) - 4px)`;
 
-  box.textContent = "NCI";
+  box.textContent = "NO STAY";
 
   row.appendChild(box);
 }

@@ -740,23 +740,22 @@ body.list-open .calendar-shell {
   user-select: none;
 }
 
-/* NCI */
-.nci-half {
+/* Checkout-only empty half day */
+.checkout-no-stay {
   position: absolute;
-  top: 10px;
-  height: 32px;
+  top: 0;
+  height: var(--row-height);
   z-index: 9;
-  background: #ffffff;
   color: #111827;
-  border: 1px dashed #111827;
-  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
-  font-weight: 900;
+  font-size: 10px;
+  font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
+  user-select: none;
+  pointer-events: none;
 }
 
 /* Main guest stay bar */
