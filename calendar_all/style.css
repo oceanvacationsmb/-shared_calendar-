@@ -1309,9 +1309,11 @@ body.list-open .calendar-shell {
     height: auto;
     padding: 6px 7px;
     gap: 5px;
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     overflow-x: visible;
     overflow-y: visible;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .filter-btn {
@@ -1319,18 +1321,26 @@ body.list-open .calendar-shell {
     font-size: 10px;
   }
 
+  .task-menu {
+    width: 100%;
+    min-width: 0;
+  }
+
   .tasks-filter-btn {
-    min-width: 92px;
+    width: 100%;
+    min-width: 0;
     gap: 5px;
   }
 
   .locks-filter-btn {
-    min-width: 92px;
+    width: 100%;
+    min-width: 0;
     gap: 5px;
   }
 
   .gaps-btn {
-    min-width: 92px;
+    width: 100%;
+    min-width: 0;
   }
 
   .total-tasks-badge {
@@ -1352,16 +1362,17 @@ body.list-open .calendar-shell {
   }
 
   .lock-menu .task-menu-dropdown {
-    left: 126px;
+    left: 190px;
     min-width: 150px;
   }
 
   .filter-divider {
-    margin: 0 2px;
+    display: none;
   }
 
   .city-select {
-    max-width: 72px;
+    width: 100%;
+    max-width: none;
     padding: 7px 7px;
     font-size: 10px;
   }

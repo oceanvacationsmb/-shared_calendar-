@@ -25,7 +25,13 @@ const LOCKS_API_SECRET = process.env.LOCKS_API_SECRET;
 const LOCKS_API_BEARER = process.env.LOCKS_API_BEARER || process.env.LOCKS_API_TOKEN || "";
 const LOCKS_API_COOKIE = process.env.LOCKS_API_COOKIE || "";
 const LOCKS_API_URL = process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "";
-const GAPS_API_URL = String(process.env.GAPS_API_URL || process.env.GUESTY_GAPS_URL || "").replace(/\/$/, "");
+const DEFAULT_GAPS_API_URL = "https://guesty-gaps.onrender.com";
+const GAPS_API_URL = String(process.env.GAPS_API_URL || process.env.GUESTY_GAPS_URL || DEFAULT_GAPS_API_URL).replace(/\/$/, "");
+const GAPS_API_URL_SOURCE = process.env.GAPS_API_URL
+  ? "GAPS_API_URL"
+  : process.env.GUESTY_GAPS_URL
+    ? "GUESTY_GAPS_URL"
+    : "default";
 const GAPS_ADMIN_KEY = process.env.GAPS_ADMIN_KEY || process.env.SETTINGS_ADMIN_KEY || "";
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
@@ -56,12 +62,6 @@ function gapsHeaders() {
 }
 
 async function gapsRequest(path, options = {}) {
-  if (!GAPS_API_URL) {
-    const err = new Error("Missing GAPS_API_URL");
-    err.statusCode = 500;
-    throw err;
-  }
-
   if (!GAPS_ADMIN_KEY) {
     const err = new Error("Missing GAPS_ADMIN_KEY");
     err.statusCode = 500;
@@ -87,7 +87,7 @@ async function gapsRequest(path, options = {}) {
         data = JSON.parse(text);
       } catch (err) {
         const preview = text.replace(/\s+/g, " ").slice(0, 120);
-        lastError = new Error(`Gaps service is waking up. Last response started with: ${preview}`);
+        lastError = new Error(`Gaps service is waking up or GAPS_API_URL is wrong (${GAPS_API_URL_SOURCE}: ${GAPS_API_URL}). Last response started with: ${preview}`);
         lastError.statusCode = 503;
 
         if (attempt < maxAttempts) {
@@ -118,8 +118,6 @@ async function gapsRequest(path, options = {}) {
 }
 
 async function warmGapsService() {
-  if (!GAPS_API_URL) return { ok: false, message: "Missing GAPS_API_URL" };
-
   try {
     const response = await fetch(`${GAPS_API_URL}/health`, {
       method: "GET",
@@ -140,7 +138,9 @@ async function warmGapsService() {
   } catch (err) {
     return {
       ok: false,
-      message: err.message || "Gaps warmup failed"
+      message: err.message || "Gaps warmup failed",
+      url: GAPS_API_URL,
+      source: GAPS_API_URL_SOURCE
     };
   }
 }
