@@ -6,6 +6,7 @@ const LOCKS_API_URL = "https://shared-calendar-api.onrender.com/api/locks-status
 
 const DAYS_TO_SHOW = 45;
 const DAYS_BEFORE_TODAY = 5;
+const VISIBLE_DAY_COUNT = DAYS_TO_SHOW + DAYS_BEFORE_TODAY + 1;
 
 const calendarEl = document.getElementById("calendar");
 const calendarWrap = document.getElementById("calendarWrap");
@@ -308,9 +309,9 @@ async function loadCalendar() {
 
   const today = todayString();
   const start = addDays(today, -DAYS_BEFORE_TODAY);
-  const end = addDays(today, DAYS_TO_SHOW);
+  const end = addDays(today, DAYS_TO_SHOW + 1);
 
-  dates = buildDates(start, DAYS_TO_SHOW + DAYS_BEFORE_TODAY);
+  dates = buildDates(start, VISIBLE_DAY_COUNT);
 
   try {
     const controller = new AbortController();
@@ -433,8 +434,11 @@ function renderProperties() {
     name.textContent = getCompactPropertyName(property);
     row.appendChild(name);
 
-    const meta = document.createElement("div");
-    meta.className = "property-meta";
+    const status = document.createElement("div");
+    status.className = "property-status";
+
+    const lockGroup = document.createElement("div");
+    lockGroup.className = "property-lock";
 
     const lockStatus = getLockStatusForProperty(property);
 
@@ -442,15 +446,21 @@ function renderProperties() {
       const battery = document.createElement("span");
       battery.className = getBatteryClass(lockStatus);
       battery.textContent = formatBattery(lockStatus);
-      meta.appendChild(battery);
+      battery.title = `Lock battery ${formatBattery(lockStatus)}`;
+      lockGroup.appendChild(battery);
 
       const online = document.createElement("span");
       online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
-      online.textContent = lockStatus.online ? "📶" : "✕";
-      online.title = lockStatus.online ? "Online" : "Offline";
-      meta.appendChild(online);
+      online.innerHTML = `<span class="wifi-bars" aria-hidden="true"><span></span><span></span><span></span></span>`;
+      online.title = lockStatus.online ? "Lock online" : "Lock offline";
+      online.setAttribute("aria-label", lockStatus.online ? "Lock online" : "Lock offline");
+      lockGroup.appendChild(online);
     }
 
+    status.appendChild(lockGroup);
+
+    const taskGroup = document.createElement("div");
+    taskGroup.className = "property-task";
     const propertyTasks = getTasksForProperty(property);
 
     if (propertyTasks.length) {
@@ -466,12 +476,11 @@ function renderProperties() {
         openViewTasksModal(property);
       });
 
-      meta.appendChild(badge);
+      taskGroup.appendChild(badge);
     }
 
-    if (meta.children.length) {
-      row.appendChild(meta);
-    }
+    status.appendChild(taskGroup);
+    row.appendChild(status);
 
     propertyListEl.appendChild(row);
   });
@@ -1130,11 +1139,13 @@ function getLockStatusForProperty(property) {
 }
 
 function formatBattery(lockStatus) {
-  if (Number.isFinite(Number(lockStatus.batteryPercent))) {
-    return `${Number(lockStatus.batteryPercent)}%`;
+  const pct = Number(lockStatus.batteryPercent);
+
+  if (Number.isFinite(pct) && pct >= 0) {
+    return `${pct}%`;
   }
 
-  return lockStatus.batteryStatus || "";
+  return lockStatus.batteryStatus || "--";
 }
 
 function getBatteryClass(lockStatus) {

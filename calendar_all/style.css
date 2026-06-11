@@ -3,7 +3,7 @@
 }
 
 :root {
-  --property-width: 225px;
+  --property-width: 260px;
   --day-width: 76px;
   --row-height: 52px;
   --month-height: 28px;
@@ -360,7 +360,9 @@ body.list-open .calendar-shell {
 .property-head {
   height: calc(var(--month-height) + var(--header-height));
   border-bottom: 1px solid var(--row-line);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 44px;
+  column-gap: 6px;
   align-items: center;
   padding: 0 10px;
   font-size: 12px;
@@ -369,6 +371,19 @@ body.list-open .calendar-shell {
   text-transform: uppercase;
   letter-spacing: 0.4px;
   background: #f8fafc;
+}
+
+.property-head-name,
+.property-head-lock,
+.property-head-task {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-head-lock,
+.property-head-task {
+  text-align: center;
 }
 
 #propertyList {
@@ -386,10 +401,9 @@ body.list-open .calendar-shell {
 .property-row {
   height: var(--row-height);
   border-bottom: 1px solid var(--row-line);
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
   gap: 5px;
   padding: 0 7px;
   font-size: 13px;
@@ -410,17 +424,31 @@ body.list-open .calendar-shell {
   white-space: nowrap;
 }
 
-.property-meta {
+.property-status {
   flex: 0 0 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: 88px 44px;
   align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
+  justify-content: end;
+  gap: 6px;
   min-height: 22px;
   margin-top: 0;
   width: auto;
   border-left: 1px solid #cbd5e1;
-  padding-left: 5px;
+  padding-left: 6px;
+}
+
+.property-lock,
+.property-task {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.property-task {
+  min-width: 36px;
 }
 
 .task-badge {
@@ -479,6 +507,50 @@ body.list-open .calendar-shell {
   padding: 0 4px;
   font-size: 12px;
   line-height: 1;
+}
+
+.wifi-bars {
+  width: 14px;
+  height: 12px;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+}
+
+.wifi-bars span {
+  width: 3px;
+  border-radius: 2px 2px 0 0;
+  background: currentColor;
+}
+
+.wifi-bars span:nth-child(1) {
+  height: 4px;
+}
+
+.wifi-bars span:nth-child(2) {
+  height: 8px;
+}
+
+.wifi-bars span:nth-child(3) {
+  height: 11px;
+}
+
+.lock-online.offline .wifi-bars {
+  position: relative;
+  opacity: 0.9;
+}
+
+.lock-online.offline .wifi-bars::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 5px;
+  height: 2px;
+  background: currentColor;
+  transform: rotate(-35deg);
+  border-radius: 999px;
 }
 
 @keyframes bell-ring {
@@ -1078,7 +1150,7 @@ body.list-open .calendar-shell {
 /* Mobile */
 @media (max-width: 800px) {
   :root {
-    --property-width: 210px;
+    --property-width: 228px;
     --day-width: 66px;
     --row-height: 52px;
     --month-height: 26px;
@@ -1149,7 +1221,7 @@ body.list-open .calendar-shell {
   .property-row {
     font-size: 14px;
     font-weight: 900;
-    padding: 0 5px;
+    padding: 0 6px;
     line-height: 1.15;
     gap: 4px;
   }
@@ -1158,27 +1230,35 @@ body.list-open .calendar-shell {
     font-size: 11px;
     font-weight: 900;
     padding: 0 6px;
+    grid-template-columns: minmax(0, 1fr) 76px 36px;
+    column-gap: 4px;
+  }
+
+  .property-status {
+    grid-template-columns: 76px 36px;
+    gap: 4px;
+    padding-left: 5px;
   }
 
   .task-badge {
     font-size: 10px;
     margin-top: 0;
-    min-width: 32px;
+    min-width: 30px;
     height: 19px;
-    padding: 0 5px;
+    padding: 0 4px;
   }
 
   .lock-battery {
-    min-width: 30px;
+    min-width: 34px;
     height: 19px;
     padding: 0 5px;
     font-size: 10px;
   }
 
   .lock-online {
-    min-width: 20px;
+    min-width: 19px;
     height: 19px;
-    padding: 0 3px;
+    padding: 0 2px;
     font-size: 11px;
   }
 
