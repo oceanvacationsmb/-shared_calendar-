@@ -104,6 +104,8 @@ todayBtn.addEventListener("click", () => {
   scrollToToday(true);
 });
 
+warmGapsService();
+
 newTaskBtn.addEventListener("click", () => {
   closeTaskMenu();
   openNewTaskModal();
@@ -356,6 +358,14 @@ function scrollToToday(smooth = false) {
     left: todayScrollLeft,
     top: calendarWrap.scrollTop,
     behavior: smooth ? "smooth" : "auto"
+  });
+}
+
+function warmGapsService() {
+  fetch(`${GAPS_API_BASE_URL}/warmup?v=${Date.now()}`, {
+    cache: "no-store"
+  }).catch(() => {
+    // Warmup is best-effort; the GAPS popup will show the real error if needed.
   });
 }
 
@@ -786,8 +796,8 @@ function renderCheckoutOpenHalf(row, dateIndex) {
   box.className = "checkout-no-stay";
   box.dataset.checkoutNoStay = dateIndex;
 
-  box.style.left = `calc(${dateIndex} * var(--day-width) + (var(--day-width) / 2) + 2px)`;
-  box.style.width = `calc((var(--day-width) / 2) - 4px)`;
+  box.style.left = `calc(${dateIndex} * var(--day-width) + (var(--day-width) / 2) - 4px)`;
+  box.style.width = `calc((var(--day-width) / 2) + 4px)`;
 
   box.textContent = "OPEN";
 

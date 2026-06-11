@@ -39,6 +39,10 @@ let locksCache = {
   data: []
 };
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function gapsHeaders() {
   const headers = {
     accept: "application/json"
@@ -64,34 +68,81 @@ async function gapsRequest(path, options = {}) {
     throw err;
   }
 
-  const response = await fetch(`${GAPS_API_URL}${path}`, {
-    ...options,
-    headers: {
-      ...gapsHeaders(),
-      ...(options.headers || {})
-    }
-  });
-  const text = await response.text();
-  let data = {};
+  const { maxAttempts = 12, ...fetchOptions } = options;
+  let lastError = null;
 
-  if (text) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(`${GAPS_API_URL}${path}`, {
+      ...fetchOptions,
+      headers: {
+        ...gapsHeaders(),
+        ...(fetchOptions.headers || {})
+      }
+    });
+    const text = await response.text();
+    let data = {};
+
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        const preview = text.replace(/\s+/g, " ").slice(0, 120);
+        lastError = new Error(`Gaps service is waking up. Last response started with: ${preview}`);
+        lastError.statusCode = 503;
+
+        if (attempt < maxAttempts) {
+          await sleep(5000);
+          continue;
+        }
+
+        throw lastError;
+      }
+    }
+
+    if (!response.ok) {
+      lastError = new Error(data.error || data.message || `Gaps API failed (${response.status})`);
+      lastError.statusCode = response.status;
+
+      if ([502, 503, 504].includes(response.status) && attempt < maxAttempts) {
+        await sleep(5000);
+        continue;
+      }
+
+      throw lastError;
+    }
+
+    return data;
+  }
+
+  throw lastError || new Error("Gaps service did not respond");
+}
+
+async function warmGapsService() {
+  if (!GAPS_API_URL) return { ok: false, message: "Missing GAPS_API_URL" };
+
+  try {
+    const response = await fetch(`${GAPS_API_URL}/health`, {
+      method: "GET",
+      headers: {
+        accept: "application/json"
+      }
+    });
+    const text = await response.text();
+
     try {
-      data = JSON.parse(text);
+      return text ? JSON.parse(text) : { ok: response.ok };
     } catch (err) {
-      const preview = text.replace(/\s+/g, " ").slice(0, 120);
-      const error = new Error(`Gaps service did not return JSON. Check GAPS_API_URL. Response started with: ${preview}`);
-      error.statusCode = 502;
-      throw error;
+      return {
+        ok: response.ok,
+        warming: true
+      };
     }
+  } catch (err) {
+    return {
+      ok: false,
+      message: err.message || "Gaps warmup failed"
+    };
   }
-
-  if (!response.ok) {
-    const err = new Error(data.error || data.message || `Gaps API failed (${response.status})`);
-    err.statusCode = response.status;
-    throw err;
-  }
-
-  return data;
 }
 
 function cleanReportKey(key) {
@@ -1071,6 +1122,15 @@ app.get("/api/gaps/enabled-listings", async (req, res) => {
       message: err.message || "Failed to load enabled gap properties"
     });
   }
+});
+
+app.get("/api/gaps/warmup", async (req, res) => {
+  const result = await warmGapsService();
+
+  res.json({
+    ok: true,
+    gaps: result
+  });
 });
 
 app.post("/api/gaps/scan", async (req, res) => {
