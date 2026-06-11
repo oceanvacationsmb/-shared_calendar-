@@ -178,6 +178,48 @@ function cleanPhone(value) {
   return String(value || "").replace(/[^\d+]/g, "");
 }
 
+function collectReportText(value, parts = []) {
+  if (value === null || value === undefined) return parts;
+
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    parts.push(String(value));
+    return parts;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach(item => collectReportText(item, parts));
+    return parts;
+  }
+
+  if (typeof value === "object") {
+    Object.entries(value).forEach(([key, entry]) => {
+      parts.push(String(key));
+      collectReportText(entry, parts);
+    });
+  }
+
+  return parts;
+}
+
+function hasPaymentIssue(row) {
+  const text = collectReportText(row).join(" ").toLowerCase();
+
+  return [
+    "payment failed",
+    "failed payment",
+    "payment issue",
+    "payment error",
+    "payment declined",
+    "card declined",
+    "charge failed",
+    "transaction failed",
+    "payment unsuccessful",
+    "failed to charge",
+    "past due",
+    "unpaid"
+  ].some(term => text.includes(term));
+}
+
 function normalizeReservation(row) {
   const status = String(
     getField(row, "status") ||
@@ -239,10 +281,9 @@ function normalizeReservation(row) {
     cleanDate(getField(row, "checkOutDate") || row?.checkOutDate || row?.checkOut);
 
   const elevatorRaw = getField(row, "customFields.69682ec2a604dc001460d3c5");
-  const confPmtRaw = getField(row, "customFields.697a503bb0eb850013850912");
 
   const elevator = String(elevatorRaw || "").trim().toLowerCase() === "yes";
-  const confPmt = String(confPmtRaw || "").trim().toLowerCase() === "yes";
+  const confPmt = hasPaymentIssue(row);
 
   return {
     status,
@@ -644,6 +685,50 @@ async function cleanupOldCompletedTasks() {
   } catch (err) {
     console.error("Completed task cleanup error:", err);
   }
+}
+
+async function deleteTaskPermanently(taskId) {
+  const id = String(taskId || "").trim();
+  if (!id) return;
+
+  const media = await supabaseRequest(
+    `calendar_task_media?task_id=eq.${encodeURIComponent(id)}&select=storage_path`,
+    {
+      method: "GET"
+    }
+  );
+  const storagePaths = (media || []).map(item => item.storage_path).filter(Boolean);
+
+  if (storagePaths.length) {
+    await supabaseStorageRequest(
+      `object/${encodeURIComponent(TASK_MEDIA_BUCKET)}`,
+      {
+        method: "DELETE",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          prefixes: storagePaths
+        })
+      }
+    ).catch(err => {
+      console.error("Task storage delete error:", err);
+    });
+  }
+
+  await supabaseRequest(
+    `calendar_task_media?task_id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "DELETE"
+    }
+  );
+
+  await supabaseRequest(
+    `calendar_tasks?id=eq.${encodeURIComponent(id)}`,
+    {
+      method: "DELETE"
+    }
+  );
 }
 
 app.get("/", (req, res) => {
@@ -1084,11 +1169,21 @@ app.post("/api/calendar-tasks", async (req, res) => {
 app.delete("/api/calendar-tasks/:id", async (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
+    const hardDelete = String(req.query.hard || "").toLowerCase() === "true";
 
     if (!id) {
       return res.status(400).json({
         ok: false,
         message: "Missing task id"
+      });
+    }
+
+    if (hardDelete) {
+      await deleteTaskPermanently(id);
+
+      return res.json({
+        ok: true,
+        deleted: id
       });
     }
 

@@ -115,6 +115,44 @@ button {
   gap: 6px;
 }
 
+.task-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.task-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 100;
+  min-width: 190px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+.task-menu-item {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: none;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.task-menu-item:hover,
+.task-menu-item.active {
+  background: #fef3c7;
+}
+
 .tasks-filter-btn.active {
   background: #ea580c;
   border-color: #ea580c;
@@ -192,7 +230,7 @@ button {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  display: inline-flex;
+  display: none;
   align-items: center;
   justify-content: center;
   background: #dc2626;
@@ -200,6 +238,10 @@ button {
   font-size: 12px;
   font-weight: 1000;
   line-height: 1;
+}
+
+.conf-pmt-filter-btn.has-conf-pmt .conf-pmt-bell {
+  display: inline-flex;
 }
 
 .conf-pmt-badge {
@@ -380,7 +422,7 @@ body.list-open .calendar-shell {
   align-items: flex-start;
   justify-content: center;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 900;
   color: #111827;
   white-space: nowrap;
@@ -393,6 +435,7 @@ body.list-open .calendar-shell {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.12;
+  font-weight: 1000;
 }
 
 .task-badge {
@@ -959,6 +1002,15 @@ body.list-open .calendar-shell {
   border-color: #16a34a;
 }
 
+.delete-completed-task-btn {
+  margin-top: 10px;
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: none;
+  font-weight: 900;
+}
+
 .complete-question {
   font-size: 16px;
   font-weight: 900;
@@ -1025,7 +1077,7 @@ body.list-open .calendar-shell {
   }
 
   .property-row {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 900;
     padding: 0 6px;
     line-height: 1.15;

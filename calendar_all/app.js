@@ -12,6 +12,8 @@ const todayBtn = document.getElementById("todayBtn");
 const propertyListEl = document.getElementById("propertyList");
 
 const newTaskBtn = document.getElementById("newTaskBtn");
+const taskMenuBtn = document.getElementById("taskMenuBtn");
+const taskMenuDropdown = document.getElementById("taskMenuDropdown");
 const tasksFilterBtn = document.getElementById("tasksFilterBtn");
 const completedTasksBtn = document.getElementById("completedTasksBtn");
 const totalTasksBadge = document.getElementById("totalTasksBadge");
@@ -79,6 +81,7 @@ todayBtn.addEventListener("click", () => {
 });
 
 newTaskBtn.addEventListener("click", () => {
+  closeTaskMenu();
   openNewTaskModal();
 });
 
@@ -145,6 +148,7 @@ cityFilterSelect.addEventListener("change", () => {
 });
 
 tasksFilterBtn.addEventListener("click", () => {
+  closeTaskMenu();
   activeFilters.tasks = !activeFilters.tasks;
   activeFilters.elevator = false;
   activeFilters.confPmt = false;
@@ -155,7 +159,19 @@ tasksFilterBtn.addEventListener("click", () => {
 });
 
 completedTasksBtn.addEventListener("click", () => {
+  closeTaskMenu();
   openCompletedTasksModal();
+});
+
+taskMenuBtn.addEventListener("click", event => {
+  event.stopPropagation();
+  taskMenuDropdown.classList.toggle("hidden");
+});
+
+document.addEventListener("click", event => {
+  if (!event.target.closest(".task-menu")) {
+    closeTaskMenu();
+  }
 });
 
 elevatorFilterBtn.addEventListener("click", () => {
@@ -594,7 +610,7 @@ function renderBookingBars(row, property) {
     }
 
     if (isYesValue(booking.confPmt)) {
-      extraLabels.push("CONFIRM PMT");
+      extraLabels.push("PAYMENT ISSUE");
     }
 
     if (widthUnits >= 1.4) {
@@ -791,7 +807,7 @@ function getFilteredBookingsInView() {
       const tags = [];
 
       if (isYesValue(booking.elevator)) tags.push("ELEVATOR");
-      if (isYesValue(booking.confPmt)) tags.push("CONFIRM PMT");
+      if (isYesValue(booking.confPmt)) tags.push("PAYMENT ISSUE");
 
       const guestName = cleanGuestName(
         booking.guestName ||
@@ -897,7 +913,11 @@ function updateTaskNotification() {
 
   totalTasksBadge.textContent = String(count);
   totalTasksBadge.classList.toggle("hidden", count === 0);
-  tasksFilterBtn.classList.toggle("has-tasks", count > 0);
+  taskMenuBtn.classList.toggle("has-tasks", count > 0);
+}
+
+function closeTaskMenu() {
+  taskMenuDropdown.classList.add("hidden");
 }
 
 function updateConfPmtNotification() {
@@ -938,7 +958,7 @@ function getActiveFilterNames() {
   const names = [];
 
   if (activeFilters.elevator) names.push("ELEVATOR");
-  if (activeFilters.confPmt) names.push("CONFIRM PMT");
+  if (activeFilters.confPmt) names.push("PAYMENT ISSUES");
   if (activeFilters.tasks) names.push("TASKS");
 
   if (activeFilters.area === "SOUTH") {
@@ -1418,10 +1438,40 @@ async function openCompletedTasksModal() {
         ${task.completed_by_name ? `<div class="task-assignee">Completed by: ${escapeHtml(task.completed_by_name)}</div>` : ""}
         <div class="task-date">Completed: ${formatTaskDate(task.completed_at)}</div>
         ${renderTaskMedia(task.media)}
+        <div class="task-actions">
+          <button class="delete-completed-task-btn" data-task-id="${escapeHtml(task.id)}">Delete</button>
+        </div>
       </div>
     `).join("");
+
+    tasksList.querySelectorAll(".delete-completed-task-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        deleteCompletedTask(btn.dataset.taskId);
+      });
+    });
   } catch (err) {
     tasksList.innerHTML = `<div class="task-item"><div class="task-text">${escapeHtml(err.message)}</div></div>`;
+  }
+}
+
+async function deleteCompletedTask(taskId) {
+  if (!taskId) return;
+
+  try {
+    const res = await fetch(`${TASKS_API_URL}/${encodeURIComponent(taskId)}?hard=true`, {
+      method: "DELETE",
+      cache: "no-store"
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to delete completed task");
+    }
+
+    completedTasks = completedTasks.filter(task => String(task.id) !== String(taskId));
+    openCompletedTasksModal();
+  } catch (err) {
+    alert(err.message);
   }
 }
 

@@ -24,7 +24,7 @@
 
     <div class="filters">
       <select id="cityFilterSelect" class="city-select">
-        <option value="">FILTER</option>
+        <option value="">AREA</option>
         <option value="MB">MB</option>
         <option value="NMB">NORTH END</option>
         <option value="SSB">SSB</option>
@@ -34,19 +34,25 @@
 
       <span class="filter-divider"></span>
 
-      <button id="tasksFilterBtn" class="filter-btn tasks-filter-btn">
-        <span class="task-filter-bell" aria-hidden="true">!</span>
-        <span>SEE ALL TASKS</span>
-        <span id="totalTasksBadge" class="total-tasks-badge hidden">0</span>
-      </button>
-      <button id="completedTasksBtn" class="filter-btn completed-tasks-btn">COMPLETED TASKS</button>
-      <button id="newTaskBtn" class="filter-btn new-task-btn">ADD TASK</button>
+      <div class="task-menu">
+        <button id="taskMenuBtn" class="filter-btn tasks-filter-btn" type="button">
+          <span class="task-filter-bell" aria-hidden="true">!</span>
+          <span>TASKS</span>
+          <span id="totalTasksBadge" class="total-tasks-badge hidden">0</span>
+        </button>
+        <div id="taskMenuDropdown" class="task-menu-dropdown hidden">
+          <button id="tasksFilterBtn" class="task-menu-item" type="button">SEE ALL TASKS</button>
+          <button id="newTaskBtn" class="task-menu-item" type="button">ADD NEW TASK</button>
+          <button id="completedTasksBtn" class="task-menu-item" type="button">COMPLETED TASKS</button>
+        </div>
+      </div>
+
+      <button id="elevatorFilterBtn" class="filter-btn">ELEVATORS</button>
       <button id="confPmtFilterBtn" class="filter-btn conf-pmt-filter-btn">
         <span class="conf-pmt-bell" aria-hidden="true">!</span>
-        <span>TO CONF PMT</span>
+        <span>PAYMENT ISSUES</span>
         <span id="confPmtBadge" class="conf-pmt-badge hidden">0</span>
       </button>
-      <button id="elevatorFilterBtn" class="filter-btn">ELEVATORS</button>
 
       <button id="listToggleBtn" class="filter-btn list-btn hidden">Click for list</button>
     </div>
