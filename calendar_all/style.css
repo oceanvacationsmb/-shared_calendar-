@@ -222,65 +222,14 @@ button {
   border-color: #818cf8;
 }
 
-.conf-pmt-filter-btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .conf-pmt-filter-btn.has-conf-pmt {
   background: #fee2e2;
-  border-color: #ef4444;
   color: #991b1b;
-  animation: conf-pmt-pulse 1.5s ease-in-out infinite;
 }
 
-.conf-pmt-filter-btn.has-conf-pmt.active {
-  background: #dc2626;
-  border-color: #dc2626;
-  color: #ffffff;
-}
-
-.conf-pmt-filter-btn.has-conf-pmt .conf-pmt-bell {
-  animation: bell-ring 1.3s ease-in-out infinite;
-}
-
-.conf-pmt-bell {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  display: none;
-  align-items: center;
-  justify-content: center;
+.conf-pmt-filter-btn.active {
   background: #dc2626;
   color: #ffffff;
-  font-size: 12px;
-  font-weight: 1000;
-  line-height: 1;
-}
-
-.conf-pmt-filter-btn.has-conf-pmt .conf-pmt-bell {
-  display: inline-flex;
-}
-
-.conf-pmt-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  min-width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 6px;
-  background: #dc2626;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 1000;
-  box-shadow: 0 0 0 2px #ffffff;
-  animation: badge-pop 1.6s ease-in-out infinite;
 }
 
 .filter-divider {
@@ -543,11 +492,6 @@ body.list-open .calendar-shell {
 @keyframes task-attention {
   0%, 100% { background: #fee2e2; transform: translateY(0); }
   50% { background: #fecaca; transform: translateY(-1px); }
-}
-
-@keyframes conf-pmt-pulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(220, 38, 38, 0); }
-  50% { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.16); }
 }
 
 /* Calendar */

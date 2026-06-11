@@ -185,6 +185,7 @@ document.addEventListener("click", event => {
 });
 
 elevatorFilterBtn.addEventListener("click", () => {
+  closeTaskMenu();
   activeFilters.area = null;
   activeFilters.tasks = false;
   cityFilterSelect.value = "";
@@ -197,6 +198,7 @@ elevatorFilterBtn.addEventListener("click", () => {
 });
 
 confPmtFilterBtn.addEventListener("click", () => {
+  closeTaskMenu();
   activeFilters.area = null;
   activeFilters.tasks = false;
   cityFilterSelect.value = "";
