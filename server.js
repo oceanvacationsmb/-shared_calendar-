@@ -20,11 +20,20 @@ const GUESTY_ALL_REPORT_API_KEY = process.env.GUESTY_ALL_REPORT_API_KEY;
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TASK_MEDIA_BUCKET = process.env.TASK_MEDIA_BUCKET || "calendar-task-media";
+const LOCKS_API_CLIENT = process.env.LOCKS_API_CLIENT;
+const LOCKS_API_SECRET = process.env.LOCKS_API_SECRET;
+const LOCKS_API_URL = process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "";
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
 const DAYS_TO_SHOW = 90;
 const PAGE_LIMIT = 100;
+const LOCKS_CACHE_MS = 15 * 60 * 1000;
+
+let locksCache = {
+  expiresAt: 0,
+  data: []
+};
 
 function cleanReportKey(key) {
   return String(key || "")
@@ -574,6 +583,106 @@ function publicStorageUrl(path) {
   return `${SUPABASE_URL}/storage/v1/object/public/${TASK_MEDIA_BUCKET}/${path}`;
 }
 
+function normalizeTextKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\b(mb|gc|gcssb|ssb|nmb|mi)\b/g, "")
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
+
+function normalizeLockItem(item) {
+  const propertyName =
+    item.propertyName ||
+    item.property?.nickname ||
+    item.property?.name ||
+    item.listing?.nickname ||
+    item.listing?.name ||
+    item.listingName ||
+    item.linkedListing?.nickname ||
+    item.linkedListing?.name ||
+    "";
+
+  const batteryRaw =
+    item.batteryLevel ??
+    item.battery ??
+    item.batteryPercent ??
+    item.batteryPercentage ??
+    item.status?.batteryLevel;
+
+  let batteryPercent = null;
+
+  if (typeof batteryRaw === "number") {
+    batteryPercent = batteryRaw <= 1 ? Math.round(batteryRaw * 100) : Math.round(batteryRaw);
+  } else if (batteryRaw) {
+    const match = String(batteryRaw).match(/\d+/);
+    batteryPercent = match ? Number(match[0]) : null;
+  }
+
+  const batteryStatus = batteryPercent === null
+    ? String(item.batteryStatus || item.battery || "").trim()
+    : "";
+
+  return {
+    id: item.id || item._id || item.referenceId || "",
+    lockName: item.name || item.lockName || item.title || "",
+    propertyName,
+    propertyKey: normalizeTextKey(propertyName),
+    batteryPercent,
+    batteryStatus,
+    online: Boolean(item.online ?? item.isOnline ?? item.status?.online),
+    provider: item.providerDisplayName || item.provider || item.providerName || ""
+  };
+}
+
+function extractLockItems(data) {
+  if (Array.isArray(data)) return data;
+
+  const direct =
+    data?.locks ||
+    data?.results ||
+    data?.items ||
+    data?.data ||
+    data?.rows;
+
+  if (Array.isArray(direct)) return direct;
+
+  return [];
+}
+
+async function fetchLocksFromConfiguredApi() {
+  if (!LOCKS_API_URL) return [];
+
+  const headers = {
+    accept: "application/json"
+  };
+
+  if (LOCKS_API_CLIENT && LOCKS_API_SECRET) {
+    headers.authorization = `Basic ${Buffer.from(`${LOCKS_API_CLIENT}:${LOCKS_API_SECRET}`).toString("base64")}`;
+  }
+
+  const response = await fetch(LOCKS_API_URL, {
+    method: "GET",
+    headers
+  });
+  const text = await response.text();
+
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`Locks API failed (${response.status}): ${text}`);
+  }
+
+  return extractLockItems(data).map(normalizeLockItem).filter(item => item.propertyKey);
+}
+
 async function saveTaskMedia(taskId, files = [], uploadedFor = "open") {
   if (!taskId || !Array.isArray(files) || files.length === 0) {
     return [];
@@ -818,6 +927,39 @@ app.get("/api/calendar-all", async (req, res) => {
     res.status(500).json({
       ok: false,
       message: err.message || "Calendar all failed"
+    });
+  }
+});
+
+app.get("/api/locks-status", async (req, res) => {
+  try {
+    if (Date.now() < locksCache.expiresAt) {
+      return res.json({
+        ok: true,
+        cached: true,
+        locks: locksCache.data
+      });
+    }
+
+    const locks = await fetchLocksFromConfiguredApi();
+
+    locksCache = {
+      expiresAt: Date.now() + LOCKS_CACHE_MS,
+      data: locks
+    };
+
+    res.json({
+      ok: true,
+      cached: false,
+      locks
+    });
+  } catch (err) {
+    console.error("Locks status error:", err);
+
+    res.json({
+      ok: true,
+      warning: err.message || "Failed to load locks",
+      locks: locksCache.data || []
     });
   }
 });

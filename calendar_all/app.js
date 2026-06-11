@@ -2,6 +2,7 @@ const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
 const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
 const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
+const LOCKS_API_URL = "https://shared-calendar-api.onrender.com/api/locks-status";
 
 const DAYS_TO_SHOW = 45;
 const DAYS_BEFORE_TODAY = 5;
@@ -18,6 +19,7 @@ const taskMenuDropdown = document.getElementById("taskMenuDropdown");
 const taskMenuActiveCount = document.getElementById("taskMenuActiveCount");
 const tasksFilterBtn = document.getElementById("tasksFilterBtn");
 const completedTasksBtn = document.getElementById("completedTasksBtn");
+const taskListBtn = document.getElementById("taskListBtn");
 const totalTasksBadge = document.getElementById("totalTasksBadge");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
@@ -64,6 +66,7 @@ let tasks = [];
 let completedTasks = [];
 let taskVendors = [];
 let taskCreators = [];
+let lockStatuses = [];
 let isSyncingScroll = false;
 let isListOpen = false;
 let renderTimer = null;
@@ -163,6 +166,11 @@ tasksFilterBtn.addEventListener("click", () => {
 completedTasksBtn.addEventListener("click", () => {
   closeTaskMenu();
   openCompletedTasksModal();
+});
+
+taskListBtn.addEventListener("click", () => {
+  closeTaskMenu();
+  openTaskListModal();
 });
 
 taskMenuBtn.addEventListener("click", event => {
@@ -311,7 +319,7 @@ async function loadCalendar() {
       controller.abort();
     }, 25000);
 
-    const [calendarResponse, tasksResponse, vendorsResponse, creatorsResponse] = await Promise.all([
+    const [calendarResponse, tasksResponse, vendorsResponse, creatorsResponse, locksResponse] = await Promise.all([
       fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
         cache: "no-store",
         signal: controller.signal
@@ -327,6 +335,10 @@ async function loadCalendar() {
       fetch(`${TASK_CREATORS_API_URL}?v=${Date.now()}`, {
         cache: "no-store",
         signal: controller.signal
+      }),
+      fetch(`${LOCKS_API_URL}?v=${Date.now()}`, {
+        cache: "no-store",
+        signal: controller.signal
       })
     ]);
 
@@ -336,6 +348,7 @@ async function loadCalendar() {
     const tasksData = await tasksResponse.json();
     const vendorsData = await vendorsResponse.json();
     const creatorsData = await creatorsResponse.json();
+    const locksData = await locksResponse.json();
 
     if (!calendarResponse.ok || !data.ok) {
       throw new Error(data.message || "Calendar API error");
@@ -353,6 +366,7 @@ async function loadCalendar() {
     taskCreators = creatorsResponse.ok && creatorsData.ok
       ? creatorsData.creators || []
       : (creatorsData.defaultCreators || []).map(name => ({ name }));
+    lockStatuses = locksResponse.ok && locksData.ok ? locksData.locks || [] : [];
 
     render();
     fillTaskPropertySelect();
@@ -416,8 +430,11 @@ function renderProperties() {
 
     const name = document.createElement("div");
     name.className = "property-name";
-    name.textContent = property.nickname || property.name || "Property";
+    name.textContent = getCompactPropertyName(property);
     row.appendChild(name);
+
+    const meta = document.createElement("div");
+    meta.className = "property-meta";
 
     const propertyTasks = getTasksForProperty(property);
 
@@ -434,7 +451,26 @@ function renderProperties() {
         openViewTasksModal(property);
       });
 
-      row.appendChild(badge);
+      meta.appendChild(badge);
+    }
+
+    const lockStatus = getLockStatusForProperty(property);
+
+    if (lockStatus) {
+      const battery = document.createElement("span");
+      battery.className = getBatteryClass(lockStatus);
+      battery.textContent = formatBattery(lockStatus);
+      meta.appendChild(battery);
+
+      const online = document.createElement("span");
+      online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
+      online.textContent = lockStatus.online ? "≋" : "×";
+      online.title = lockStatus.online ? "Online" : "Offline";
+      meta.appendChild(online);
+    }
+
+    if (meta.children.length) {
+      row.appendChild(meta);
     }
 
     propertyListEl.appendChild(row);
@@ -915,7 +951,7 @@ function updateTaskNotification() {
 
   totalTasksBadge.textContent = String(count);
   taskMenuActiveCount.textContent = String(count);
-  taskMenuLabel.textContent = activeFilters.tasks ? "Active Tasks" : "Tasks";
+  taskMenuLabel.textContent = activeFilters.tasks ? "ACTIVE TASKS" : "TASKS";
   totalTasksBadge.classList.toggle("hidden", count === 0);
   taskMenuActiveCount.classList.toggle("hidden", count === 0);
   taskMenuBtn.classList.toggle("has-tasks", count > 0);
@@ -1008,6 +1044,65 @@ function getPropertyArea(property) {
   if (text.includes("myrtle beach")) return "MB";
 
   return "MB";
+}
+
+function normalizePropertyKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\b(mb|gc|gcssb|ssb|nmb|mi)\b/g, "")
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
+
+function getCompactPropertyName(property) {
+  const name = property.nickname || property.name || "Property";
+  return String(name)
+    .replace(/^\s*(MB|GC|GCSSB|SSB|NMB|MI)\s*[-–]\s*/i, "")
+    .trim();
+}
+
+function getLockStatusForProperty(property) {
+  if (!lockStatuses.length) return null;
+
+  const names = [
+    property.nickname,
+    property.name,
+    getCompactPropertyName(property)
+  ].filter(Boolean);
+
+  const keys = names.map(normalizePropertyKey).filter(Boolean);
+
+  return lockStatuses.find(lock => {
+    const lockKeys = [
+      lock.propertyKey,
+      normalizePropertyKey(lock.propertyName),
+      normalizePropertyKey(lock.lockName)
+    ].filter(Boolean);
+
+    return keys.some(key => lockKeys.includes(key) || lockKeys.some(lockKey => lockKey.includes(key) || key.includes(lockKey)));
+  }) || null;
+}
+
+function formatBattery(lockStatus) {
+  if (Number.isFinite(Number(lockStatus.batteryPercent))) {
+    return `${Number(lockStatus.batteryPercent)}%`;
+  }
+
+  return lockStatus.batteryStatus || "";
+}
+
+function getBatteryClass(lockStatus) {
+  const pct = Number(lockStatus.batteryPercent);
+
+  if (Number.isFinite(pct)) {
+    if (pct <= 20) return "lock-battery low";
+    if (pct <= 50) return "lock-battery medium";
+    return "lock-battery good";
+  }
+
+  const status = String(lockStatus.batteryStatus || "").toLowerCase();
+  if (status.includes("low")) return "lock-battery low";
+  return "lock-battery good";
 }
 
 /* Tasks */
@@ -1458,6 +1553,46 @@ async function openCompletedTasksModal() {
   } catch (err) {
     tasksList.innerHTML = `<div class="task-item"><div class="task-text">${escapeHtml(err.message)}</div></div>`;
   }
+}
+
+function openTaskListModal() {
+  viewingCompletedTasks = false;
+  selectedTaskProperty = null;
+  viewTasksTitle.textContent = "Task List";
+  addTaskForPropertyBtn.classList.add("hidden");
+
+  if (!tasks.length) {
+    tasksList.innerHTML = `<div class="task-item"><div class="task-text">No active tasks.</div></div>`;
+    viewTasksModal.classList.remove("hidden");
+    return;
+  }
+
+  const groups = properties
+    .map(property => ({
+      property,
+      propertyName: getCompactPropertyName(property),
+      tasks: getTasksForProperty(property)
+    }))
+    .filter(group => group.tasks.length)
+    .sort((a, b) => a.propertyName.localeCompare(b.propertyName));
+
+  tasksList.innerHTML = groups.map(group => `
+    <div class="task-property-group">
+      <div class="task-property-title">
+        <span>${escapeHtml(group.propertyName)}</span>
+        <span>${group.tasks.length}</span>
+      </div>
+      ${group.tasks.map(task => `
+        <div class="task-item compact-task-item" data-task-id="${escapeHtml(task.id)}">
+          <div class="task-text">${escapeHtml(task.task_text)}</div>
+          ${task.assignee_name ? `<div class="task-assignee">Person: ${escapeHtml(task.assignee_name)}</div>` : ""}
+          ${task.created_by_name ? `<div class="task-assignee">Added by: ${escapeHtml(task.created_by_name)}</div>` : ""}
+        </div>
+      `).join("")}
+    </div>
+  `).join("");
+
+  viewTasksModal.classList.remove("hidden");
 }
 
 async function deleteCompletedTask(taskId) {
