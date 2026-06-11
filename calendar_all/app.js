@@ -25,7 +25,6 @@ const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
 const elevatorBadge = document.getElementById("elevatorBadge");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 const confPmtBadge = document.getElementById("confPmtBadge");
-const listToggleBtn = document.getElementById("listToggleBtn");
 const cityFilterSelect = document.getElementById("cityFilterSelect");
 
 const filteredListPanel = document.getElementById("filteredListPanel");
@@ -166,11 +165,15 @@ tasksFilterBtn.addEventListener("click", () => {
 
 completedTasksBtn.addEventListener("click", () => {
   closeTaskMenu();
+  taskMenuLabel.textContent = "COMPLETED TASKS";
+  totalTasksBadge.classList.add("hidden");
   openCompletedTasksModal();
 });
 
 taskListBtn.addEventListener("click", () => {
   closeTaskMenu();
+  taskMenuLabel.textContent = "TASK LIST";
+  totalTasksBadge.classList.add("hidden");
   openTaskListModal();
 });
 
@@ -209,12 +212,6 @@ confPmtFilterBtn.addEventListener("click", () => {
 
   updateFilterButtons();
   render();
-});
-
-listToggleBtn.addEventListener("click", () => {
-  isListOpen = !isListOpen;
-  updateFilterButtons();
-  updateFilteredList();
 });
 
 calendarWrap.addEventListener("scroll", () => {
@@ -886,9 +883,12 @@ function getFilteredBookingsInView() {
 }
 
 function updateFilteredList() {
-  const showListOption = hasMovingFilter();
+  filteredListPanel.classList.add("hidden");
+  document.body.classList.remove("list-open");
+  isListOpen = false;
+  return;
 
-  listToggleBtn.classList.toggle("hidden", !showListOption);
+  const showListOption = hasMovingFilter();
 
   if (!showListOption) {
     filteredListPanel.classList.add("hidden");
@@ -898,9 +898,6 @@ function updateFilteredList() {
 
   filteredListPanel.classList.toggle("hidden", !isListOpen);
   document.body.classList.toggle("list-open", isListOpen);
-
-  listToggleBtn.textContent = isListOpen ? "Hide list" : "Click for list";
-  listToggleBtn.classList.toggle("active", isListOpen);
 
   if (!isListOpen) return;
 
@@ -937,9 +934,13 @@ function updateFilteredList() {
 }
 
 function updateFilterButtons() {
-  updateTaskNotification();
-  updateElevatorNotification();
-  updateConfPmtNotification();
+  const taskCount = tasks.length;
+  const elevatorCount = getElevatorReservationCount();
+  const paymentIssueCount = getConfPmtReservationCount();
+
+  updateTaskNotification(taskCount, elevatorCount, paymentIssueCount);
+  updateElevatorNotification(elevatorCount);
+  updateConfPmtNotification(paymentIssueCount);
   tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
   confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
@@ -950,21 +951,31 @@ function updateFilterButtons() {
   updateFilteredList();
 }
 
-function updateElevatorNotification() {
-  const count = getElevatorReservationCount();
-
+function updateElevatorNotification(count) {
   elevatorBadge.textContent = String(count);
   elevatorBadge.classList.toggle("hidden", count === 0);
 }
 
-function updateTaskNotification() {
-  const count = tasks.length;
+function updateTaskNotification(taskCount, elevatorCount, paymentIssueCount) {
+  let label = "TASKS";
+  let count = taskCount;
+
+  if (activeFilters.elevator) {
+    label = "ELEVATORS";
+    count = elevatorCount;
+  } else if (activeFilters.confPmt) {
+    label = "PAYMENT ISSUES";
+    count = paymentIssueCount;
+  } else if (activeFilters.tasks) {
+    label = "ACTIVE TASKS";
+    count = taskCount;
+  }
 
   totalTasksBadge.textContent = String(count);
-  taskMenuActiveCount.textContent = String(count);
-  taskMenuLabel.textContent = activeFilters.tasks ? "ACTIVE TASKS" : "TASKS";
+  taskMenuActiveCount.textContent = String(taskCount);
+  taskMenuLabel.textContent = label;
   totalTasksBadge.classList.toggle("hidden", count === 0);
-  taskMenuActiveCount.classList.toggle("hidden", count === 0);
+  taskMenuActiveCount.classList.toggle("hidden", taskCount === 0);
   taskMenuBtn.classList.toggle("has-tasks", count > 0);
   tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
 }
@@ -973,9 +984,7 @@ function closeTaskMenu() {
   taskMenuDropdown.classList.add("hidden");
 }
 
-function updateConfPmtNotification() {
-  const count = getConfPmtReservationCount();
-
+function updateConfPmtNotification(count) {
   confPmtBadge.textContent = String(count);
   confPmtBadge.classList.toggle("hidden", count === 0);
   confPmtFilterBtn.classList.toggle("has-conf-pmt", count > 0);

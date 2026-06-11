@@ -3,7 +3,7 @@
 }
 
 :root {
-  --property-width: 190px;
+  --property-width: 205px;
   --day-width: 76px;
   --row-height: 52px;
   --month-height: 28px;
@@ -390,9 +390,9 @@ body.list-open .calendar-shell {
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 0 8px;
-  font-size: 14px;
+  gap: 5px;
+  padding: 0 7px;
+  font-size: 13px;
   font-weight: 900;
   color: #111827;
   white-space: nowrap;
@@ -419,6 +419,8 @@ body.list-open .calendar-shell {
   min-height: 22px;
   margin-top: 0;
   width: auto;
+  border-left: 1px solid #cbd5e1;
+  padding-left: 5px;
 }
 
 .task-badge {
@@ -1076,7 +1078,7 @@ body.list-open .calendar-shell {
 /* Mobile */
 @media (max-width: 800px) {
   :root {
-    --property-width: 168px;
+    --property-width: 188px;
     --day-width: 66px;
     --row-height: 52px;
     --month-height: 26px;
@@ -1145,7 +1147,7 @@ body.list-open .calendar-shell {
   }
 
   .property-row {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 900;
     padding: 0 5px;
     line-height: 1.15;
@@ -1159,7 +1161,7 @@ body.list-open .calendar-shell {
   }
 
   .task-badge {
-    font-size: 11px;
+    font-size: 10px;
     margin-top: 0;
     min-width: 32px;
     height: 19px;
@@ -1167,10 +1169,10 @@ body.list-open .calendar-shell {
   }
 
   .lock-battery {
-    min-width: 32px;
+    min-width: 30px;
     height: 19px;
     padding: 0 5px;
-    font-size: 11px;
+    font-size: 10px;
   }
 
   .lock-online {
