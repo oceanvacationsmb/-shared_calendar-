@@ -3,7 +3,7 @@
 }
 
 :root {
-  --property-width: 220px;
+  --property-width: 240px;
   --day-width: 76px;
   --row-height: 52px;
   --month-height: 28px;
@@ -70,12 +70,12 @@ button {
 
 /* Filters */
 .filters {
-  min-height: 44px;
+  height: 58px;
   padding: 7px 18px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
   background: #ffffff;
   overflow: visible;
@@ -125,14 +125,16 @@ button {
 }
 
 .task-menu-dropdown {
-  position: static;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1000;
   min-width: 190px;
   display: grid;
   gap: 4px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 6px;
-  margin-top: 6px;
   background: #ffffff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
 }
@@ -437,9 +439,9 @@ body.list-open .calendar-shell {
   border-bottom: 1px solid var(--row-line);
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-start;
   justify-content: center;
-  padding: 0 10px;
+  padding: 6px 10px;
   font-size: 15px;
   font-weight: 900;
   color: #111827;
@@ -460,35 +462,37 @@ body.list-open .calendar-shell {
 .property-meta {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 5px;
   min-height: 22px;
-  margin-top: 4px;
+  margin-top: 5px;
+  width: 100%;
 }
 
 .task-badge {
-  align-self: center;
+  align-self: auto;
   margin-top: 0;
   color: #dc2626;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 1000;
   background: #fee2e2;
   border: 1px solid #fecaca;
   border-radius: 999px;
-  padding: 3px 10px;
+  padding: 2px 7px;
   box-shadow: 0 2px 6px rgba(220, 38, 38, 0.14);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-width: 54px;
+  min-width: 42px;
+  height: 22px;
   animation: task-attention 1.7s ease-in-out infinite;
 }
 
 .lock-battery,
 .lock-online {
-  min-width: 32px;
+  min-width: 38px;
   height: 22px;
   border-radius: 999px;
   display: inline-flex;
@@ -517,7 +521,7 @@ body.list-open .calendar-shell {
 }
 
 .lock-online {
-  min-width: 24px;
+  min-width: 26px;
   padding: 0 6px;
   font-size: 15px;
   line-height: 1;
@@ -1125,9 +1129,9 @@ body.list-open .calendar-shell {
 /* Mobile */
 @media (max-width: 800px) {
   :root {
-    --property-width: 185px;
+    --property-width: 205px;
     --day-width: 66px;
-    --row-height: 68px;
+    --row-height: 74px;
     --month-height: 26px;
     --header-height: 54px;
   }
@@ -1156,14 +1160,23 @@ body.list-open .calendar-shell {
   }
 
   .filters {
-    height: auto;
+    height: 58px;
     padding: 7px 10px;
     gap: 8px;
+    overflow-x: auto;
+    overflow-y: visible;
   }
 
   .filter-btn {
     padding: 8px 11px;
     font-size: 11px;
+  }
+
+  .task-menu-dropdown {
+    position: fixed;
+    top: 118px;
+    left: 10px;
+    z-index: 2000;
   }
 
   .city-select {
@@ -1185,9 +1198,9 @@ body.list-open .calendar-shell {
   }
 
   .property-row {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 900;
-    padding: 0 6px;
+    padding: 6px 7px;
     line-height: 1.15;
   }
 
@@ -1198,8 +1211,8 @@ body.list-open .calendar-shell {
   }
 
   .task-badge {
-    font-size: 13px;
-    margin-top: 5px;
+    font-size: 12px;
+    margin-top: 0;
   }
 
   .bar-text {

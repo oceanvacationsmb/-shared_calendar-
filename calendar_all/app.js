@@ -464,7 +464,7 @@ function renderProperties() {
 
       const online = document.createElement("span");
       online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
-      online.textContent = lockStatus.online ? "≋" : "×";
+      online.textContent = lockStatus.online ? "⌁" : "×";
       online.title = lockStatus.online ? "Online" : "Offline";
       meta.appendChild(online);
     }
@@ -1064,7 +1064,13 @@ function getCompactPropertyName(property) {
 }
 
 function getLockStatusForProperty(property) {
-  if (!lockStatuses.length) return null;
+  if (!lockStatuses.length) {
+    return {
+      batteryPercent: 80,
+      online: true,
+      provider: "Demo"
+    };
+  }
 
   const names = [
     property.nickname,
