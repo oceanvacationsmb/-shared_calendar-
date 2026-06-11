@@ -584,6 +584,7 @@ body.list-open .calendar-shell {
 }
 
 .modal-select,
+.modal-input,
 .modal-textarea {
   width: 100%;
   border: 1px solid #cbd5e1;
@@ -595,6 +596,50 @@ body.list-open .calendar-shell {
 .modal-textarea {
   min-height: 120px;
   resize: vertical;
+}
+
+.vendor-row,
+.add-vendor-box {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.add-vendor-box {
+  margin-top: 8px;
+}
+
+.modal-file {
+  width: 100%;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  padding: 11px;
+  background: #f8fafc;
+  font-size: 13px;
+}
+
+.media-preview {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.media-preview-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.media-preview-item small {
+  color: #6b7280;
+  white-space: nowrap;
 }
 
 .modal-error {
@@ -656,13 +701,84 @@ body.list-open .calendar-shell {
   font-size: 12px;
 }
 
+.task-assignee {
+  margin-top: 7px;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.task-media-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.task-media-thumb {
+  width: 72px;
+  height: 72px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.task-media-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.task-media-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 6px 9px;
+  color: #111827;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.task-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.edit-task-btn,
 .complete-task-btn {
   margin-top: 10px;
+  box-shadow: none;
+  font-weight: 900;
+}
+
+.edit-task-btn {
+  background: #f3f4f6;
+  color: #111827;
+  border-color: #cbd5e1;
+}
+
+.complete-task-btn {
   background: #16a34a;
   color: #ffffff;
   border-color: #16a34a;
-  box-shadow: none;
+}
+
+.complete-question {
+  font-size: 16px;
   font-weight: 900;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.complete-upload-box {
+  margin-top: 10px;
 }
 
 /* Mobile */
@@ -760,7 +876,16 @@ body.list-open .calendar-shell {
     flex-direction: column-reverse;
   }
 
+  .vendor-row,
+  .add-vendor-box {
+    grid-template-columns: 1fr;
+  }
+
   .modal-btn {
     width: 100%;
+  }
+
+  .task-actions {
+    flex-direction: column;
   }
 }

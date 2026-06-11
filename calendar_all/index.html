@@ -9,7 +9,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./style.css?v=121" />
+  <link rel="stylesheet" href="./style.css?v=122" />
 </head>
 <body>
   <div class="page">
@@ -78,7 +78,24 @@
       </select>
 
       <label class="modal-label">Task / problem</label>
-      <textarea id="taskTextInput" class="modal-textarea" placeholder="Type the problem here..."></textarea>
+      <textarea id="taskTextInput" class="modal-textarea" placeholder="Tell us whats going on!"></textarea>
+
+      <label class="modal-label">Person / vendor</label>
+      <div class="vendor-row">
+        <select id="taskAssigneeSelect" class="modal-select">
+          <option value="">Choose person</option>
+        </select>
+        <button id="showAddVendorBtn" class="modal-btn secondary" type="button">Add New</button>
+      </div>
+
+      <div id="addVendorBox" class="add-vendor-box hidden">
+        <input id="newVendorInput" class="modal-input" type="text" placeholder="New vendor name" />
+        <button id="saveVendorBtn" class="modal-btn primary" type="button">Save Vendor</button>
+      </div>
+
+      <label class="modal-label">Pictures / videos</label>
+      <input id="taskMediaInput" class="modal-file" type="file" accept="image/*,video/*" multiple />
+      <div id="taskMediaPreview" class="media-preview"></div>
 
       <div id="newTaskError" class="modal-error hidden"></div>
 
@@ -106,6 +123,32 @@
     </div>
   </div>
 
-  <script src="./app.js?v=121"></script>
+  <!-- Complete Task Popup -->
+  <div id="completeTaskModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <strong>Complete Task</strong>
+        <button id="closeCompleteTaskBtn" class="modal-x">Ã—</button>
+      </div>
+
+      <div id="completeTaskQuestion" class="complete-question">Would you like to upload a picture?</div>
+
+      <div id="completeUploadBox" class="complete-upload-box hidden">
+        <label class="modal-label">Pictures / videos</label>
+        <input id="completeMediaInput" class="modal-file" type="file" accept="image/*,video/*" multiple />
+        <div id="completeMediaPreview" class="media-preview"></div>
+      </div>
+
+      <div id="completeTaskError" class="modal-error hidden"></div>
+
+      <div class="modal-actions">
+        <button id="completeNoBtn" class="modal-btn secondary">No</button>
+        <button id="completeYesBtn" class="modal-btn primary">Yes</button>
+        <button id="finishCompleteTaskBtn" class="modal-btn primary hidden">Complete Task</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js?v=122"></script>
 </body>
 </html>

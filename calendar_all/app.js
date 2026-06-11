@@ -1,5 +1,6 @@
 const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
+const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
 
 const DAYS_TO_SHOW = 60;
 const DAYS_BEFORE_TODAY = 5;
@@ -27,6 +28,13 @@ const cancelNewTaskBtn = document.getElementById("cancelNewTaskBtn");
 const saveTaskBtn = document.getElementById("saveTaskBtn");
 const taskPropertySelect = document.getElementById("taskPropertySelect");
 const taskTextInput = document.getElementById("taskTextInput");
+const taskAssigneeSelect = document.getElementById("taskAssigneeSelect");
+const showAddVendorBtn = document.getElementById("showAddVendorBtn");
+const addVendorBox = document.getElementById("addVendorBox");
+const newVendorInput = document.getElementById("newVendorInput");
+const saveVendorBtn = document.getElementById("saveVendorBtn");
+const taskMediaInput = document.getElementById("taskMediaInput");
+const taskMediaPreview = document.getElementById("taskMediaPreview");
 const newTaskError = document.getElementById("newTaskError");
 
 const viewTasksModal = document.getElementById("viewTasksModal");
@@ -36,13 +44,26 @@ const addTaskForPropertyBtn = document.getElementById("addTaskForPropertyBtn");
 const viewTasksTitle = document.getElementById("viewTasksTitle");
 const tasksList = document.getElementById("tasksList");
 
+const completeTaskModal = document.getElementById("completeTaskModal");
+const closeCompleteTaskBtn = document.getElementById("closeCompleteTaskBtn");
+const completeUploadBox = document.getElementById("completeUploadBox");
+const completeMediaInput = document.getElementById("completeMediaInput");
+const completeMediaPreview = document.getElementById("completeMediaPreview");
+const completeTaskError = document.getElementById("completeTaskError");
+const completeNoBtn = document.getElementById("completeNoBtn");
+const completeYesBtn = document.getElementById("completeYesBtn");
+const finishCompleteTaskBtn = document.getElementById("finishCompleteTaskBtn");
+
 let dates = [];
 let properties = [];
 let tasks = [];
+let taskVendors = [];
 let isSyncingScroll = false;
 let isListOpen = false;
 let renderTimer = null;
 let selectedTaskProperty = null;
+let editingTaskId = null;
+let pendingCompleteTaskId = null;
 
 let activeFilters = {
   elevator: false,
@@ -66,6 +87,15 @@ saveTaskBtn.addEventListener("click", () => {
   saveNewTask();
 });
 
+showAddVendorBtn.addEventListener("click", () => {
+  addVendorBox.classList.toggle("hidden");
+  newVendorInput.focus();
+});
+
+saveVendorBtn.addEventListener("click", () => {
+  saveNewVendor();
+});
+
 closeViewTasksBtn.addEventListener("click", closeViewTasksModal);
 doneViewTasksBtn.addEventListener("click", closeViewTasksModal);
 addTaskForPropertyBtn.addEventListener("click", () => {
@@ -74,6 +104,27 @@ addTaskForPropertyBtn.addEventListener("click", () => {
   const property = selectedTaskProperty;
   closeViewTasksModal();
   openNewTaskModal(property);
+});
+
+closeCompleteTaskBtn.addEventListener("click", closeCompleteTaskModal);
+completeNoBtn.addEventListener("click", () => {
+  finishCompleteTask(false);
+});
+completeYesBtn.addEventListener("click", () => {
+  completeUploadBox.classList.remove("hidden");
+  completeYesBtn.classList.add("hidden");
+  finishCompleteTaskBtn.classList.remove("hidden");
+});
+finishCompleteTaskBtn.addEventListener("click", () => {
+  finishCompleteTask(true);
+});
+
+taskMediaInput.addEventListener("change", () => {
+  renderFilePreview(taskMediaInput.files, taskMediaPreview);
+});
+
+completeMediaInput.addEventListener("change", () => {
+  renderFilePreview(completeMediaInput.files, completeMediaPreview);
 });
 
 newTaskModal.addEventListener("click", event => {
@@ -85,6 +136,12 @@ newTaskModal.addEventListener("click", event => {
 viewTasksModal.addEventListener("click", event => {
   if (event.target === viewTasksModal) {
     closeViewTasksModal();
+  }
+});
+
+completeTaskModal.addEventListener("click", event => {
+  if (event.target === completeTaskModal) {
+    closeCompleteTaskModal();
   }
 });
 
@@ -243,12 +300,16 @@ async function loadCalendar() {
       controller.abort();
     }, 25000);
 
-    const [calendarResponse, tasksResponse] = await Promise.all([
+    const [calendarResponse, tasksResponse, vendorsResponse] = await Promise.all([
       fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
         cache: "no-store",
         signal: controller.signal
       }),
       fetch(`${TASKS_API_URL}?v=${Date.now()}`, {
+        cache: "no-store",
+        signal: controller.signal
+      }),
+      fetch(`${TASK_VENDORS_API_URL}?v=${Date.now()}`, {
         cache: "no-store",
         signal: controller.signal
       })
@@ -258,6 +319,7 @@ async function loadCalendar() {
 
     const data = await calendarResponse.json();
     const tasksData = await tasksResponse.json();
+    const vendorsData = await vendorsResponse.json();
 
     if (!calendarResponse.ok || !data.ok) {
       throw new Error(data.message || "Calendar API error");
@@ -269,9 +331,13 @@ async function loadCalendar() {
 
     properties = data.properties || [];
     tasks = tasksData.tasks || [];
+    taskVendors = vendorsResponse.ok && vendorsData.ok
+      ? vendorsData.vendors || []
+      : (vendorsData.defaultVendors || []).map(name => ({ name }));
 
     render();
     fillTaskPropertySelect();
+    fillTaskVendorSelect();
 
     setTimeout(() => {
       scrollToToday(false);
@@ -889,23 +955,95 @@ function fillTaskPropertySelect() {
   });
 }
 
-function openNewTaskModal(property = null) {
+function fillTaskVendorSelect(selectedName = "") {
+  const names = taskVendors
+    .map(vendor => vendor.name || vendor)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+
+  taskAssigneeSelect.innerHTML = `<option value="">Choose person</option>`;
+
+  names.forEach(name => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    taskAssigneeSelect.appendChild(option);
+  });
+
+  taskAssigneeSelect.value = selectedName || "";
+}
+
+async function saveNewVendor() {
+  const name = newVendorInput.value.trim();
+
+  if (!name) {
+    showNewTaskError("Please type the vendor name.");
+    return;
+  }
+
+  saveVendorBtn.disabled = true;
+  saveVendorBtn.textContent = "Saving...";
+
+  try {
+    const res = await fetch(TASK_VENDORS_API_URL, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ name })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.message || "Failed to save vendor");
+    }
+
+    if (!taskVendors.some(vendor => String(vendor.name || vendor).toLowerCase() === name.toLowerCase())) {
+      taskVendors.push(data.vendor || { name });
+    }
+
+    fillTaskVendorSelect(name);
+    newVendorInput.value = "";
+    addVendorBox.classList.add("hidden");
+    newTaskError.classList.add("hidden");
+  } catch (err) {
+    showNewTaskError(err.message);
+  } finally {
+    saveVendorBtn.disabled = false;
+    saveVendorBtn.textContent = "Save Vendor";
+  }
+}
+
+function openNewTaskModal(property = null, task = null) {
+  editingTaskId = task?.id || null;
   newTaskError.classList.add("hidden");
   newTaskError.textContent = "";
-  taskPropertySelect.value = property?.listingId || "";
-  taskTextInput.value = "";
+  addVendorBox.classList.add("hidden");
+  taskPropertySelect.disabled = Boolean(task);
+  taskPropertySelect.value = task?.listing_id || property?.listingId || "";
+  taskTextInput.value = task?.task_text || "";
+  fillTaskVendorSelect(task?.assignee_name || "");
+  taskMediaInput.value = "";
+  taskMediaPreview.innerHTML = "";
+  saveTaskBtn.textContent = task ? "Save Changes" : "Save Task";
   newTaskModal.classList.remove("hidden");
   taskTextInput.focus();
 }
 
 function closeNewTaskModal() {
   newTaskModal.classList.add("hidden");
+  editingTaskId = null;
+  taskPropertySelect.disabled = false;
+  saveTaskBtn.textContent = "Save Task";
 }
 
 async function saveNewTask() {
   const listingId = taskPropertySelect.value;
   const property = properties.find(p => p.listingId === listingId);
   const taskText = taskTextInput.value.trim();
+  const assigneeName = taskAssigneeSelect.value.trim();
 
   newTaskError.classList.add("hidden");
   newTaskError.textContent = "";
@@ -921,11 +1059,12 @@ async function saveNewTask() {
   }
 
   saveTaskBtn.disabled = true;
-  saveTaskBtn.textContent = "Saving...";
+  saveTaskBtn.textContent = editingTaskId ? "Saving..." : "Uploading...";
 
   try {
-    const res = await fetch(TASKS_API_URL, {
-      method: "POST",
+    const mediaFiles = editingTaskId ? [] : await filesToPayload(taskMediaInput.files);
+    const res = await fetch(editingTaskId ? `${TASKS_API_URL}/${encodeURIComponent(editingTaskId)}` : TASKS_API_URL, {
+      method: editingTaskId ? "PATCH" : "POST",
       cache: "no-store",
       headers: {
         "content-type": "application/json"
@@ -933,7 +1072,9 @@ async function saveNewTask() {
       body: JSON.stringify({
         listingId,
         propertyName: property?.nickname || property?.name || "Property",
-        taskText
+        taskText,
+        assigneeName,
+        mediaFiles
       })
     });
 
@@ -953,7 +1094,7 @@ async function saveNewTask() {
     showNewTaskError(err.message);
   } finally {
     saveTaskBtn.disabled = false;
-    saveTaskBtn.textContent = "Save Task";
+    saveTaskBtn.textContent = editingTaskId ? "Save Changes" : "Save Task";
   }
 }
 
@@ -986,33 +1127,78 @@ function openViewTasksModal(property) {
     tasksList.innerHTML = propertyTasks.map(task => `
       <div class="task-item" data-task-id="${escapeHtml(task.id)}">
         <div class="task-text">${escapeHtml(task.task_text)}</div>
+        ${task.assignee_name ? `<div class="task-assignee">Person: ${escapeHtml(task.assignee_name)}</div>` : ""}
         <div class="task-date">${formatTaskDate(task.created_at)}</div>
-        <button class="complete-task-btn" data-task-id="${escapeHtml(task.id)}">Complete</button>
+        ${renderTaskMedia(task.media)}
+        <div class="task-actions">
+          <button class="edit-task-btn" data-task-id="${escapeHtml(task.id)}">Edit</button>
+          <button class="complete-task-btn" data-task-id="${escapeHtml(task.id)}">Complete</button>
+        </div>
       </div>
     `).join("");
   }
 
+  tasksList.querySelectorAll(".edit-task-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const task = tasks.find(item => String(item.id) === String(btn.dataset.taskId));
+      if (!task) return;
+      closeViewTasksModal();
+      openNewTaskModal(property, task);
+    });
+  });
+
   tasksList.querySelectorAll(".complete-task-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      completeTask(btn.dataset.taskId);
+      openCompleteTaskModal(btn.dataset.taskId);
     });
   });
 
   viewTasksModal.classList.remove("hidden");
 }
 
-function closeViewTasksModal() {
+function closeViewTasksModal(options = {}) {
   viewTasksModal.classList.add("hidden");
-  selectedTaskProperty = null;
+  if (!options.keepProperty) {
+    selectedTaskProperty = null;
+  }
 }
 
-async function completeTask(taskId) {
+function openCompleteTaskModal(taskId) {
+  pendingCompleteTaskId = taskId;
+  completeTaskError.classList.add("hidden");
+  completeTaskError.textContent = "";
+  completeUploadBox.classList.add("hidden");
+  completeMediaInput.value = "";
+  completeMediaPreview.innerHTML = "";
+  completeYesBtn.classList.remove("hidden");
+  finishCompleteTaskBtn.classList.add("hidden");
+  completeTaskModal.classList.remove("hidden");
+}
+
+function closeCompleteTaskModal() {
+  completeTaskModal.classList.add("hidden");
+  pendingCompleteTaskId = null;
+}
+
+async function finishCompleteTask(includeMedia) {
+  const taskId = pendingCompleteTaskId;
+
   if (!taskId) return;
 
+  completeNoBtn.disabled = true;
+  completeYesBtn.disabled = true;
+  finishCompleteTaskBtn.disabled = true;
+
   try {
+    const mediaFiles = includeMedia ? await filesToPayload(completeMediaInput.files) : [];
+
     const res = await fetch(`${TASKS_API_URL}/${encodeURIComponent(taskId)}`, {
       method: "DELETE",
-      cache: "no-store"
+      cache: "no-store",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ mediaFiles })
     });
 
     const data = await res.json();
@@ -1022,6 +1208,7 @@ async function completeTask(taskId) {
     }
 
     await reloadTasksOnly();
+    closeCompleteTaskModal();
 
     if (selectedTaskProperty) {
       const stillHasTasks = getTasksForProperty(selectedTaskProperty).length > 0;
@@ -1033,8 +1220,66 @@ async function completeTask(taskId) {
       }
     }
   } catch (err) {
-    alert(err.message);
+    completeTaskError.textContent = err.message;
+    completeTaskError.classList.remove("hidden");
+  } finally {
+    completeNoBtn.disabled = false;
+    completeYesBtn.disabled = false;
+    finishCompleteTaskBtn.disabled = false;
   }
+}
+
+function renderTaskMedia(media = []) {
+  if (!Array.isArray(media) || !media.length) return "";
+
+  return `
+    <div class="task-media-grid">
+      ${media.map(item => {
+        const url = escapeHtml(item.file_url);
+        const name = escapeHtml(item.file_name || "Upload");
+
+        if (item.media_kind === "video" || String(item.file_type || "").startsWith("video/")) {
+          return `<a class="task-media-link" href="${url}" target="_blank" rel="noopener">Video: ${name}</a>`;
+        }
+
+        return `<a class="task-media-thumb" href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${name}"></a>`;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderFilePreview(fileList, target) {
+  const files = Array.from(fileList || []);
+
+  if (!files.length) {
+    target.innerHTML = "";
+    return;
+  }
+
+  target.innerHTML = files.map(file => `
+    <div class="media-preview-item">
+      <span>${escapeHtml(file.name)}</span>
+      <small>${Math.ceil(file.size / 1024)} KB</small>
+    </div>
+  `).join("");
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      name: file.name,
+      type: file.type,
+      dataUrl: reader.result
+    });
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function filesToPayload(fileList) {
+  const files = Array.from(fileList || []);
+  return Promise.all(files.map(fileToDataUrl));
 }
 
 function formatTaskDate(value) {

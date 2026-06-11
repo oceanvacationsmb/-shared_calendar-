@@ -5,7 +5,7 @@ require("dotenv").config();
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "75mb" }));
 
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -19,6 +19,7 @@ const GUESTY_ALL_REPORT_API_KEY = process.env.GUESTY_ALL_REPORT_API_KEY;
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const TASK_MEDIA_BUCKET = process.env.TASK_MEDIA_BUCKET || "calendar-task-media";
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
@@ -456,6 +457,128 @@ async function supabaseRequest(path, options = {}) {
   return data;
 }
 
+async function supabaseStorageRequest(path, options = {}) {
+  requireSupabase();
+
+  const response = await fetch(`${SUPABASE_URL}/storage/v1/${path}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      ...(options.headers || {})
+    }
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(JSON.stringify({
+      status: response.status,
+      data
+    }));
+  }
+
+  return data;
+}
+
+function getDefaultTaskVendors() {
+  return [
+    "Andre",
+    "Ashley",
+    "Isaac",
+    "Dennis",
+    "Paradise HVAC",
+    "Stainley"
+  ];
+}
+
+function sanitizeFileName(value) {
+  return String(value || "upload")
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 80);
+}
+
+function parseDataUrl(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
+
+  if (!match) {
+    throw new Error("Invalid upload data");
+  }
+
+  return {
+    contentType: match[1],
+    buffer: Buffer.from(match[2], "base64")
+  };
+}
+
+function publicStorageUrl(path) {
+  return `${SUPABASE_URL}/storage/v1/object/public/${TASK_MEDIA_BUCKET}/${path}`;
+}
+
+async function saveTaskMedia(taskId, files = [], uploadedFor = "open") {
+  if (!taskId || !Array.isArray(files) || files.length === 0) {
+    return [];
+  }
+
+  const saved = [];
+
+  for (const file of files) {
+    if (!file?.dataUrl) continue;
+
+    const parsed = parseDataUrl(file.dataUrl);
+    const originalName = sanitizeFileName(file.name);
+    const mediaKind = String(file.type || parsed.contentType).startsWith("video/")
+      ? "video"
+      : "image";
+    const storagePath = `${taskId}/${Date.now()}-${Math.random().toString(36).slice(2)}-${originalName}`;
+
+    await supabaseStorageRequest(
+      `object/${encodeURIComponent(TASK_MEDIA_BUCKET)}/${storagePath}`,
+      {
+        method: "PUT",
+        headers: {
+          "content-type": parsed.contentType,
+          "x-upsert": "true"
+        },
+        body: parsed.buffer
+      }
+    );
+
+    const inserted = await supabaseRequest(
+      "calendar_task_media",
+      {
+        method: "POST",
+        headers: {
+          Prefer: "return=representation"
+        },
+        body: JSON.stringify({
+          task_id: String(taskId),
+          file_name: originalName,
+          file_type: parsed.contentType,
+          file_url: publicStorageUrl(storagePath),
+          storage_path: storagePath,
+          media_kind: mediaKind,
+          uploaded_for: uploadedFor
+        })
+      }
+    );
+
+    saved.push(Array.isArray(inserted) ? inserted[0] : inserted);
+  }
+
+  return saved;
+}
+
 app.get("/", (req, res) => {
   res.json({
     ok: true,
@@ -549,10 +672,10 @@ app.get("/api/calendar-all", async (req, res) => {
 
 /* TASK API */
 
-app.get("/api/calendar-tasks", async (req, res) => {
+app.get("/api/calendar-task-vendors", async (req, res) => {
   try {
-    const tasks = await supabaseRequest(
-      "calendar_tasks?status=eq.open&select=*&order=created_at.desc",
+    const vendors = await supabaseRequest(
+      "calendar_task_vendors?select=*&order=name.asc",
       {
         method: "GET"
       }
@@ -560,7 +683,89 @@ app.get("/api/calendar-tasks", async (req, res) => {
 
     res.json({
       ok: true,
-      tasks: tasks || []
+      vendors: vendors || []
+    });
+  } catch (err) {
+    console.error("Get task vendors error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to load task vendors",
+      defaultVendors: getDefaultTaskVendors()
+    });
+  }
+});
+
+app.post("/api/calendar-task-vendors", async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+
+    if (!name) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing vendor name"
+      });
+    }
+
+    const created = await supabaseRequest(
+      "calendar_task_vendors?on_conflict=name",
+      {
+        method: "POST",
+        headers: {
+          Prefer: "return=representation,resolution=merge-duplicates"
+        },
+        body: JSON.stringify({ name })
+      }
+    );
+
+    res.json({
+      ok: true,
+      vendor: Array.isArray(created) ? created[0] : created
+    });
+  } catch (err) {
+    console.error("Create task vendor error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to save vendor"
+    });
+  }
+});
+
+app.get("/api/calendar-tasks", async (req, res) => {
+  try {
+    const [tasks, media] = await Promise.all([
+      supabaseRequest(
+        "calendar_tasks?status=eq.open&select=*&order=created_at.desc",
+        {
+          method: "GET"
+        }
+      ),
+      supabaseRequest(
+        "calendar_task_media?select=*&order=created_at.asc",
+        {
+          method: "GET"
+        }
+      )
+    ]);
+
+    const mediaByTask = new Map();
+
+    (media || []).forEach(item => {
+      const key = String(item.task_id);
+      const list = mediaByTask.get(key) || [];
+      list.push(item);
+      mediaByTask.set(key, list);
+    });
+
+    const tasksWithMedia = (tasks || []).map(task => ({
+      ...task,
+      media: mediaByTask.get(String(task.id)) || []
+    }));
+
+    res.json({
+      ok: true,
+      tasks: tasksWithMedia
     });
   } catch (err) {
     console.error("Get tasks error:", err);
@@ -572,11 +777,61 @@ app.get("/api/calendar-tasks", async (req, res) => {
   }
 });
 
+app.patch("/api/calendar-tasks/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    const taskText = String(req.body.taskText || "").trim();
+    const assigneeName = String(req.body.assigneeName || "").trim();
+
+    if (!id) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing task id"
+      });
+    }
+
+    if (!taskText) {
+      return res.status(400).json({
+        ok: false,
+        message: "Missing task text"
+      });
+    }
+
+    const updated = await supabaseRequest(
+      `calendar_tasks?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: {
+          Prefer: "return=representation"
+        },
+        body: JSON.stringify({
+          task_text: taskText,
+          assignee_name: assigneeName || null
+        })
+      }
+    );
+
+    res.json({
+      ok: true,
+      task: Array.isArray(updated) ? updated[0] : updated
+    });
+  } catch (err) {
+    console.error("Update task error:", err);
+
+    res.status(500).json({
+      ok: false,
+      message: err.message || "Failed to update task"
+    });
+  }
+});
+
 app.post("/api/calendar-tasks", async (req, res) => {
   try {
     const listingId = String(req.body.listingId || "").trim();
     const propertyName = String(req.body.propertyName || "").trim();
     const taskText = String(req.body.taskText || "").trim();
+    const assigneeName = String(req.body.assigneeName || "").trim();
+    const mediaFiles = Array.isArray(req.body.mediaFiles) ? req.body.mediaFiles : [];
 
     if (!listingId || !taskText) {
       return res.status(400).json({
@@ -596,14 +851,21 @@ app.post("/api/calendar-tasks", async (req, res) => {
           listing_id: listingId,
           property_name: propertyName,
           task_text: taskText,
+          assignee_name: assigneeName || null,
           status: "open"
         })
       }
     );
 
+    const task = Array.isArray(created) ? created[0] : created;
+    const media = await saveTaskMedia(task?.id, mediaFiles, "open");
+
     res.json({
       ok: true,
-      task: Array.isArray(created) ? created[0] : created
+      task: {
+        ...task,
+        media
+      }
     });
   } catch (err) {
     console.error("Create task error:", err);
@@ -618,6 +880,7 @@ app.post("/api/calendar-tasks", async (req, res) => {
 app.delete("/api/calendar-tasks/:id", async (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
+    const mediaFiles = Array.isArray(req.body?.mediaFiles) ? req.body.mediaFiles : [];
 
     if (!id) {
       return res.status(400).json({
@@ -626,23 +889,34 @@ app.delete("/api/calendar-tasks/:id", async (req, res) => {
       });
     }
 
-    await supabaseRequest(
+    const media = await saveTaskMedia(id, mediaFiles, "complete");
+
+    const updated = await supabaseRequest(
       `calendar_tasks?id=eq.${encodeURIComponent(id)}`,
       {
-        method: "DELETE"
+        method: "PATCH",
+        headers: {
+          Prefer: "return=representation"
+        },
+        body: JSON.stringify({
+          status: "completed",
+          completed_at: new Date().toISOString()
+        })
       }
     );
 
     res.json({
       ok: true,
-      deleted: id
+      completed: id,
+      task: Array.isArray(updated) ? updated[0] : updated,
+      media
     });
   } catch (err) {
-    console.error("Delete task error:", err);
+    console.error("Complete task error:", err);
 
     res.status(500).json({
       ok: false,
-      message: err.message || "Failed to delete task"
+      message: err.message || "Failed to complete task"
     });
   }
 });
