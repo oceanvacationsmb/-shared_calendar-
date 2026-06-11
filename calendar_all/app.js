@@ -22,6 +22,7 @@ const completedTasksBtn = document.getElementById("completedTasksBtn");
 const taskListBtn = document.getElementById("taskListBtn");
 const totalTasksBadge = document.getElementById("totalTasksBadge");
 const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
+const elevatorBadge = document.getElementById("elevatorBadge");
 const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
 const confPmtBadge = document.getElementById("confPmtBadge");
 const listToggleBtn = document.getElementById("listToggleBtn");
@@ -438,6 +439,21 @@ function renderProperties() {
     const meta = document.createElement("div");
     meta.className = "property-meta";
 
+    const lockStatus = getLockStatusForProperty(property);
+
+    if (lockStatus) {
+      const battery = document.createElement("span");
+      battery.className = getBatteryClass(lockStatus);
+      battery.textContent = formatBattery(lockStatus);
+      meta.appendChild(battery);
+
+      const online = document.createElement("span");
+      online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
+      online.textContent = lockStatus.online ? "📶" : "✕";
+      online.title = lockStatus.online ? "Online" : "Offline";
+      meta.appendChild(online);
+    }
+
     const propertyTasks = getTasksForProperty(property);
 
     if (propertyTasks.length) {
@@ -454,21 +470,6 @@ function renderProperties() {
       });
 
       meta.appendChild(badge);
-    }
-
-    const lockStatus = getLockStatusForProperty(property);
-
-    if (lockStatus) {
-      const battery = document.createElement("span");
-      battery.className = getBatteryClass(lockStatus);
-      battery.textContent = formatBattery(lockStatus);
-      meta.appendChild(battery);
-
-      const online = document.createElement("span");
-      online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
-      online.textContent = lockStatus.online ? "⌁" : "×";
-      online.title = lockStatus.online ? "Online" : "Offline";
-      meta.appendChild(online);
     }
 
     if (meta.children.length) {
@@ -937,6 +938,7 @@ function updateFilteredList() {
 
 function updateFilterButtons() {
   updateTaskNotification();
+  updateElevatorNotification();
   updateConfPmtNotification();
   tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
   elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
@@ -946,6 +948,13 @@ function updateFilterButtons() {
   cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area));
 
   updateFilteredList();
+}
+
+function updateElevatorNotification() {
+  const count = getElevatorReservationCount();
+
+  elevatorBadge.textContent = String(count);
+  elevatorBadge.classList.toggle("hidden", count === 0);
 }
 
 function updateTaskNotification() {
@@ -980,6 +989,24 @@ function getConfPmtReservationCount() {
 
     bookings.forEach(booking => {
       if (!isYesValue(booking.confPmt)) return;
+      if (!booking.checkIn || !booking.checkOut) return;
+      if (booking.checkOut < dates[0] || booking.checkIn > dates[dates.length - 1]) return;
+
+      count += 1;
+    });
+  });
+
+  return count;
+}
+
+function getElevatorReservationCount() {
+  let count = 0;
+
+  properties.forEach(property => {
+    const bookings = Array.isArray(property.bookings) ? property.bookings : [];
+
+    bookings.forEach(booking => {
+      if (!isYesValue(booking.elevator)) return;
       if (!booking.checkIn || !booking.checkOut) return;
       if (booking.checkOut < dates[0] || booking.checkIn > dates[dates.length - 1]) return;
 
