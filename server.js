@@ -33,6 +33,10 @@ const GAPS_API_URL_SOURCE = process.env.GAPS_API_URL
     ? "GUESTY_GAPS_URL"
     : "default";
 const GAPS_ADMIN_KEY = process.env.GAPS_ADMIN_KEY || process.env.SETTINGS_ADMIN_KEY || "";
+const SETTINGS_ADMIN_KEY = process.env.SETTINGS_ADMIN_KEY || "";
+const RENDER_API_KEY = process.env.RENDER_API_KEY || "";
+const RENDER_SERVICE_ID = process.env.RENDER_SERVICE_ID || process.env.RENDER_SHARED_CALENDAR_SERVICE_ID || "";
+const RENDER_API_BASE_URL = "https://api.render.com/v1";
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
@@ -150,6 +154,139 @@ function cleanReportKey(key) {
     .replace("apiKey=", "")
     .replace("apikey=", "")
     .trim();
+}
+
+function requireSettingsAdmin(req, res, next) {
+  if (!SETTINGS_ADMIN_KEY) {
+    return res.status(500).json({
+      ok: false,
+      message: "Missing SETTINGS_ADMIN_KEY in Render"
+    });
+  }
+
+  const key = String(req.get("x-settings-admin-key") || "").trim();
+
+  if (!key || key !== SETTINGS_ADMIN_KEY) {
+    return res.status(401).json({
+      ok: false,
+      message: "Settings admin key is missing or incorrect"
+    });
+  }
+
+  next();
+}
+
+function maskSecret(value) {
+  const text = String(value || "");
+
+  if (!text) return "";
+  if (text.length <= 8) return "*".repeat(text.length);
+
+  return `${text.slice(0, 4)}...${text.slice(-4)}`;
+}
+
+function renderHeaders() {
+  return {
+    accept: "application/json",
+    "content-type": "application/json",
+    authorization: `Bearer ${RENDER_API_KEY}`
+  };
+}
+
+async function renderApiRequest(path, options = {}) {
+  if (!RENDER_API_KEY || !RENDER_SERVICE_ID) {
+    const err = new Error("Missing RENDER_API_KEY or RENDER_SERVICE_ID in Render");
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const response = await fetch(`${RENDER_API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      ...renderHeaders(),
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      data = { raw: text };
+    }
+  }
+
+  if (!response.ok) {
+    const err = new Error(data?.message || data?.error || `Render API failed (${response.status})`);
+    err.statusCode = response.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
+}
+
+async function getRenderEnvVarKeys() {
+  const data = await renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/env-vars?limit=100`);
+  const items = Array.isArray(data) ? data : data?.envVars || data?.items || [];
+
+  return new Set(items
+    .map(item => item?.envVar?.key || item?.key)
+    .filter(Boolean));
+}
+
+async function createRenderEnvVar(key, value) {
+  try {
+    return await renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/env-vars`, {
+      method: "POST",
+      body: JSON.stringify([{ key, value }])
+    });
+  } catch (err) {
+    if (err.statusCode !== 400) throw err;
+
+    return renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/env-vars`, {
+      method: "POST",
+      body: JSON.stringify({ key, value })
+    });
+  }
+}
+
+async function updateRenderEnvVar(key, value) {
+  const encodedServiceId = encodeURIComponent(RENDER_SERVICE_ID);
+  const encodedKey = encodeURIComponent(key);
+
+  return renderApiRequest(`/services/${encodedServiceId}/env-vars/${encodedKey}`, {
+    method: "PUT",
+    body: JSON.stringify({ value })
+  });
+}
+
+async function upsertRenderEnvVars(values) {
+  const existingKeys = await getRenderEnvVarKeys();
+  const changed = [];
+
+  for (const [key, value] of Object.entries(values)) {
+    if (!value) continue;
+
+    if (existingKeys.has(key)) {
+      await updateRenderEnvVar(key, value);
+    } else {
+      await createRenderEnvVar(key, value);
+    }
+
+    changed.push(key);
+  }
+
+  return changed;
+}
+
+async function triggerRenderDeploy() {
+  return renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/deploys`, {
+    method: "POST",
+    body: JSON.stringify({ clearCache: "do_not_clear" })
+  });
 }
 
 function todayString() {
@@ -1568,6 +1705,72 @@ app.delete("/api/calendar-tasks/:id", async (req, res) => {
     res.status(500).json({
       ok: false,
       message: err.message || "Failed to complete task"
+    });
+  }
+});
+
+app.get("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
+  res.json({
+    ok: true,
+    renderConfigured: Boolean(RENDER_API_KEY && RENDER_SERVICE_ID),
+    renderServiceId: RENDER_SERVICE_ID ? maskSecret(RENDER_SERVICE_ID) : "",
+    values: {
+      LOCKS_API_URL: process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "",
+      LOCKS_API_BEARER: maskSecret(process.env.LOCKS_API_BEARER || process.env.LOCKS_API_TOKEN || ""),
+      LOCKS_API_COOKIE: maskSecret(process.env.LOCKS_API_COOKIE || ""),
+      GAPS_API_URL: process.env.GAPS_API_URL || process.env.GUESTY_GAPS_URL || DEFAULT_GAPS_API_URL,
+      GAPS_ADMIN_KEY: maskSecret(process.env.GAPS_ADMIN_KEY || "")
+    }
+  });
+});
+
+app.post("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
+  try {
+    const allowedKeys = [
+      "LOCKS_API_URL",
+      "LOCKS_API_BEARER",
+      "LOCKS_API_COOKIE",
+      "GAPS_API_URL",
+      "GAPS_ADMIN_KEY"
+    ];
+    const values = {};
+
+    allowedKeys.forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
+        const value = String(req.body[key] || "").trim();
+
+        if (value) {
+          values[key] = value;
+        }
+      }
+    });
+
+    if (Object.keys(values).length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: "Nothing to save. Paste at least one value."
+      });
+    }
+
+    const changed = await upsertRenderEnvVars(values);
+    let deploy = null;
+
+    if (changed.length > 0) {
+      deploy = await triggerRenderDeploy();
+    }
+
+    res.json({
+      ok: true,
+      changed,
+      deployId: deploy?.id || deploy?.deploy?.id || null,
+      message: "Settings saved to Render. A new deploy was started."
+    });
+  } catch (err) {
+    console.error("Render settings update error:", err);
+
+    res.status(err.statusCode || 500).json({
+      ok: false,
+      message: err.message || "Failed to save settings to Render"
     });
   }
 });
