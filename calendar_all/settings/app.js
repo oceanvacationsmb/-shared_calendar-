@@ -5,7 +5,8 @@ const settingsAdminKey = document.getElementById("settingsAdminKey");
 const rememberAdminKey = document.getElementById("rememberAdminKey");
 const locksApiBearer = document.getElementById("locksApiBearer");
 const locksApiCookie = document.getElementById("locksApiCookie");
-const gapsAdminKey = document.getElementById("gapsAdminKey");
+const gapsClientId = document.getElementById("gapsClientId");
+const gapsClientSecret = document.getElementById("gapsClientSecret");
 const loadBtn = document.getElementById("loadBtn");
 const saveBtn = document.getElementById("saveBtn");
 const statusBox = document.getElementById("statusBox");
@@ -103,10 +104,14 @@ async function loadCurrentSettings() {
     locksApiCookie.placeholder = values.LOCKS_API_COOKIE
       ? `Current saved: ${values.LOCKS_API_COOKIE}`
       : "Paste cookie only if needed";
-    gapsAdminKey.value = "";
-    gapsAdminKey.placeholder = values.GAPS_ADMIN_KEY
-      ? `Current saved: ${values.GAPS_ADMIN_KEY}`
-      : "Paste gaps API key";
+    gapsClientId.value = "";
+    gapsClientSecret.value = "";
+    gapsClientId.placeholder = values.GUESTY_CLIENT_ID
+      ? `Current saved: ${values.GUESTY_CLIENT_ID}`
+      : "Paste Guesty client id";
+    gapsClientSecret.placeholder = values.GUESTY_CLIENT_SECRET
+      ? `Current saved: ${values.GUESTY_CLIENT_SECRET}`
+      : "Paste Guesty client secret";
 
     const renderMessage = data.renderConfigured
       ? "Render is connected."
@@ -127,7 +132,8 @@ async function saveSettings() {
   const body = {
     LOCKS_API_BEARER: locksApiBearer.value,
     LOCKS_API_COOKIE: locksApiCookie.value,
-    GAPS_ADMIN_KEY: gapsAdminKey.value
+    GUESTY_CLIENT_ID: gapsClientId.value,
+    GUESTY_CLIENT_SECRET: gapsClientSecret.value
   };
 
   clearStatus();

@@ -36,6 +36,7 @@ const GAPS_ADMIN_KEY = process.env.GAPS_ADMIN_KEY || process.env.SETTINGS_ADMIN_
 const SETTINGS_ADMIN_KEY = process.env.SETTINGS_ADMIN_KEY || "";
 const RENDER_API_KEY = process.env.RENDER_API_KEY || "";
 const RENDER_SERVICE_ID = process.env.RENDER_SERVICE_ID || process.env.RENDER_SHARED_CALENDAR_SERVICE_ID || "";
+const RENDER_GAPS_SERVICE_ID = process.env.RENDER_GAPS_SERVICE_ID || "";
 const RENDER_API_BASE_URL = "https://api.render.com/v1";
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
@@ -194,8 +195,8 @@ function renderHeaders() {
 }
 
 async function renderApiRequest(path, options = {}) {
-  if (!RENDER_API_KEY || !RENDER_SERVICE_ID) {
-    const err = new Error("Missing RENDER_API_KEY or RENDER_SERVICE_ID in Render");
+  if (!RENDER_API_KEY) {
+    const err = new Error("Missing RENDER_API_KEY in Render");
     err.statusCode = 500;
     throw err;
   }
@@ -228,8 +229,18 @@ async function renderApiRequest(path, options = {}) {
   return data;
 }
 
-async function getRenderEnvVarKeys() {
-  const data = await renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/env-vars?limit=100`);
+function requireRenderServiceId(serviceId, name) {
+  if (!serviceId) {
+    const err = new Error(`Missing ${name} in Render`);
+    err.statusCode = 500;
+    throw err;
+  }
+}
+
+async function getRenderEnvVarKeys(serviceId) {
+  requireRenderServiceId(serviceId, "Render service id");
+
+  const data = await renderApiRequest(`/services/${encodeURIComponent(serviceId)}/env-vars?limit=100`);
   const items = Array.isArray(data) ? data : data?.envVars || data?.items || [];
 
   return new Set(items
@@ -237,24 +248,28 @@ async function getRenderEnvVarKeys() {
     .filter(Boolean));
 }
 
-async function createRenderEnvVar(key, value) {
+async function createRenderEnvVar(serviceId, key, value) {
+  requireRenderServiceId(serviceId, "Render service id");
+
   try {
-    return await renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/env-vars`, {
+    return await renderApiRequest(`/services/${encodeURIComponent(serviceId)}/env-vars`, {
       method: "POST",
       body: JSON.stringify([{ key, value }])
     });
   } catch (err) {
     if (err.statusCode !== 400) throw err;
 
-    return renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/env-vars`, {
+    return renderApiRequest(`/services/${encodeURIComponent(serviceId)}/env-vars`, {
       method: "POST",
       body: JSON.stringify({ key, value })
     });
   }
 }
 
-async function updateRenderEnvVar(key, value) {
-  const encodedServiceId = encodeURIComponent(RENDER_SERVICE_ID);
+async function updateRenderEnvVar(serviceId, key, value) {
+  requireRenderServiceId(serviceId, "Render service id");
+
+  const encodedServiceId = encodeURIComponent(serviceId);
   const encodedKey = encodeURIComponent(key);
 
   return renderApiRequest(`/services/${encodedServiceId}/env-vars/${encodedKey}`, {
@@ -263,17 +278,17 @@ async function updateRenderEnvVar(key, value) {
   });
 }
 
-async function upsertRenderEnvVars(values) {
-  const existingKeys = await getRenderEnvVarKeys();
+async function upsertRenderEnvVars(serviceId, values) {
+  const existingKeys = await getRenderEnvVarKeys(serviceId);
   const changed = [];
 
   for (const [key, value] of Object.entries(values)) {
     if (!value) continue;
 
     if (existingKeys.has(key)) {
-      await updateRenderEnvVar(key, value);
+      await updateRenderEnvVar(serviceId, key, value);
     } else {
-      await createRenderEnvVar(key, value);
+      await createRenderEnvVar(serviceId, key, value);
     }
 
     changed.push(key);
@@ -282,8 +297,10 @@ async function upsertRenderEnvVars(values) {
   return changed;
 }
 
-async function triggerRenderDeploy() {
-  return renderApiRequest(`/services/${encodeURIComponent(RENDER_SERVICE_ID)}/deploys`, {
+async function triggerRenderDeploy(serviceId) {
+  requireRenderServiceId(serviceId, "Render service id");
+
+  return renderApiRequest(`/services/${encodeURIComponent(serviceId)}/deploys`, {
     method: "POST",
     body: JSON.stringify({ clearCache: "do_not_clear" })
   });
@@ -1713,56 +1730,82 @@ app.get("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
   res.json({
     ok: true,
     renderConfigured: Boolean(RENDER_API_KEY && RENDER_SERVICE_ID),
+    gapsRenderConfigured: Boolean(RENDER_API_KEY && RENDER_GAPS_SERVICE_ID),
     renderServiceId: RENDER_SERVICE_ID ? maskSecret(RENDER_SERVICE_ID) : "",
+    gapsRenderServiceId: RENDER_GAPS_SERVICE_ID ? maskSecret(RENDER_GAPS_SERVICE_ID) : "",
     values: {
       LOCKS_API_URL: process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "",
       LOCKS_API_BEARER: maskSecret(process.env.LOCKS_API_BEARER || process.env.LOCKS_API_TOKEN || ""),
       LOCKS_API_COOKIE: maskSecret(process.env.LOCKS_API_COOKIE || ""),
       GAPS_API_URL: process.env.GAPS_API_URL || process.env.GUESTY_GAPS_URL || DEFAULT_GAPS_API_URL,
-      GAPS_ADMIN_KEY: maskSecret(process.env.GAPS_ADMIN_KEY || "")
+      GAPS_ADMIN_KEY: maskSecret(process.env.GAPS_ADMIN_KEY || ""),
+      GUESTY_CLIENT_ID: maskSecret(process.env.GUESTY_CLIENT_ID || ""),
+      GUESTY_CLIENT_SECRET: maskSecret(process.env.GUESTY_CLIENT_SECRET || "")
     }
   });
 });
 
 app.post("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
   try {
-    const allowedKeys = [
-      "LOCKS_API_URL",
-      "LOCKS_API_BEARER",
-      "LOCKS_API_COOKIE",
-      "GAPS_API_URL",
-      "GAPS_ADMIN_KEY"
-    ];
-    const values = {};
+    const lockKeys = ["LOCKS_API_BEARER", "LOCKS_API_COOKIE"];
+    const gapsKeys = ["GUESTY_CLIENT_ID", "GUESTY_CLIENT_SECRET"];
+    const lockValues = {};
+    const gapsValues = {};
 
-    allowedKeys.forEach(key => {
+    lockKeys.forEach(key => {
       if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
         const value = String(req.body[key] || "").trim();
 
         if (value) {
-          values[key] = value;
+          lockValues[key] = value;
         }
       }
     });
 
-    if (Object.keys(values).length === 0) {
+    gapsKeys.forEach(key => {
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
+        const value = String(req.body[key] || "").trim();
+
+        if (value) {
+          gapsValues[key] = value;
+        }
+      }
+    });
+
+    if (Object.keys(lockValues).length === 0 && Object.keys(gapsValues).length === 0) {
       return res.status(400).json({
         ok: false,
         message: "Nothing to save. Paste at least one value."
       });
     }
 
-    const changed = await upsertRenderEnvVars(values);
-    let deploy = null;
+    const changed = [];
+    const deploys = [];
 
-    if (changed.length > 0) {
-      deploy = await triggerRenderDeploy();
+    if (Object.keys(lockValues).length > 0) {
+      const lockChanged = await upsertRenderEnvVars(RENDER_SERVICE_ID, lockValues);
+      changed.push(...lockChanged);
+
+      if (lockChanged.length > 0) {
+        const deploy = await triggerRenderDeploy(RENDER_SERVICE_ID);
+        deploys.push(deploy?.id || deploy?.deploy?.id || null);
+      }
+    }
+
+    if (Object.keys(gapsValues).length > 0) {
+      const gapsChanged = await upsertRenderEnvVars(RENDER_GAPS_SERVICE_ID, gapsValues);
+      changed.push(...gapsChanged);
+
+      if (gapsChanged.length > 0) {
+        const deploy = await triggerRenderDeploy(RENDER_GAPS_SERVICE_ID);
+        deploys.push(deploy?.id || deploy?.deploy?.id || null);
+      }
     }
 
     res.json({
       ok: true,
       changed,
-      deployId: deploy?.id || deploy?.deploy?.id || null,
+      deployIds: deploys.filter(Boolean),
       message: "Settings saved to Render. A new deploy was started."
     });
   } catch (err) {
