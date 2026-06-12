@@ -99,14 +99,14 @@ async function loadCurrentSettings() {
     locksApiCookie.value = "";
     locksApiBearer.placeholder = values.LOCKS_API_BEARER
       ? `Current saved: ${values.LOCKS_API_BEARER}`
-      : "Paste bearer token only, without the word Bearer";
+      : "Paste locks API key";
     locksApiCookie.placeholder = values.LOCKS_API_COOKIE
       ? `Current saved: ${values.LOCKS_API_COOKIE}`
-      : "Optional cookie, only if needed";
+      : "Paste cookie only if needed";
     gapsAdminKey.value = "";
     gapsAdminKey.placeholder = values.GAPS_ADMIN_KEY
       ? `Current saved: ${values.GAPS_ADMIN_KEY}`
-      : "Paste gaps admin key";
+      : "Paste gaps API key";
 
     const renderMessage = data.renderConfigured
       ? "Render is connected."

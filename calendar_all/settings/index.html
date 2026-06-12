@@ -7,14 +7,14 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <link rel="stylesheet" href="./style.css?v=4" />
+  <link rel="stylesheet" href="./style.css?v=5" />
 </head>
 <body>
   <main class="settings-page">
     <header class="settings-header">
       <div>
         <h1>OCEAN VACATIONS</h1>
-        <p>Update keys</p>
+        <p>Update Render keys</p>
       </div>
       <a href="../">Calendar</a>
     </header>
@@ -35,25 +35,27 @@
 
     <section class="settings-card">
       <div class="section-title">
-        <h2>Locks</h2>
+        <h2>LOCKS API</h2>
+        <a class="inline-link" href="https://app.guesty.com/integrations/guesty-locks-manager/locks/linked" target="_blank" rel="noreferrer">Click here to access locks page</a>
       </div>
       <label>
-        <span>LOCKS_API_BEARER</span>
-        <textarea id="locksApiBearer" rows="5" placeholder="Paste bearer token only, without the word Bearer"></textarea>
+        <span>LOCKS API</span>
+        <textarea id="locksApiBearer" rows="5" placeholder="Paste locks API key"></textarea>
       </label>
       <label>
-        <span>LOCKS_API_COOKIE</span>
-        <textarea id="locksApiCookie" rows="5" placeholder="Optional cookie, only if needed"></textarea>
+        <span>LOCKS COOKIE</span>
+        <textarea id="locksApiCookie" rows="5" placeholder="Paste cookie only if needed"></textarea>
       </label>
     </section>
 
     <section class="settings-card">
       <div class="section-title">
-        <h2>Gaps</h2>
+        <h2>GAPS</h2>
+        <p>Get API from Guesty</p>
       </div>
       <label>
-        <span>GAPS_ADMIN_KEY</span>
-        <textarea id="gapsAdminKey" rows="3" placeholder="Paste gaps admin key"></textarea>
+        <span>GAPS</span>
+        <textarea id="gapsAdminKey" rows="3" placeholder="Paste gaps API key"></textarea>
       </label>
     </section>
 
@@ -65,6 +67,6 @@
     <div id="statusBox" class="status-box hidden"></div>
   </main>
 
-  <script src="./app.js?v=4"></script>
+  <script src="./app.js?v=5"></script>
 </body>
 </html>

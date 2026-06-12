@@ -77,6 +77,19 @@ body {
   font-weight: 700;
 }
 
+.inline-link {
+  display: inline-flex;
+  margin-top: 10px;
+  border: 1px solid #fb923c;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #111827;
+  padding: 10px 12px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 900;
+}
+
 label {
   display: block;
   margin-top: 14px;
