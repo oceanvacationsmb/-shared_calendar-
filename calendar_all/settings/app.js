@@ -3,16 +3,12 @@ const STORAGE_KEY = "ocean_settings_admin_key";
 
 const settingsAdminKey = document.getElementById("settingsAdminKey");
 const rememberAdminKey = document.getElementById("rememberAdminKey");
-const locksApiUrl = document.getElementById("locksApiUrl");
 const locksApiBearer = document.getElementById("locksApiBearer");
 const locksApiCookie = document.getElementById("locksApiCookie");
-const gapsApiUrl = document.getElementById("gapsApiUrl");
 const gapsAdminKey = document.getElementById("gapsAdminKey");
-const fillLocksUrlBtn = document.getElementById("fillLocksUrlBtn");
 const loadBtn = document.getElementById("loadBtn");
 const saveBtn = document.getElementById("saveBtn");
 const statusBox = document.getElementById("statusBox");
-const STANDARD_LOCKS_API_URL = "https://app.guesty.com/api/sl-service/locks?accountId=68d5ff6bea1895d9005ea411&limit=100&linked=true&search=&sort=doorLock";
 
 const savedAdminKey = localStorage.getItem(STORAGE_KEY) || "";
 
@@ -37,9 +33,6 @@ settingsAdminKey.addEventListener("input", () => {
 
 loadBtn.addEventListener("click", loadCurrentSettings);
 saveBtn.addEventListener("click", saveSettings);
-fillLocksUrlBtn.addEventListener("click", () => {
-  locksApiUrl.value = STANDARD_LOCKS_API_URL;
-});
 
 function adminHeaders() {
   return {
@@ -102,7 +95,6 @@ async function loadCurrentSettings() {
     const data = await parseJsonResponse(response);
     const values = data.values || {};
 
-    locksApiUrl.value = values.LOCKS_API_URL || "";
     locksApiBearer.value = "";
     locksApiCookie.value = "";
     locksApiBearer.placeholder = values.LOCKS_API_BEARER
@@ -111,7 +103,6 @@ async function loadCurrentSettings() {
     locksApiCookie.placeholder = values.LOCKS_API_COOKIE
       ? `Current saved: ${values.LOCKS_API_COOKIE}`
       : "Optional cookie, only if needed";
-    gapsApiUrl.value = values.GAPS_API_URL || "";
     gapsAdminKey.value = "";
     gapsAdminKey.placeholder = values.GAPS_ADMIN_KEY
       ? `Current saved: ${values.GAPS_ADMIN_KEY}`
@@ -134,10 +125,8 @@ async function saveSettings() {
   if (!requireAdminKey()) return;
 
   const body = {
-    LOCKS_API_URL: locksApiUrl.value,
     LOCKS_API_BEARER: locksApiBearer.value,
     LOCKS_API_COOKIE: locksApiCookie.value,
-    GAPS_API_URL: gapsApiUrl.value,
     GAPS_ADMIN_KEY: gapsAdminKey.value
   };
 

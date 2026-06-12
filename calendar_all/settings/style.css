@@ -37,8 +37,7 @@ body {
   font-weight: 700;
 }
 
-.settings-header a,
-.guesty-link {
+.settings-header a {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   color: #111827;
@@ -52,12 +51,6 @@ body {
   justify-content: center;
 }
 
-.guesty-link {
-  background: #fff7ed;
-  border-color: #fb923c;
-  margin-top: 14px;
-}
-
 .settings-card {
   background: #ffffff;
   border: 1px solid #d7dee8;
@@ -65,25 +58,6 @@ body {
   padding: 18px;
   margin-bottom: 16px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-}
-
-.quick-card,
-.steps-card {
-  border-color: #fed7aa;
-}
-
-.quick-card {
-  background: #fff7ed;
-}
-
-.quick-note {
-  border: 1px solid #fed7aa;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 12px;
-  color: #7c2d12;
-  font-size: 15px;
-  font-weight: 900;
 }
 
 .section-title {
@@ -101,18 +75,6 @@ body {
   color: #6b7280;
   font-size: 14px;
   font-weight: 700;
-}
-
-.steps-list {
-  margin: 0;
-  padding-left: 22px;
-}
-
-.steps-list li {
-  margin: 8px 0;
-  font-size: 15px;
-  font-weight: 800;
-  line-height: 1.35;
 }
 
 label {
@@ -186,11 +148,6 @@ button {
   cursor: pointer;
 }
 
-.secondary-action {
-  margin-top: 10px;
-  background: #f8fafc;
-}
-
 #saveBtn {
   background: #ea580c;
   border-color: #ea580c;
@@ -238,8 +195,7 @@ button:disabled {
     font-size: 24px;
   }
 
-  .settings-header a,
-  .guesty-link {
+  .settings-header a {
     padding: 10px 12px;
   }
 
