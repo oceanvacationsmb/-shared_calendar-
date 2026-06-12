@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <link rel="stylesheet" href="./style.css?v=2" />
+  <link rel="stylesheet" href="./style.css?v=3" />
 </head>
 <body>
   <main class="settings-page">
@@ -19,20 +19,12 @@
       <a href="../">Calendar</a>
     </header>
 
-    <section class="settings-card steps-card">
+    <section class="settings-card quick-card">
       <div class="section-title">
-        <h2>How To Update Locks</h2>
-        <p>Use this when the calendar shows no locks or says 401 Not Authorized.</p>
+        <h2>Paste And Save</h2>
+        <p>Paste the new Locks or Gaps values here. Click Save To Render and the page updates the Render env for the calendar API.</p>
       </div>
-      <ol class="steps-list">
-        <li>Open Guesty linked locks while logged in.</li>
-        <li>Press F12, open Network, then choose Fetch/XHR.</li>
-        <li>Refresh Guesty and click the request that starts with locks?accountId=68d5ff6bea1895d9005ea411.</li>
-        <li>Open Headers and copy authorization. Paste only the long token after Bearer into LOCKS_API_BEARER.</li>
-        <li>If locks still fail, copy the cookie header from the same request into LOCKS_API_COOKIE.</li>
-        <li>Click Save To Render. The API will redeploy and the calendar will use the new value.</li>
-      </ol>
-      <a class="guesty-link" href="https://app.guesty.com/integrations/guesty-locks-manager/locks/linked" target="_blank" rel="noreferrer">Open Guesty Locks</a>
+      <div class="quick-note">Blank secret boxes do not erase the old value. Paste only what you want to update.</div>
     </section>
 
     <section class="settings-card">
@@ -59,6 +51,7 @@
         <span>LOCKS_API_URL</span>
         <textarea id="locksApiUrl" rows="3" placeholder="https://app.guesty.com/api/sl-service/locks?..."></textarea>
       </label>
+      <button id="fillLocksUrlBtn" class="secondary-action" type="button">Use Standard Locks URL</button>
       <label>
         <span>LOCKS_API_BEARER</span>
         <textarea id="locksApiBearer" rows="5" placeholder="Paste bearer token only, without the word Bearer"></textarea>
@@ -90,8 +83,23 @@
     </div>
 
     <div id="statusBox" class="status-box hidden"></div>
+
+    <section class="settings-card steps-card">
+      <div class="section-title">
+        <h2>Where To Copy Locks Token</h2>
+        <p>Use this only when you need a fresh LOCKS_API_BEARER.</p>
+      </div>
+      <ol class="steps-list">
+        <li>Open Guesty Locks while logged in.</li>
+        <li>Press F12, open Network, then choose Fetch/XHR.</li>
+        <li>Refresh Guesty and click the request that starts with locks?accountId=68d5ff6bea1895d9005ea411.</li>
+        <li>Open Headers and copy authorization.</li>
+        <li>Paste only the long token after Bearer into LOCKS_API_BEARER.</li>
+      </ol>
+      <a class="guesty-link" href="https://app.guesty.com/integrations/guesty-locks-manager/locks/linked" target="_blank" rel="noreferrer">Open Guesty Locks</a>
+    </section>
   </main>
 
-  <script src="./app.js?v=2"></script>
+  <script src="./app.js?v=3"></script>
 </body>
 </html>

@@ -67,8 +67,23 @@ body {
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
+.quick-card,
 .steps-card {
   border-color: #fed7aa;
+}
+
+.quick-card {
+  background: #fff7ed;
+}
+
+.quick-note {
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  color: #7c2d12;
+  font-size: 15px;
+  font-weight: 900;
 }
 
 .section-title {
@@ -169,6 +184,11 @@ button {
   font-size: 15px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.secondary-action {
+  margin-top: 10px;
+  background: #f8fafc;
 }
 
 #saveBtn {
