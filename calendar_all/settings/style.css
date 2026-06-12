@@ -37,7 +37,8 @@ body {
   font-weight: 700;
 }
 
-.settings-header a {
+.settings-header a,
+.guesty-link {
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   color: #111827;
@@ -46,6 +47,15 @@ body {
   padding: 12px 16px;
   text-decoration: none;
   font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guesty-link {
+  background: #fff7ed;
+  border-color: #fb923c;
+  margin-top: 14px;
 }
 
 .settings-card {
@@ -55,6 +65,10 @@ body {
   padding: 18px;
   margin-bottom: 16px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.steps-card {
+  border-color: #fed7aa;
 }
 
 .section-title {
@@ -72,6 +86,18 @@ body {
   color: #6b7280;
   font-size: 14px;
   font-weight: 700;
+}
+
+.steps-list {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.steps-list li {
+  margin: 8px 0;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 label {
@@ -192,7 +218,8 @@ button:disabled {
     font-size: 24px;
   }
 
-  .settings-header a {
+  .settings-header a,
+  .guesty-link {
     padding: 10px 12px;
   }
 

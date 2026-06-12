@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calendar Settings | Ocean Vacations</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <link rel="stylesheet" href="./style.css?v=2" />
+</head>
+<body>
+  <main class="settings-page">
+    <header class="settings-header">
+      <div>
+        <h1>OCEAN VACATIONS</h1>
+        <p>Calendar settings</p>
+      </div>
+      <a href="../">Calendar</a>
+    </header>
+
+    <section class="settings-card steps-card">
+      <div class="section-title">
+        <h2>How To Update Locks</h2>
+        <p>Use this when the calendar shows no locks or says 401 Not Authorized.</p>
+      </div>
+      <ol class="steps-list">
+        <li>Open Guesty linked locks while logged in.</li>
+        <li>Press F12, open Network, then choose Fetch/XHR.</li>
+        <li>Refresh Guesty and click the request that starts with locks?accountId=68d5ff6bea1895d9005ea411.</li>
+        <li>Open Headers and copy authorization. Paste only the long token after Bearer into LOCKS_API_BEARER.</li>
+        <li>If locks still fail, copy the cookie header from the same request into LOCKS_API_COOKIE.</li>
+        <li>Click Save To Render. The API will redeploy and the calendar will use the new value.</li>
+      </ol>
+      <a class="guesty-link" href="https://app.guesty.com/integrations/guesty-locks-manager/locks/linked" target="_blank" rel="noreferrer">Open Guesty Locks</a>
+    </section>
+
+    <section class="settings-card">
+      <div class="section-title">
+        <h2>Admin</h2>
+        <p>This key unlocks saving from this page.</p>
+      </div>
+      <label>
+        <span>SETTINGS_ADMIN_KEY</span>
+        <input id="settingsAdminKey" type="password" autocomplete="off" placeholder="Paste settings admin key" />
+      </label>
+      <label class="remember-line">
+        <input id="rememberAdminKey" type="checkbox" />
+        <span>Remember on this device</span>
+      </label>
+    </section>
+
+    <section class="settings-card">
+      <div class="section-title">
+        <h2>Locks</h2>
+        <p>Guesty locks endpoint and authorization.</p>
+      </div>
+      <label>
+        <span>LOCKS_API_URL</span>
+        <textarea id="locksApiUrl" rows="3" placeholder="https://app.guesty.com/api/sl-service/locks?..."></textarea>
+      </label>
+      <label>
+        <span>LOCKS_API_BEARER</span>
+        <textarea id="locksApiBearer" rows="5" placeholder="Paste bearer token only, without the word Bearer"></textarea>
+      </label>
+      <label>
+        <span>LOCKS_API_COOKIE</span>
+        <textarea id="locksApiCookie" rows="5" placeholder="Optional cookie, only if needed"></textarea>
+      </label>
+    </section>
+
+    <section class="settings-card">
+      <div class="section-title">
+        <h2>Gaps</h2>
+        <p>Gaps scanner service URL and admin key.</p>
+      </div>
+      <label>
+        <span>GAPS_API_URL</span>
+        <input id="gapsApiUrl" type="text" placeholder="https://guesty-gaps.onrender.com" />
+      </label>
+      <label>
+        <span>GAPS_ADMIN_KEY</span>
+        <textarea id="gapsAdminKey" rows="3" placeholder="Paste gaps admin key"></textarea>
+      </label>
+    </section>
+
+    <div class="actions">
+      <button id="loadBtn" type="button">Load Current</button>
+      <button id="saveBtn" type="button">Save To Render</button>
+    </div>
+
+    <div id="statusBox" class="status-box hidden"></div>
+  </main>
+
+  <script src="./app.js?v=2"></script>
+</body>
+</html>
