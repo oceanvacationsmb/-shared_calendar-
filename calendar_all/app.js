@@ -75,6 +75,8 @@ const taskAlertsModal = document.getElementById("taskAlertsModal");
 const closeTaskAlertsBtn = document.getElementById("closeTaskAlertsBtn");
 const doneTaskAlertsBtn = document.getElementById("doneTaskAlertsBtn");
 const openTaskAlertsListBtn = document.getElementById("openTaskAlertsListBtn");
+const taskAlertAreaFilter = document.getElementById("taskAlertAreaFilter");
+const taskAlertPersonFilter = document.getElementById("taskAlertPersonFilter");
 const recentTasksCount = document.getElementById("recentTasksCount");
 const recentTasksList = document.getElementById("recentTasksList");
 const urgentTasksCount = document.getElementById("urgentTasksCount");
@@ -95,6 +97,8 @@ let editingTaskId = null;
 let viewingCompletedTasks = false;
 let gapsPollTimer = null;
 let taskAlertsShown = false;
+let taskAlertRecentTasks = [];
+let taskAlertUrgentTasks = [];
 
 let activeFilters = {
   elevator: false,
@@ -156,6 +160,15 @@ doneTaskAlertsBtn.addEventListener("click", closeTaskAlertsModal);
 openTaskAlertsListBtn.addEventListener("click", () => {
   closeTaskAlertsModal();
   openTaskListModal();
+});
+
+taskAlertAreaFilter.addEventListener("change", renderFilteredTaskAlerts);
+taskAlertPersonFilter.addEventListener("change", renderFilteredTaskAlerts);
+
+window.addEventListener("pageshow", event => {
+  if (event.persisted) {
+    maybeOpenTaskAlerts(true);
+  }
 });
 
 taskAlertsModal.addEventListener("click", event => {
@@ -1184,6 +1197,9 @@ function maybeOpenTaskAlerts(force = false) {
     return;
   }
 
+  taskAlertRecentTasks = recent;
+  taskAlertUrgentTasks = urgent;
+  fillTaskAlertPersonFilter(recent, urgent);
   renderTaskAlerts(recent, urgent);
 
   if (force || !taskAlertsShown) {
@@ -1197,10 +1213,54 @@ function closeTaskAlertsModal() {
 }
 
 function renderTaskAlerts(recent, urgent) {
-  recentTasksCount.textContent = String(recent.length);
-  urgentTasksCount.textContent = String(urgent.length);
-  recentTasksList.innerHTML = renderTaskAlertItems(recent, "ALERT");
-  urgentTasksList.innerHTML = renderTaskAlertItems(urgent, "URGENT");
+  const filteredRecent = filterTaskAlertItems(recent);
+  const filteredUrgent = filterTaskAlertItems(urgent);
+
+  recentTasksCount.textContent = String(filteredRecent.length);
+  urgentTasksCount.textContent = String(filteredUrgent.length);
+  recentTasksList.innerHTML = renderTaskAlertItems(filteredRecent, "ALERT");
+  urgentTasksList.innerHTML = renderTaskAlertItems(filteredUrgent, "URGENT");
+}
+
+function renderFilteredTaskAlerts() {
+  renderTaskAlerts(taskAlertRecentTasks, taskAlertUrgentTasks);
+}
+
+function filterTaskAlertItems(items) {
+  const area = taskAlertAreaFilter.value;
+  const person = taskAlertPersonFilter.value;
+
+  return items.filter(task => {
+    if (area && getTaskPropertyArea(task) !== area) {
+      return false;
+    }
+
+    if (person && String(task.assignee_name || "") !== person) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+function fillTaskAlertPersonFilter(recent, urgent) {
+  const selected = taskAlertPersonFilter.value;
+  const names = [...recent, ...urgent]
+    .map(task => String(task.assignee_name || "").trim())
+    .filter(Boolean)
+    .filter((name, index, arr) => arr.indexOf(name) === index)
+    .sort((a, b) => a.localeCompare(b));
+
+  taskAlertPersonFilter.innerHTML = `<option value="">ALL PEOPLE / VENDORS</option>`;
+
+  names.forEach(name => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    taskAlertPersonFilter.appendChild(option);
+  });
+
+  taskAlertPersonFilter.value = names.includes(selected) ? selected : "";
 }
 
 function renderTaskAlertItems(items, badgeText) {
@@ -1227,6 +1287,11 @@ function renderTaskAlertItems(items, badgeText) {
 function getTaskPropertyName(task) {
   const property = properties.find(item => String(item.listingId) === String(task?.listing_id));
   return property?.nickname || property?.name || "";
+}
+
+function getTaskPropertyArea(task) {
+  const property = properties.find(item => String(item.listingId) === String(task?.listing_id));
+  return property ? getPropertyArea(property) : "";
 }
 
 function getConfPmtReservationCount() {
@@ -1702,7 +1767,7 @@ async function saveNewTask() {
     }
 
     closeNewTaskModal();
-    await reloadTasksOnly({ showAlerts: true });
+    await reloadTasksOnly();
 
     if (activeFilters.tasks) {
       updateFilterButtons();

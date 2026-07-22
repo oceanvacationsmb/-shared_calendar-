@@ -1216,6 +1216,19 @@ body.list-open .calendar-shell {
   overflow: auto;
 }
 
+.task-alert-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.task-alert-filters .modal-select {
+  min-height: 42px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .task-alert-section {
   border: 1px solid #fed7aa;
   border-radius: 8px;
@@ -1573,6 +1586,10 @@ body.list-open .calendar-shell {
     max-width: none;
     border-radius: 18px 18px 0 0;
     padding: 16px;
+  }
+
+  .task-alert-filters {
+    grid-template-columns: 1fr;
   }
 
   .modal-actions {
