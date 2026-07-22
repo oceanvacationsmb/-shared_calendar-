@@ -71,6 +71,14 @@ const doneViewTasksBtn = document.getElementById("doneViewTasksBtn");
 const addTaskForPropertyBtn = document.getElementById("addTaskForPropertyBtn");
 const viewTasksTitle = document.getElementById("viewTasksTitle");
 const tasksList = document.getElementById("tasksList");
+const taskAlertsModal = document.getElementById("taskAlertsModal");
+const closeTaskAlertsBtn = document.getElementById("closeTaskAlertsBtn");
+const doneTaskAlertsBtn = document.getElementById("doneTaskAlertsBtn");
+const openTaskAlertsListBtn = document.getElementById("openTaskAlertsListBtn");
+const recentTasksCount = document.getElementById("recentTasksCount");
+const recentTasksList = document.getElementById("recentTasksList");
+const urgentTasksCount = document.getElementById("urgentTasksCount");
+const urgentTasksList = document.getElementById("urgentTasksList");
 
 let dates = [];
 let properties = [];
@@ -86,6 +94,7 @@ let selectedTaskProperty = null;
 let editingTaskId = null;
 let viewingCompletedTasks = false;
 let gapsPollTimer = null;
+let taskAlertsShown = false;
 
 let activeFilters = {
   elevator: false,
@@ -140,6 +149,31 @@ addTaskForPropertyBtn.addEventListener("click", () => {
   const property = selectedTaskProperty;
   closeViewTasksModal();
   openNewTaskModal(property);
+});
+
+closeTaskAlertsBtn.addEventListener("click", closeTaskAlertsModal);
+doneTaskAlertsBtn.addEventListener("click", closeTaskAlertsModal);
+openTaskAlertsListBtn.addEventListener("click", () => {
+  closeTaskAlertsModal();
+  openTaskListModal();
+});
+
+taskAlertsModal.addEventListener("click", event => {
+  if (event.target === taskAlertsModal) {
+    closeTaskAlertsModal();
+    return;
+  }
+
+  const item = event.target.closest(".task-alert-item");
+
+  if (item) {
+    const property = properties.find(row => String(row.listingId) === String(item.dataset.listingId));
+
+    if (property) {
+      closeTaskAlertsModal();
+      openViewTasksModal(property);
+    }
+  }
 });
 
 taskMediaInput.addEventListener("change", () => {
@@ -421,6 +455,8 @@ async function loadCalendar() {
     fillTaskPropertySelect();
     fillTaskVendorSelect();
     fillTaskCreatorSelect();
+    updatePhoneTaskBadge();
+    maybeOpenTaskAlerts();
 
     setTimeout(() => {
       scrollToToday(false);
@@ -439,7 +475,7 @@ async function loadCalendar() {
   }
 }
 
-async function reloadTasksOnly() {
+async function reloadTasksOnly(options = {}) {
   const res = await fetch(`${TASKS_API_URL}?v=${Date.now()}`, {
     cache: "no-store"
   });
@@ -452,6 +488,11 @@ async function reloadTasksOnly() {
 
   tasks = data.tasks || [];
   render({ preserveScroll: true });
+  updatePhoneTaskBadge();
+
+  if (options.showAlerts) {
+    maybeOpenTaskAlerts(true);
+  }
 }
 
 function render(options = {}) {
@@ -1090,6 +1131,104 @@ function updateConfPmtNotification(count) {
   confPmtFilterBtn.classList.toggle("has-conf-pmt", count > 0);
 }
 
+function updatePhoneTaskBadge() {
+  const count = tasks.length;
+  document.title = count > 0
+    ? `(${count}) Ocean Vacations Calendar`
+    : "All Properties Calendar | Ocean Vacations";
+
+  if ("setAppBadge" in navigator) {
+    if (count > 0) {
+      navigator.setAppBadge(count).catch(() => {});
+    } else if ("clearAppBadge" in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
+  }
+}
+
+function parseTaskDate(task) {
+  const value = task?.created_at;
+  const date = value ? new Date(value) : null;
+
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function getTaskAgeHours(task) {
+  const date = parseTaskDate(task);
+
+  if (!date) return null;
+
+  return (Date.now() - date.getTime()) / (1000 * 60 * 60);
+}
+
+function getRecentTasks() {
+  return tasks.filter(task => {
+    const ageHours = getTaskAgeHours(task);
+    return ageHours !== null && ageHours >= 0 && ageHours <= 24;
+  });
+}
+
+function getUrgentTasks() {
+  return tasks.filter(task => {
+    const ageHours = getTaskAgeHours(task);
+    return ageHours !== null && ageHours >= 72;
+  });
+}
+
+function maybeOpenTaskAlerts(force = false) {
+  const recent = getRecentTasks();
+  const urgent = getUrgentTasks();
+
+  if (!recent.length && !urgent.length) {
+    closeTaskAlertsModal();
+    return;
+  }
+
+  renderTaskAlerts(recent, urgent);
+
+  if (force || !taskAlertsShown) {
+    taskAlertsShown = true;
+    taskAlertsModal.classList.remove("hidden");
+  }
+}
+
+function closeTaskAlertsModal() {
+  taskAlertsModal.classList.add("hidden");
+}
+
+function renderTaskAlerts(recent, urgent) {
+  recentTasksCount.textContent = String(recent.length);
+  urgentTasksCount.textContent = String(urgent.length);
+  recentTasksList.innerHTML = renderTaskAlertItems(recent, "ALERT");
+  urgentTasksList.innerHTML = renderTaskAlertItems(urgent, "URGENT");
+}
+
+function renderTaskAlertItems(items, badgeText) {
+  if (!items.length) {
+    return `<div class="task-alert-empty">No tasks here.</div>`;
+  }
+
+  return items.map(task => {
+    const propertyName = task.property_name || getTaskPropertyName(task) || "Property";
+    const assignee = task.assignee_name ? `<span>${escapeHtml(task.assignee_name)}</span>` : "";
+
+    return `
+      <button class="task-alert-item" type="button" data-listing-id="${escapeHtml(task.listing_id)}">
+        <span class="task-alert-badge">${badgeText}</span>
+        <strong>${escapeHtml(propertyName)}</strong>
+        <span>${escapeHtml(task.task_text || "Task")}</span>
+        ${assignee}
+        <small>${escapeHtml(formatTaskDate(task.created_at))}</small>
+      </button>
+    `;
+  }).join("");
+}
+
+function getTaskPropertyName(task) {
+  const property = properties.find(item => String(item.listingId) === String(task?.listing_id));
+  return property?.nickname || property?.name || "";
+}
+
 function getConfPmtReservationCount() {
   let count = 0;
 
@@ -1563,7 +1702,7 @@ async function saveNewTask() {
     }
 
     closeNewTaskModal();
-    await reloadTasksOnly();
+    await reloadTasksOnly({ showAlerts: true });
 
     if (activeFilters.tasks) {
       updateFilterButtons();

@@ -9,7 +9,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./style.css?v=124" />
+  <link rel="stylesheet" href="./style.css?v=125" />
 </head>
 <body>
   <div class="page">
@@ -186,6 +186,36 @@
     </div>
   </div>
 
-  <script src="./app.js?v=123"></script>
+  <div id="taskAlertsModal" class="modal hidden">
+    <div class="modal-card task-alerts-card">
+      <div class="modal-head">
+        <strong>TASK ALERTS</strong>
+        <button id="closeTaskAlertsBtn" class="modal-x">×</button>
+      </div>
+
+      <section class="task-alert-section">
+        <div class="task-alert-title">
+          <span>RECENTLY ADDED</span>
+          <span id="recentTasksCount">0</span>
+        </div>
+        <div id="recentTasksList" class="task-alert-list"></div>
+      </section>
+
+      <section class="task-alert-section urgent">
+        <div class="task-alert-title">
+          <span>URGENT TASKS</span>
+          <span id="urgentTasksCount">0</span>
+        </div>
+        <div id="urgentTasksList" class="task-alert-list"></div>
+      </section>
+
+      <div class="modal-actions">
+        <button id="openTaskAlertsListBtn" class="modal-btn primary">Task List</button>
+        <button id="doneTaskAlertsBtn" class="modal-btn secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./app.js?v=124"></script>
 </body>
 </html>

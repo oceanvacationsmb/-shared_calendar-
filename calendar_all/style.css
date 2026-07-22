@@ -1210,6 +1210,106 @@ body.list-open .calendar-shell {
   font-weight: 900;
 }
 
+.task-alerts-card {
+  width: min(620px, calc(100vw - 24px));
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+
+.task-alert-section {
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fff7ed;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.task-alert-section.urgent {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.task-alert-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.task-alert-title span:last-child {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.task-alert-list {
+  display: grid;
+  gap: 8px;
+}
+
+.task-alert-item {
+  width: 100%;
+  border: 1px solid #d7dee7;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  text-align: left;
+  box-shadow: none;
+}
+
+.task-alert-item strong,
+.task-alert-item span,
+.task-alert-item small {
+  min-width: 0;
+}
+
+.task-alert-item strong {
+  color: #111827;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.task-alert-item span:not(.task-alert-badge),
+.task-alert-item small {
+  grid-column: 2;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.task-alert-badge {
+  grid-row: span 4;
+  align-self: start;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.task-alert-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.65);
+  padding: 12px;
+  color: #6b7280;
+  font-weight: 900;
+}
+
 .complete-question {
   font-size: 16px;
   font-weight: 900;
