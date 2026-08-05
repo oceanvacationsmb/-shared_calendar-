@@ -1,5 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const {
+  AirbnbHydrationProvider,
+  CompetitorSetEngine,
+  buildLiveAnalysis
+} = require("./ai_competitor_set/src");
 require("dotenv").config();
 
 const app = express();
@@ -38,6 +43,11 @@ const RENDER_API_KEY = process.env.RENDER_API_KEY || "";
 const RENDER_SERVICE_ID = process.env.RENDER_SERVICE_ID || process.env.RENDER_SHARED_CALENDAR_SERVICE_ID || "";
 const RENDER_GAPS_SERVICE_ID = process.env.RENDER_GAPS_SERVICE_ID || "";
 const RENDER_API_BASE_URL = "https://api.render.com/v1";
+const REVENUE_GUESTY_LISTING_ID = process.env.REVENUE_GUESTY_LISTING_ID || "68db1a47ccc0790022ab80c6";
+const REVENUE_AIRBNB_LISTING_ID = process.env.REVENUE_AIRBNB_LISTING_ID || "709057072852697080";
+const REVENUE_PROPERTY_NAME = process.env.REVENUE_PROPERTY_NAME || "11313 Surfside";
+const REVENUE_STAY_NIGHTS = Number(process.env.REVENUE_STAY_NIGHTS || 5);
+const REVENUE_MIN_LEAD_DAYS = Number(process.env.REVENUE_MIN_LEAD_DAYS || 30);
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
@@ -49,6 +59,18 @@ let locksCache = {
   expiresAt: 0,
   data: []
 };
+
+const revenueAirbnbProvider = new AirbnbHydrationProvider({
+  maxSearchPages: 2,
+  searchRadiusKm: 15,
+  maxAttempts: 2
+});
+const revenueCompetitorEngine = new CompetitorSetEngine(revenueAirbnbProvider, {
+  limit: 5,
+  candidatePoolSize: 8,
+  enrichmentConcurrency: 2,
+  requirePricing: true
+});
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -1317,6 +1339,40 @@ app.get("/api/gaps/scan-status", async (req, res) => {
     res.status(err.statusCode || 500).json({
       ok: false,
       message: err.message || "Failed to load gap scan status"
+    });
+  }
+});
+
+app.post("/api/revenue-analysis", async (req, res) => {
+  try {
+    const startDate = addDays(todayString(), REVENUE_MIN_LEAD_DAYS);
+    const endDate = addDays(startDate, 180);
+    const params = new URLSearchParams({
+      listingId: REVENUE_GUESTY_LISTING_ID,
+      startDate,
+      endDate
+    });
+    const guesty = await gapsRequest(`/api/revenue-property?${params}`, {
+      method: "GET",
+      maxAttempts: 3
+    });
+    guesty.listing.displayName = REVENUE_PROPERTY_NAME;
+    const analysis = await buildLiveAnalysis({
+      guestyProperty: guesty,
+      airbnbListingId: REVENUE_AIRBNB_LISTING_ID,
+      competitorEngine: revenueCompetitorEngine,
+      nights: REVENUE_STAY_NIGHTS
+    });
+
+    res.json({ ok: true, ...analysis });
+  } catch (err) {
+    console.error("Revenue analysis error:", err);
+    res.status(err.statusCode || 502).json({
+      ok: false,
+      message: err.message || "Revenue analysis failed",
+      limitation: /Airbnb|competitor/i.test(err.message || "")
+        ? "Airbnb did not return enough same-date competitor pricing to complete this analysis."
+        : null
     });
   }
 });
