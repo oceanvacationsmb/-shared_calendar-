@@ -1,73 +1,16 @@
-const API_URL = "https://shared-calendar-api.onrender.com/api/revenue-analysis";
-const $ = id => document.getElementById(id);
-const analyzeBtn = $("analyzeBtn");
-const statusEl = $("status");
-const errorEl = $("error");
-const dashboardEl = $("dashboard");
-const money = value => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
-const shortDate = value => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
-
-function escapeHtml(value) {
-  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+const API_URL="https://shared-calendar-api.onrender.com/api/revenue-analysis",$=id=>document.getElementById(id),btn=$("analyzeBtn");
+const money=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);
+const date=d=>new Intl.DateTimeFormat("en-US",{month:"short",day:"numeric",timeZone:"UTC"}).format(new Date(d+"T00:00:00Z"));
+const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+function render(data){
+  const p=data.property;$("propertyImage").src=p.imageUrl;$("propertyName").textContent=p.name;
+  $("propertyFacts").innerHTML=`<span title="Bedrooms">🛏️ ${p.bedrooms}</span><span title="Bathrooms">🛁 ${p.bathrooms}</span><span title="Guests">👥 ${p.sleeps}</span><span title="Private pool; no advertised heat">🏊</span><span title="No spa">🚫♨️</span><span title="No pets">🚫🐾</span>`;
+  $("dateGrid").innerHTML=data.analyses.map(a=>`<article class="date-card">
+    <div class="date-head"><div><b>${date(a.checkIn)} – ${date(a.checkOut)}</b><small>${a.nights} nights</small></div><div class="mine"><small>MY TOTAL</small><strong>${money(a.myTotal)}</strong></div></div>
+    <div class="comps">${a.competitors.map(c=>`<a href="${esc(c.listingUrl)}" target="_blank" title="${esc(c.name)}"><img src="${esc(c.imageUrl)}" alt=""><span>${esc(c.name)}</span><b>${money(c.totalStayPrice)}</b></a>`).join("")}</div>
+    <div class="range"><span>↓ ${money(a.recommendation.lowest)}</span><strong>Ø ${money(a.recommendation.average)}</strong><span>↑ ${money(a.recommendation.highest)}</span></div>
+    <div class="advice ${a.recommendation.adjustmentPercent<0?"down":"up"}"><span>${a.recommendation.adjustmentPercent<0?"↘":"↗"}</span><b>${esc(a.recommendation.action)}</b><small>${Math.abs(a.recommendation.marketDifferencePercent).toFixed(1)}% ${a.recommendation.marketDifferencePercent>=0?"above":"below"} market</small></div>
+  </article>`).join("");
+  $("analyzedAt").textContent=new Date(data.analyzedAt).toLocaleString();$("limitation").textContent=data.limitations;$("dashboard").classList.remove("hidden");
 }
-
-function facts(poolHeatLabel = "No pool heat advertised") {
-  return ["Private pool", poolHeatLabel, "No spa", "No pets"];
-}
-
-function render(data) {
-  const property = data.property;
-  const stay = property.availableStay;
-  $("propertyName").textContent = property.name;
-  $("propertyImage").src = property.imageUrl || "";
-  $("propertyImage").alt = `${property.name} main photo`;
-  $("propertyFacts").innerHTML = [`${property.bedrooms} BR`, `${property.bathrooms} baths`, `Sleeps ${property.sleeps}`, ...facts("Pool not heated")].map(value => `<span>${escapeHtml(value)}</span>`).join("");
-  $("stayDates").textContent = `${shortDate(stay.checkIn)} – ${shortDate(stay.checkOut)}`;
-  $("stayNights").textContent = `${stay.nights} nights`;
-  $("minimumStay").textContent = `${stay.status}; exact minimum-night rule is not exposed`;
-  $("myPrice").textContent = money(property.totalPrice);
-  $("competitorCount").textContent = String(data.competitors.length);
-  $("competitorList").innerHTML = data.competitors.map((item, index) => `
-    <div class="competitor">
-      <img class="competitor-image" src="${escapeHtml(item.imageUrl || "")}" alt="">
-      <div class="competitor-copy">
-        <a href="${escapeHtml(item.listingUrl)}" target="_blank" rel="noopener">${escapeHtml(item.name || `Competitor ${index + 1}`)}</a>
-        <small>${escapeHtml(item.bedrooms)} BR · ${escapeHtml(item.bathrooms)} baths · sleeps ${escapeHtml(item.sleeps)} · ${escapeHtml(item.distanceKm)} km</small>
-        <div class="fact-row compact">${facts().map(value => `<span>${value}</span>`).join("")}</div>
-        <small>${escapeHtml(item.stayStatus)} · exact minimum not exposed</small>
-      </div>
-      <div class="competitor-price"><strong>${money(item.totalStayPrice)}</strong><small>same-date total</small></div>
-    </div>`).join("");
-  $("averagePrice").textContent = money(data.recommendation.average);
-  $("lowestPrice").textContent = money(data.recommendation.lowest);
-  $("highestPrice").textContent = money(data.recommendation.highest);
-  $("recommendation").textContent = data.recommendation.action;
-  $("reason").textContent = data.recommendation.reason;
-  $("confidence").textContent = `${data.recommendation.confidence}%`;
-  $("analyzedAt").textContent = `Live analysis: ${new Date(data.analyzedAt).toLocaleString()}`;
-  $("limitation").textContent = data.limitations || "";
-  dashboardEl.classList.remove("hidden");
-}
-
-async function analyze() {
-  analyzeBtn.disabled = true;
-  analyzeBtn.textContent = "Analyzing…";
-  errorEl.classList.add("hidden");
-  statusEl.textContent = "Scanning Airbnb availability, then verifying exact-match competitors for the same dates…";
-  try {
-    const response = await fetch(`${API_URL}?v=${Date.now()}`, { method: "POST", cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error([data.message, data.limitation].filter(Boolean).join(" "));
-    render(data);
-    statusEl.textContent = "Live Airbnb analysis complete.";
-  } catch (error) {
-    errorEl.textContent = error.message || "Analysis failed.";
-    errorEl.classList.remove("hidden");
-    statusEl.textContent = "Live analysis could not be completed.";
-  } finally {
-    analyzeBtn.disabled = false;
-    analyzeBtn.textContent = "Analyze";
-  }
-}
-
-analyzeBtn.addEventListener("click", analyze);
+btn.onclick=async()=>{btn.disabled=true;btn.textContent="Scanning…";$("error").classList.add("hidden");$("status").textContent="Scanning several upcoming stays…";try{const r=await fetch(`${API_URL}?v=${Date.now()}`,{method:"POST",cache:"no-store"}),d=await r.json();if(!r.ok||!d.ok)throw Error(d.message||"Analysis failed");render(d);$("status").textContent="Live comparison complete."}catch(e){$("error").textContent=e.message;$("error").classList.remove("hidden");$("status").textContent="Could not complete the scan."}finally{btn.disabled=false;btn.textContent="Analyze"}};

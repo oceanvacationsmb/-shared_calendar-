@@ -147,4 +147,88 @@ async function buildAirbnbOnlyAnalysis(options) {
   };
 }
 
-module.exports = { addDays, buildAirbnbOnlyAnalysis, buildRecommendation, exactMatch, findBookableStay };
+async function buildMultiDateAirbnbAnalysis(options) {
+  const {
+    listingId,
+    provider,
+    startDate,
+    nights = 5,
+    dateCount = 3,
+    maxDateAttempts = 10,
+    stepDays = 7,
+    limit = 5,
+    candidatePoolSize = 18,
+    enrichmentConcurrency = 3
+  } = options;
+  const subject = await provider.getListing(listingId);
+  const detailCache = new Map();
+  const analyses = [];
+
+  for (let attempt = 0; attempt < maxDateAttempts && analyses.length < dateCount; attempt += 1) {
+    const checkIn = addDays(startDate, attempt * stepDays);
+    const checkOut = addDays(checkIn, nights);
+    const search = await provider.searchComparables(subject, { checkIn, checkOut });
+    const ownResult = search.competitors.find(item =>
+      item.listingId === subject.listingId && Number.isFinite(item.totalStayPrice)
+    );
+    if (!ownResult) continue;
+
+    const seeds = search.competitors
+      .filter(item => item.listingId !== subject.listingId && Number.isFinite(item.totalStayPrice))
+      .filter(item => sameNumber(item.bedrooms, subject.bedrooms) && sameNumber(item.bathrooms, subject.bathrooms))
+      .sort((left, right) => (haversineKm(subject, left) ?? Infinity) - (haversineKm(subject, right) ?? Infinity))
+      .slice(0, candidatePoolSize);
+    const enriched = await mapConcurrent(seeds, enrichmentConcurrency, async seed => {
+      let detail = detailCache.get(seed.listingId);
+      if (!detail) {
+        detail = await provider.getListing(seed.listingId, { checkIn, checkOut });
+        detailCache.set(seed.listingId, detail);
+      }
+      return { ...detail, ...seed, name: detail.name || seed.name, imageUrl: detail.imageUrl };
+    });
+    const competitors = enriched
+      .filter(candidate => exactMatch(subject, candidate))
+      .map(candidate => ({ ...candidate, ...scoreCompetitor(subject, candidate) }))
+      .sort((left, right) => right.similarityScore - left.similarityScore || left.distanceKm - right.distanceKm)
+      .slice(0, limit);
+    if (competitors.length < 2) continue;
+
+    analyses.push({
+      checkIn,
+      checkOut,
+      nights,
+      myTotal: ownResult.totalStayPrice,
+      competitors: competitors.map(item => ({
+        listingId: item.listingId,
+        listingUrl: item.listingUrl,
+        name: item.name,
+        imageUrl: item.imageUrl,
+        totalStayPrice: item.totalStayPrice,
+        distanceKm: item.distanceKm
+      })),
+      recommendation: buildRecommendation(ownResult.totalStayPrice, competitors)
+    });
+  }
+
+  if (!analyses.length) {
+    throw new Error("No upcoming date window had at least two verified exact-match competitors.");
+  }
+
+  return {
+    analyzedAt: new Date().toISOString(),
+    source: "Airbnb listing and same-date Airbnb search responses",
+    property: {
+      listingId: subject.listingId,
+      listingUrl: subject.listingUrl,
+      name: subject.name,
+      imageUrl: subject.imageUrl,
+      bedrooms: subject.bedrooms,
+      bathrooms: subject.bathrooms,
+      sleeps: subject.sleeps
+    },
+    analyses,
+    limitations: "Each column is a live same-date Airbnb comparison. Exact minimum-night rules are not exposed. Listings advertising pool heat, spas, or pets are excluded. Prices are displayed pre-tax totals."
+  };
+}
+
+module.exports = { addDays, buildAirbnbOnlyAnalysis, buildMultiDateAirbnbAnalysis, buildRecommendation, exactMatch, findBookableStay };

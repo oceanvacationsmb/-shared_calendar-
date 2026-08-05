@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const {
   AirbnbHydrationProvider,
-  buildAirbnbOnlyAnalysis
+  buildMultiDateAirbnbAnalysis
 } = require("./ai_competitor_set/src");
 require("dotenv").config();
 
@@ -44,7 +44,6 @@ const RENDER_GAPS_SERVICE_ID = process.env.RENDER_GAPS_SERVICE_ID || "";
 const RENDER_API_BASE_URL = "https://api.render.com/v1";
 const REVENUE_AIRBNB_LISTING_ID = process.env.REVENUE_AIRBNB_LISTING_ID || "709057072852697080";
 const REVENUE_STAY_NIGHTS = Number(process.env.REVENUE_STAY_NIGHTS || 5);
-const REVENUE_MIN_LEAD_DAYS = Number(process.env.REVENUE_MIN_LEAD_DAYS || 30);
 
 const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-reports";
 const TIMEZONE = "America/New_York";
@@ -57,11 +56,6 @@ let locksCache = {
   data: []
 };
 
-const revenueScanProvider = new AirbnbHydrationProvider({
-  maxSearchPages: 3,
-  searchRadiusKm: 15,
-  maxAttempts: 2
-});
 const revenueAirbnbProvider = new AirbnbHydrationProvider({
   maxSearchPages: 3,
   searchRadiusKm: 15,
@@ -1341,13 +1335,15 @@ app.get("/api/gaps/scan-status", async (req, res) => {
 
 app.post("/api/revenue-analysis", async (req, res) => {
   try {
-    const startDate = addDays(todayString(), REVENUE_MIN_LEAD_DAYS);
-    const analysis = await buildAirbnbOnlyAnalysis({
+    const startDate = addDays(todayString(), 1);
+    const analysis = await buildMultiDateAirbnbAnalysis({
       listingId: REVENUE_AIRBNB_LISTING_ID,
-      scanProvider: revenueScanProvider,
       provider: revenueAirbnbProvider,
       startDate,
       nights: REVENUE_STAY_NIGHTS,
+      dateCount: 3,
+      maxDateAttempts: 14,
+      stepDays: 7,
       limit: 5
     });
 
