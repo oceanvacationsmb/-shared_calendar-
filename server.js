@@ -1335,9 +1335,13 @@ app.get("/api/gaps/scan-status", async (req, res) => {
 
 app.post("/api/revenue-analysis", async (req, res) => {
   try {
+    const requestedListingId = String(req.body?.listingId || REVENUE_AIRBNB_LISTING_ID).trim();
+    if (!/^\d{6,20}$/.test(requestedListingId)) {
+      return res.status(400).json({ ok: false, message: "Enter a valid Airbnb listing ID." });
+    }
     const startDate = addDays(todayString(), 1);
     const analysis = await buildMultiDateAirbnbAnalysis({
-      listingId: REVENUE_AIRBNB_LISTING_ID,
+      listingId: requestedListingId,
       provider: revenueAirbnbProvider,
       startDate,
       nights: REVENUE_STAY_NIGHTS,
@@ -1353,7 +1357,7 @@ app.post("/api/revenue-analysis", async (req, res) => {
     res.status(err.statusCode || 502).json({
       ok: false,
       message: err.message || "Revenue analysis failed",
-      limitation: "The exact-match filter was not relaxed. Airbnb must verify the same dates, exact bedrooms, bathrooms and capacity, no pets, a private pool with no advertised heat, and no spa."
+      limitation: "The property profile is learned from Airbnb. Only traits Airbnb exposes can be used for matching."
     });
   }
 });

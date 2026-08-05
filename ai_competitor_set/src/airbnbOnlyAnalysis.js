@@ -13,14 +13,23 @@ function sameNumber(left, right) {
   return Number.isFinite(left) && Number.isFinite(right) && left === right;
 }
 
+function normalizedText(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function matchesLearnedTrait(subjectValue, candidateValue) {
+  return subjectValue == null || candidateValue == null || subjectValue === candidateValue;
+}
+
 function exactMatch(subject, candidate) {
   return sameNumber(subject.bedrooms, candidate.bedrooms) &&
     sameNumber(subject.bathrooms, candidate.bathrooms) &&
     sameNumber(subject.sleeps, candidate.sleeps) &&
-    candidate.pool === true &&
-    candidate.petsAllowed === false &&
-    candidate.heatedPool !== true &&
-    candidate.spa === false;
+    normalizedText(subject.propertyType) === normalizedText(candidate.propertyType) &&
+    matchesLearnedTrait(subject.pool, candidate.pool) &&
+    matchesLearnedTrait(subject.petsAllowed, candidate.petsAllowed) &&
+    matchesLearnedTrait(subject.heatedPool, candidate.heatedPool) &&
+    matchesLearnedTrait(subject.spa, candidate.spa);
 }
 
 async function mapConcurrent(items, concurrency, worker) {
@@ -224,10 +233,18 @@ async function buildMultiDateAirbnbAnalysis(options) {
       imageUrl: subject.imageUrl,
       bedrooms: subject.bedrooms,
       bathrooms: subject.bathrooms,
-      sleeps: subject.sleeps
+      sleeps: subject.sleeps,
+      propertyType: subject.propertyType,
+      pool: subject.pool,
+      heatedPool: subject.heatedPool,
+      spa: subject.spa,
+      petsAllowed: subject.petsAllowed,
+      rating: subject.rating,
+      reviewCount: subject.reviewCount,
+      amenityCount: subject.amenityNames.length
     },
     analyses,
-    limitations: "Each column is a live same-date Airbnb comparison. Exact minimum-night rules are not exposed. Listings advertising pool heat, spas, or pets are excluded. Prices are displayed pre-tax totals."
+    limitations: "The listing profile and matching rules are learned from Airbnb. Unknown amenity policies are not guessed; exact minimum-night rules are not exposed. Prices are displayed pre-tax totals."
   };
 }
 
