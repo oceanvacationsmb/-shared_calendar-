@@ -9,7 +9,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./style.css?v=125" />
+  <link rel="stylesheet" href="./style.css?v=127" />
 </head>
 <body>
   <div class="page">
@@ -26,10 +26,13 @@
 
     <div class="filters">
       <select id="cityFilterSelect" class="city-select">
-        <option value="">AREA</option>
+        <option value="">FILTER</option>
         <option value="SOUTH">SOUTH END</option>
         <option value="NMB">NORTH END</option>
         <option value="MB">CENTRAL MB</option>
+        <option value="ELEVATORS">ELEVATORS</option>
+        <option value="PAYMENT_ISSUES">PAYMENT ISSUES</option>
+        <option value="POOLS">POOLS</option>
       </select>
 
       <span class="filter-divider"></span>
@@ -48,14 +51,6 @@
           <button id="taskListBtn" class="task-menu-item" type="button">TASK LIST</button>
           <button id="newTaskBtn" class="task-menu-item" type="button">ADD NEW TASK</button>
           <button id="completedTasksBtn" class="task-menu-item" type="button">COMPLETED TASKS</button>
-          <button id="elevatorFilterBtn" class="task-menu-item" type="button">
-            <span>ELEVATORS</span>
-            <span id="elevatorBadge" class="task-menu-count hidden">0</span>
-          </button>
-          <button id="confPmtFilterBtn" class="task-menu-item conf-pmt-filter-btn" type="button">
-            <span>PAYMENT ISSUES</span>
-            <span id="confPmtBadge" class="task-menu-count hidden">0</span>
-          </button>
         </div>
       </div>
 
@@ -228,6 +223,6 @@
     </div>
   </div>
 
-  <script src="./app.js?v=125"></script>
+  <script src="./app.js?v=128"></script>
 </body>
 </html>

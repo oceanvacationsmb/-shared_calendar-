@@ -23,10 +23,6 @@ const tasksFilterBtn = document.getElementById("tasksFilterBtn");
 const completedTasksBtn = document.getElementById("completedTasksBtn");
 const taskListBtn = document.getElementById("taskListBtn");
 const totalTasksBadge = document.getElementById("totalTasksBadge");
-const elevatorFilterBtn = document.getElementById("elevatorFilterBtn");
-const elevatorBadge = document.getElementById("elevatorBadge");
-const confPmtFilterBtn = document.getElementById("confPmtFilterBtn");
-const confPmtBadge = document.getElementById("confPmtBadge");
 const cityFilterSelect = document.getElementById("cityFilterSelect");
 const lockMenuBtn = document.getElementById("lockMenuBtn");
 const lockMenuLabel = document.getElementById("lockMenuLabel");
@@ -102,6 +98,7 @@ let taskAlertUrgentTasks = [];
 
 let activeFilters = {
   elevator: false,
+  pools: false,
   confPmt: false,
   tasks: false,
   area: null,
@@ -220,9 +217,12 @@ gapsModal.addEventListener("click", event => {
 });
 
 cityFilterSelect.addEventListener("change", () => {
-  activeFilters.elevator = false;
-  activeFilters.confPmt = false;
-  activeFilters.area = cityFilterSelect.value || null;
+  const selectedFilter = cityFilterSelect.value;
+
+  activeFilters.elevator = selectedFilter === "ELEVATORS";
+  activeFilters.pools = selectedFilter === "POOLS";
+  activeFilters.confPmt = selectedFilter === "PAYMENT_ISSUES";
+  activeFilters.area = ["SOUTH", "NMB", "MB"].includes(selectedFilter) ? selectedFilter : null;
   isListOpen = false;
 
   updateFilterButtons();
@@ -233,7 +233,9 @@ tasksFilterBtn.addEventListener("click", () => {
   closeTaskMenu();
   activeFilters.tasks = !activeFilters.tasks;
   activeFilters.elevator = false;
+  activeFilters.pools = false;
   activeFilters.confPmt = false;
+  cityFilterSelect.value = "";
   isListOpen = false;
 
   updateFilterButtons();
@@ -274,32 +276,6 @@ document.addEventListener("click", event => {
     closeTaskMenu();
     closeLockMenu();
   }
-});
-
-elevatorFilterBtn.addEventListener("click", () => {
-  closeTaskMenu();
-  activeFilters.area = null;
-  activeFilters.tasks = false;
-  cityFilterSelect.value = "";
-
-  activeFilters.elevator = !activeFilters.elevator;
-  activeFilters.confPmt = false;
-
-  updateFilterButtons();
-  render();
-});
-
-confPmtFilterBtn.addEventListener("click", () => {
-  closeTaskMenu();
-  activeFilters.area = null;
-  activeFilters.tasks = false;
-  cityFilterSelect.value = "";
-
-  activeFilters.confPmt = !activeFilters.confPmt;
-  activeFilters.elevator = false;
-
-  updateFilterButtons();
-  render();
 });
 
 calendarWrap.addEventListener("scroll", () => {
@@ -858,7 +834,7 @@ function isCoveredByAnyBooking(property, date) {
 }
 
 function hasAnyActiveFilter() {
-  return Boolean(activeFilters.elevator || activeFilters.confPmt || activeFilters.tasks || activeFilters.area || activeFilters.lock);
+  return Boolean(activeFilters.elevator || activeFilters.pools || activeFilters.confPmt || activeFilters.tasks || activeFilters.area || activeFilters.lock);
 }
 
 function hasMovingFilter() {
@@ -890,6 +866,10 @@ function propertyMatchesPropertyFilters(property) {
     return false;
   }
 
+  if (activeFilters.pools && !propertyMatchesPoolFilter(property)) {
+    return false;
+  }
+
   if (activeFilters.tasks && getTasksForProperty(property).length === 0) {
     return false;
   }
@@ -899,6 +879,24 @@ function propertyMatchesPropertyFilters(property) {
   }
 
   return true;
+}
+
+const POOL_PROPERTIES = new Set([
+  "1211", "601A", "601B", "827", "113A-12", "113B-12", "113B-13N", "113B-15N",
+  "1004", "204-27N", "204-28N", "214-2S", "400A", "400B", "508/1", "508/2",
+  "703-2", "709-2", "7090-2"
+].map(normalizePoolPropertyName));
+
+function normalizePoolPropertyName(value) {
+  return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function propertyMatchesPoolFilter(property) {
+  const names = [property?.nickname, property?.name, property?.title]
+    .map(normalizePoolPropertyName)
+    .filter(Boolean);
+
+  return names.some(name => Array.from(POOL_PROPERTIES).some(poolName => name.includes(poolName)));
 }
 
 function propertyMatchesLockFilter(property) {
@@ -1076,40 +1074,29 @@ function updateFilteredList() {
 
 function updateFilterButtons() {
   const taskCount = tasks.length;
-  const elevatorCount = getElevatorReservationCount();
-  const paymentIssueCount = getConfPmtReservationCount();
   const lockIssueCount = getLockIssueCount();
 
-  updateTaskNotification(taskCount, elevatorCount, paymentIssueCount);
+  updateTaskNotification(taskCount);
   updateLockNotification(lockIssueCount);
-  updateElevatorNotification(elevatorCount);
-  updateConfPmtNotification(paymentIssueCount);
   tasksFilterBtn.classList.toggle("active", activeFilters.tasks);
-  elevatorFilterBtn.classList.toggle("active", activeFilters.elevator);
-  confPmtFilterBtn.classList.toggle("active", activeFilters.confPmt);
 
-  cityFilterSelect.value = activeFilters.area || "";
-  cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area));
+  cityFilterSelect.value = activeFilters.elevator
+    ? "ELEVATORS"
+    : activeFilters.confPmt
+      ? "PAYMENT_ISSUES"
+      : activeFilters.pools
+        ? "POOLS"
+        : activeFilters.area || "";
+  cityFilterSelect.classList.toggle("active", Boolean(activeFilters.area || activeFilters.elevator || activeFilters.confPmt || activeFilters.pools));
 
   updateFilteredList();
 }
 
-function updateElevatorNotification(count) {
-  elevatorBadge.textContent = String(count);
-  elevatorBadge.classList.toggle("hidden", count === 0);
-}
-
-function updateTaskNotification(taskCount, elevatorCount, paymentIssueCount) {
+function updateTaskNotification(taskCount) {
   let label = "TASKS";
   let count = taskCount;
 
-  if (activeFilters.elevator) {
-    label = "ELEVATORS";
-    count = elevatorCount;
-  } else if (activeFilters.confPmt) {
-    label = "PAYMENT ISSUES";
-    count = paymentIssueCount;
-  } else if (activeFilters.tasks) {
+  if (activeFilters.tasks) {
     label = "ACTIVE TASKS";
     count = taskCount;
   }
@@ -1136,12 +1123,6 @@ function updateLockNotification(count) {
   lockAlertBadge.classList.toggle("hidden", count === 0);
   lockMenuBtn.classList.toggle("active", Boolean(activeFilters.lock));
   lockMenuBtn.classList.toggle("has-lock-alerts", count > 0);
-}
-
-function updateConfPmtNotification(count) {
-  confPmtBadge.textContent = String(count);
-  confPmtBadge.classList.toggle("hidden", count === 0);
-  confPmtFilterBtn.classList.toggle("has-conf-pmt", count > 0);
 }
 
 function updatePhoneTaskBadge() {
