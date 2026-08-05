@@ -69,6 +69,27 @@ function parseListingPayload(payload, expectedListingId = null) {
   const pool = amenities.some(item =>
     item.available && (item.icon === "SYSTEM_POOL" || /\bpool\b/i.test(item.name))
   );
+  const serializedPayload = JSON.stringify(payload);
+  const descriptionText = [
+    localizedText(presentation.title?.content),
+    localizedText(node.description?.name),
+    presentation.descriptions?.longDescriptionHtml,
+    presentation.descriptions?.shortDescriptionHtml,
+    serializedPayload.match(/Private Pool[^"\\]*/i)?.[0]
+  ].filter(Boolean).join(" ");
+  const petsAllowed = /"title":"Pets allowed"/i.test(serializedPayload)
+    ? true
+    : /"title":"No pets"/i.test(serializedPayload)
+      ? false
+      : null;
+  const heatedPool = /(?:pool is not heated|pool \(not heated|unheated pool|not heated\/)/i.test(descriptionText)
+    ? false
+    : /(?:heated pool|pool heat|heatable pool)/i.test(descriptionText)
+      ? true
+      : null;
+  const spa = amenities.some(item =>
+    item.available && /\b(?:hot tub|spa)\b/i.test(item.name)
+  );
   const bookIt = findBookItSection(payload);
   const priceLine = bookIt?.structuredDisplayPrice?.primaryLine;
   const totalStayPrice = parseMoney(priceLine?.price);
@@ -93,6 +114,9 @@ function parseListingPayload(payload, expectedListingId = null) {
     amenities,
     amenityNames: amenities.filter(item => item.available).map(item => item.name),
     pool,
+    heatedPool,
+    spa,
+    petsAllowed,
     superhost: presentation.hostInfo?.passportData?.isSuperhost ?? null,
     guestFavorite: presentation.quality?.isGuestFavorite ?? node.contextualizedGuestFavorites?.isGuestFavorite ?? null,
     locationName: presentation.localizedLocation || null,
@@ -108,7 +132,7 @@ function parseListingPayload(payload, expectedListingId = null) {
       pdpType: presentation.pdpType || null,
       isNewListing: presentation.quality?.isNewListing ?? null,
       canInstantBook: findBookItValue(payload, "canInstantBook"),
-      petsAllowed: findBookItValue(payload, "petsAllowed")
+      petsAllowed
     }
   };
 }

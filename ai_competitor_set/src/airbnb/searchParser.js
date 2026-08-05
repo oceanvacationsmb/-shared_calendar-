@@ -31,7 +31,8 @@ function parseSearchResult(result) {
   const listingId = decodeRelayId(result?.demandStayListing?.id);
   if (!listingId) return null;
 
-  const totalStayPrice = parseMoney(result?.structuredDisplayPrice?.primaryLine?.price);
+  const priceLine = result?.structuredDisplayPrice?.primaryLine;
+  const totalStayPrice = parseMoney(priceLine?.discountedPrice || priceLine?.price);
   const nights = Number(
     String(result?.structuredDisplayPrice?.primaryLine?.qualifier || "").match(/([0-9]+)\s+nights?/i)?.[1]
   ) || null;

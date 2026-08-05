@@ -6,6 +6,7 @@ const { parseSearchPayload } = require("./airbnb/searchParser");
 const { CompetitorSetEngine } = require("./engine");
 const { scoreCompetitor } = require("./similarity");
 const { buildLiveAnalysis, findAvailableStay, recommendation } = require("./mvpAnalysis");
+const { buildAirbnbOnlyAnalysis } = require("./airbnbOnlyAnalysis");
 
 module.exports = {
   AirbnbHydrationProvider,
@@ -13,6 +14,7 @@ module.exports = {
   buildListingUrl,
   buildSearchUrl,
   buildLiveAnalysis,
+  buildAirbnbOnlyAnalysis,
   findAvailableStay,
   parseListingPayload,
   parseSearchPayload,

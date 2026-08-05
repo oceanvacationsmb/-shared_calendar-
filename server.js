@@ -2,8 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const {
   AirbnbHydrationProvider,
-  CompetitorSetEngine,
-  buildLiveAnalysis
+  buildAirbnbOnlyAnalysis
 } = require("./ai_competitor_set/src");
 require("dotenv").config();
 
@@ -43,9 +42,7 @@ const RENDER_API_KEY = process.env.RENDER_API_KEY || "";
 const RENDER_SERVICE_ID = process.env.RENDER_SERVICE_ID || process.env.RENDER_SHARED_CALENDAR_SERVICE_ID || "";
 const RENDER_GAPS_SERVICE_ID = process.env.RENDER_GAPS_SERVICE_ID || "";
 const RENDER_API_BASE_URL = "https://api.render.com/v1";
-const REVENUE_GUESTY_LISTING_ID = process.env.REVENUE_GUESTY_LISTING_ID || "68db1a47ccc0790022ab80c6";
 const REVENUE_AIRBNB_LISTING_ID = process.env.REVENUE_AIRBNB_LISTING_ID || "709057072852697080";
-const REVENUE_PROPERTY_NAME = process.env.REVENUE_PROPERTY_NAME || "11313 Surfside";
 const REVENUE_STAY_NIGHTS = Number(process.env.REVENUE_STAY_NIGHTS || 5);
 const REVENUE_MIN_LEAD_DAYS = Number(process.env.REVENUE_MIN_LEAD_DAYS || 30);
 
@@ -60,16 +57,15 @@ let locksCache = {
   data: []
 };
 
-const revenueAirbnbProvider = new AirbnbHydrationProvider({
-  maxSearchPages: 2,
+const revenueScanProvider = new AirbnbHydrationProvider({
+  maxSearchPages: 3,
   searchRadiusKm: 15,
   maxAttempts: 2
 });
-const revenueCompetitorEngine = new CompetitorSetEngine(revenueAirbnbProvider, {
-  limit: 5,
-  candidatePoolSize: 8,
-  enrichmentConcurrency: 2,
-  requirePricing: true
+const revenueAirbnbProvider = new AirbnbHydrationProvider({
+  maxSearchPages: 3,
+  searchRadiusKm: 15,
+  maxAttempts: 2
 });
 
 function sleep(ms) {
@@ -1346,22 +1342,13 @@ app.get("/api/gaps/scan-status", async (req, res) => {
 app.post("/api/revenue-analysis", async (req, res) => {
   try {
     const startDate = addDays(todayString(), REVENUE_MIN_LEAD_DAYS);
-    const endDate = addDays(startDate, 180);
-    const params = new URLSearchParams({
-      listingId: REVENUE_GUESTY_LISTING_ID,
+    const analysis = await buildAirbnbOnlyAnalysis({
+      listingId: REVENUE_AIRBNB_LISTING_ID,
+      scanProvider: revenueScanProvider,
+      provider: revenueAirbnbProvider,
       startDate,
-      endDate
-    });
-    const guesty = await gapsRequest(`/api/revenue-property?${params}`, {
-      method: "GET",
-      maxAttempts: 3
-    });
-    guesty.listing.displayName = REVENUE_PROPERTY_NAME;
-    const analysis = await buildLiveAnalysis({
-      guestyProperty: guesty,
-      airbnbListingId: REVENUE_AIRBNB_LISTING_ID,
-      competitorEngine: revenueCompetitorEngine,
-      nights: REVENUE_STAY_NIGHTS
+      nights: REVENUE_STAY_NIGHTS,
+      limit: 5
     });
 
     res.json({ ok: true, ...analysis });
@@ -1370,9 +1357,7 @@ app.post("/api/revenue-analysis", async (req, res) => {
     res.status(err.statusCode || 502).json({
       ok: false,
       message: err.message || "Revenue analysis failed",
-      limitation: /Airbnb|competitor/i.test(err.message || "")
-        ? "Airbnb did not return enough same-date competitor pricing to complete this analysis."
-        : null
+      limitation: "The exact-match filter was not relaxed. Airbnb must verify the same dates, exact bedrooms, bathrooms and capacity, no pets, a private pool with no advertised heat, and no spa."
     });
   }
 });

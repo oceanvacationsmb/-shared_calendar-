@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Revenue Snapshot | Ocean Vacations</title>
-  <link rel="stylesheet" href="./style.css?v=1">
+  <link rel="stylesheet" href="./style.css?v=2">
 </head>
 <body>
   <main class="page">
@@ -12,39 +12,26 @@
       <div>
         <p class="eyebrow">OCEAN VACATIONS</p>
         <h1>Revenue Snapshot</h1>
-        <p class="subtitle">Live Guesty pricing compared with similar Airbnb properties for the same stay.</p>
+        <p class="subtitle">Live Airbnb totals compared only with exact-match homes for the same stay.</p>
       </div>
       <button id="analyzeBtn" type="button">Analyze</button>
     </header>
-
     <div id="status" class="status">Click Analyze to load live data.</div>
     <div id="error" class="error hidden"></div>
-
     <section id="dashboard" class="dashboard hidden" aria-live="polite">
       <article class="card property-card">
         <p class="card-label">Property</p>
-        <h2 id="propertyName">—</h2>
+        <div class="property-identity">
+          <img id="propertyImage" class="property-image" alt="Property main photo">
+          <div><h2 id="propertyName">—</h2><div id="propertyFacts" class="fact-row"></div></div>
+        </div>
         <div class="property-grid">
-          <div>
-            <span>Available stay</span>
-            <strong id="stayDates">—</strong>
-            <small id="stayNights">—</small>
-          </div>
-          <div class="price-block">
-            <span>My Guesty price</span>
-            <strong id="myPrice">—</strong>
-          </div>
+          <div><span>Available stay</span><strong id="stayDates">—</strong><small id="stayNights">—</small><small id="minimumStay">—</small></div>
+          <div class="price-block"><span>My Airbnb total</span><strong id="myPrice">—</strong><small>Same dates · displayed pre-tax total</small></div>
         </div>
       </article>
-
       <article class="card">
-        <div class="card-heading">
-          <div>
-            <p class="card-label">Competitors</p>
-            <h2>Same dates. Similar homes.</h2>
-          </div>
-          <span id="competitorCount" class="count-pill">0</span>
-        </div>
+        <div class="card-heading"><div><p class="card-label">Competitors</p><h2>Same dates. Exact-match homes.</h2></div><span id="competitorCount" class="count-pill">0</span></div>
         <div id="competitorList" class="competitor-list"></div>
         <div class="market-stats">
           <div><span>Average</span><strong id="averagePrice">—</strong></div>
@@ -52,23 +39,13 @@
           <div><span>Highest</span><strong id="highestPrice">—</strong></div>
         </div>
       </article>
-
       <article class="card recommendation-card">
-        <p class="card-label">Recommendation</p>
-        <h2 id="recommendation">—</h2>
-        <p id="reason" class="reason">—</p>
-        <div class="confidence-row">
-          <span>Confidence</span>
-          <strong id="confidence">—</strong>
-        </div>
+        <p class="card-label">Recommendation</p><h2 id="recommendation">—</h2><p id="reason" class="reason">—</p>
+        <div class="confidence-row"><span>Confidence</span><strong id="confidence">—</strong></div>
       </article>
-
-      <footer>
-        <span id="analyzedAt">—</span>
-        <span id="limitation"></span>
-      </footer>
+      <footer><span id="analyzedAt">—</span><span id="limitation"></span></footer>
     </section>
   </main>
-  <script src="./app.js?v=1"></script>
+  <script src="./app.js?v=2"></script>
 </body>
 </html>
