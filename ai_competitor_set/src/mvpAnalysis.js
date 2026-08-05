@@ -125,9 +125,12 @@ async function buildLiveAnalysis({
     },
     competitors,
     recommendation: recommendation(stay.totalPrice, competitors),
-    limitations: set.enrichmentFailures?.length
-      ? `${set.enrichmentFailures.length} Airbnb candidates could not be enriched and were excluded.`
-      : null
+    limitations: [
+      "Guesty price is the sum of calendar nightly rates; Airbnb displayed totals may include additional fees, so fee parity is not yet verified.",
+      set.enrichmentFailures?.length
+        ? `${set.enrichmentFailures.length} Airbnb candidates could not be enriched and were excluded.`
+        : null
+    ].filter(Boolean).join(" ")
   };
 }
 
