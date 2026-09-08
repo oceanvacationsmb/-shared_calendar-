@@ -430,7 +430,7 @@ async function loadCalendar() {
       throw new Error(tasksData.message || "Tasks API error");
     }
 
-    properties = data.properties || [];
+    properties = (data.properties || []).filter(property => !isHiddenCalendarProperty(property));
     tasks = tasksData.tasks || [];
     taskVendors = vendorsResponse.ok && vendorsData.ok
       ? vendorsData.vendors || []
@@ -882,13 +882,23 @@ function propertyMatchesPropertyFilters(property) {
 }
 
 const POOL_PROPERTIES = new Set([
-  "1211", "601A", "601B", "827", "113A-12", "113B-12", "113B-13N", "113B-15N",
+  "1211", "827", "113A-12", "113B-12", "113B-13N", "113B-15N",
   "1004", "204-27N", "204-28N", "214-2S", "400A", "400B", "508/1", "508/2",
   "703-2", "709-2", "7090-2"
 ].map(normalizePoolPropertyName));
 
 function normalizePoolPropertyName(value) {
   return String(value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+const HIDDEN_CALENDAR_PROPERTIES = new Set(["601A", "601B"].map(normalizePoolPropertyName));
+
+function isHiddenCalendarProperty(property) {
+  const names = [property?.nickname, property?.name, property?.title]
+    .map(normalizePoolPropertyName)
+    .filter(Boolean);
+
+  return names.some(name => Array.from(HIDDEN_CALENDAR_PROPERTIES).some(hiddenName => name.includes(hiddenName)));
 }
 
 function propertyMatchesPoolFilter(property) {
