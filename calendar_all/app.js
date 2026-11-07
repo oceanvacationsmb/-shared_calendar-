@@ -1451,11 +1451,7 @@ function getCompactPropertyName(property) {
 
 function getLockStatusForProperty(property) {
   if (!lockStatuses.length) {
-    return {
-      batteryPercent: 80,
-      online: true,
-      provider: "Demo"
-    };
+    return null;
   }
 
   const names = [

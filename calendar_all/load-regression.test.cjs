@@ -13,6 +13,7 @@ async function scenario({ taskFails = false, pendingLocks = false, calendarFails
   return {ok:true,json:async()=>({ok:true,tasks:[{id:'task'}],vendors:[],creators:[],locks:[]})};
  }});
  vm.runInContext(source,context);
+ assert.equal(vm.runInContext('getLockStatusForProperty({nickname:"test"})',context),null);
  vm.runInContext('render = () => { calendarEl.innerHTML = "reservations rendered"; }; fillTaskPropertySelect = fillTaskVendorSelect = fillTaskCreatorSelect = updatePhoneTaskBadge = maybeOpenTaskAlerts = scrollToToday = () => {};',context);
  const promise = vm.runInContext('loadCalendar()',context);
  await new Promise(resolve=>setTimeout(resolve,20));
