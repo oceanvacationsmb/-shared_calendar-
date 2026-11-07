@@ -1615,3 +1615,19 @@ body.list-open .calendar-shell {
     flex-direction: column;
   }
 }
+.service-status {
+  padding: 10px 16px;
+  background: #fff5df;
+  color: #704600;
+  border-bottom: 1px solid #e5c37b;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.service-status[hidden] { display: none; }
+.service-status button, #retryCalendarBtn {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+button:disabled { opacity: 0.6; cursor: not-allowed; }

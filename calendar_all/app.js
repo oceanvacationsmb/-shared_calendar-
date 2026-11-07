@@ -95,6 +95,83 @@ let gapsPollTimer = null;
 let taskAlertsShown = false;
 let taskAlertRecentTasks = [];
 let taskAlertUrgentTasks = [];
+let tasksAvailable = false;
+let calendarLoading = false;
+const serviceWarnings = new Map();
+
+function showServiceWarning(service, message) {
+  if (message) serviceWarnings.set(service, message);
+  else serviceWarnings.delete(service);
+  let banner = document.getElementById("serviceStatus");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "serviceStatus";
+    banner.className = "service-status";
+    banner.setAttribute("role", "status");
+    document.querySelector(".calendar-shell").before(banner);
+  }
+  banner.replaceChildren();
+  banner.hidden = serviceWarnings.size === 0;
+  if (banner.hidden) return;
+  const text = document.createElement("span");
+  text.textContent = [...serviceWarnings.values()].join(" ");
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.textContent = "Retry connection";
+  retry.addEventListener("click", loadCalendar);
+  banner.append(text, retry);
+}
+
+async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { cache: "no-store", signal: controller.signal });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.message || "Service unavailable");
+      return data;
+    } catch (error) {
+      if (attempt + 1 === attempts) throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function loadSupportingData() {
+  await Promise.all([
+    { name: "Tasks", url: TASKS_API_URL, apply: data => {
+      tasks = data.tasks || [];
+      tasksAvailable = true;
+    } },
+    { name: "Task vendors", url: TASK_VENDORS_API_URL, apply: data => {
+      taskVendors = data.vendors || [];
+    } },
+    { name: "Task creators", url: TASK_CREATORS_API_URL, apply: data => {
+      taskCreators = data.creators || [];
+    } },
+    { name: "Locks", url: LOCKS_API_URL, apply: data => {
+      if (data.warning) throw new Error(data.warning);
+      lockStatuses = data.locks || [];
+    } }
+  ].map(async service => {
+    try {
+      service.apply(await requestCalendarData(`${service.url}?v=${Date.now()}`));
+      showServiceWarning(service.name, "");
+    } catch (error) {
+      showServiceWarning(service.name, `${service.name} unavailable; reservation calendar is independent.`);
+    }
+    taskMenuBtn.disabled = !tasksAvailable;
+    newTaskBtn.disabled = !tasksAvailable;
+    if (properties.length) render({ preserveScroll: true });
+    if (!tasksAvailable) taskMenuLabel.textContent = "TASKS UNAVAILABLE";
+    fillTaskVendorSelect();
+    fillTaskCreatorSelect();
+    updatePhoneTaskBadge();
+  }));
+  if (tasksAvailable && properties.length) maybeOpenTaskAlerts();
+}
 
 let activeFilters = {
   elevator: false,
@@ -375,8 +452,19 @@ function warmGapsService() {
 }
 
 async function loadCalendar() {
+  if (calendarLoading) return;
+  calendarLoading = true;
+  tasksAvailable = false;
+  taskMenuBtn.disabled = true;
+  newTaskBtn.disabled = true;
+  activeFilters.tasks = false;
+  closeTaskMenu();
+  const supporting = loadSupportingData();
+  const hadCalendar = properties.length > 0;
+  if (!hadCalendar) {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
   propertyListEl.innerHTML = "";
+  }
 
   const today = todayString();
   const start = addDays(today, -DAYS_BEFORE_TODAY);
@@ -385,67 +473,22 @@ async function loadCalendar() {
   dates = buildDates(start, VISIBLE_DAY_COUNT);
 
   try {
-    const controller = new AbortController();
-
-    const timeout = setTimeout(() => {
-      controller.abort();
-    }, 25000);
-
-    const [calendarResponse, tasksResponse, vendorsResponse, creatorsResponse, locksResponse] = await Promise.all([
-      fetch(`${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, {
-        cache: "no-store",
-        signal: controller.signal
-      }),
-      fetch(`${TASKS_API_URL}?v=${Date.now()}`, {
-        cache: "no-store",
-        signal: controller.signal
-      }),
-      fetch(`${TASK_VENDORS_API_URL}?v=${Date.now()}`, {
-        cache: "no-store",
-        signal: controller.signal
-      }),
-      fetch(`${TASK_CREATORS_API_URL}?v=${Date.now()}`, {
-        cache: "no-store",
-        signal: controller.signal
-      }),
-      fetch(`${LOCKS_API_URL}?v=${Date.now()}`, {
-        cache: "no-store",
-        signal: controller.signal
-      })
-    ]);
-
-    clearTimeout(timeout);
-
-    const data = await calendarResponse.json();
-    const tasksData = await tasksResponse.json();
-    const vendorsData = await vendorsResponse.json();
-    const creatorsData = await creatorsResponse.json();
-    const locksData = await locksResponse.json();
-
-    if (!calendarResponse.ok || !data.ok) {
-      throw new Error(data.message || "Calendar API error");
-    }
-
-    if (!tasksResponse.ok || !tasksData.ok) {
-      throw new Error(tasksData.message || "Tasks API error");
-    }
+    // Render reservations without waiting for task storage or the lock provider.
+    // Allow a sleeping backend to wake up, with one bounded retry.
+    const data = await requestCalendarData(
+      `${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, 60000, 2
+    );
 
     properties = data.properties || [];
-    tasks = tasksData.tasks || [];
-    taskVendors = vendorsResponse.ok && vendorsData.ok
-      ? vendorsData.vendors || []
-      : (vendorsData.defaultVendors || []).map(name => ({ name }));
-    taskCreators = creatorsResponse.ok && creatorsData.ok
-      ? creatorsData.creators || []
-      : (creatorsData.defaultCreators || []).map(name => ({ name }));
-    lockStatuses = locksResponse.ok && locksData.ok ? locksData.locks || [] : [];
+    showServiceWarning("Calendar", "");
 
     render();
     fillTaskPropertySelect();
     fillTaskVendorSelect();
     fillTaskCreatorSelect();
     updatePhoneTaskBadge();
-    maybeOpenTaskAlerts();
+    if (tasksAvailable) maybeOpenTaskAlerts();
+    else taskMenuLabel.textContent = "TASKS UNAVAILABLE";
 
     setTimeout(() => {
       scrollToToday(false);
@@ -455,12 +498,21 @@ async function loadCalendar() {
       scrollToToday(false);
     }, 500);
   } catch (err) {
+    if (hadCalendar) {
+      showServiceWarning("Calendar", "Calendar refresh failed. Displayed reservations have not been refreshed.");
+    } else {
     calendarEl.innerHTML = `
       <div class="error">
         Calendar failed to load.<br>
-        ${err.name === "AbortError" ? "Request timed out. Refresh once." : err.message}
+        ${err.name === "AbortError" ? "The reservation service did not respond." : escapeHtml(err.message)}
+        <br><button id="retryCalendarBtn" type="button">Retry calendar</button>
       </div>
     `;
+    document.getElementById("retryCalendarBtn").addEventListener("click", loadCalendar);
+    }
+  } finally {
+    await supporting;
+    calendarLoading = false;
   }
 }
 
@@ -543,7 +595,10 @@ function renderProperties() {
     taskGroup.className = "property-task";
     const propertyTasks = getTasksForProperty(property);
 
-    if (propertyTasks.length) {
+    if (!tasksAvailable) {
+      taskGroup.textContent = "—";
+      taskGroup.title = "Task service unavailable";
+    } else if (propertyTasks.length) {
       const badge = document.createElement("button");
       badge.className = "task-badge";
       badge.innerHTML = `
