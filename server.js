@@ -10,6 +10,16 @@ const app = express();
 
 app.use(cors());
 app.use(express.json({ limit: "75mb" }));
+if (process.env.TASK_STORAGE === "github") {
+  const { GitHubTaskStore, taskRouter } = require("./task-github-store");
+  const taskStore = new GitHubTaskStore({
+    repository: process.env.TASK_GITHUB_REPOSITORY,
+    token: process.env.TASK_GITHUB_TOKEN,
+    branch: process.env.TASK_GITHUB_BRANCH || "main",
+    path: process.env.TASK_GITHUB_PATH || "calendar-data/tasks.json"
+  });
+  app.use("/api", taskRouter(taskStore));
+}
 
 app.use((req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
