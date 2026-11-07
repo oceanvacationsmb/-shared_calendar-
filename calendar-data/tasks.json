@@ -8,10 +8,11 @@
       "task_text": "SETUP TEST — GitHub save, reload and edit verified; no maintenance action needed.",
       "assignee_name": null,
       "created_by_name": "Zack",
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-07T23:40:41.331Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-07T23:41:53.893Z",
+      "media": [],
+      "completed_by_name": null
     }
   ],
   "vendors": [
