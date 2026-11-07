@@ -13,6 +13,18 @@
       "completed_at": "2026-11-07T23:41:53.893Z",
       "media": [],
       "completed_by_name": null
+    },
+    {
+      "id": "cd3c20d7-2a63-4432-913e-88b0dc0e861a",
+      "listing_id": "6ad57689b3d401003124f784",
+      "property_name": "MB - BRK-1670",
+      "task_text": "LOCK",
+      "assignee_name": "Zack",
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-07T23:44:07.163Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
