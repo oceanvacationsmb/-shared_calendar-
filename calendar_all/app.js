@@ -1524,7 +1524,6 @@ function getBatteryClass(lockStatus) {
 
   if (Number.isFinite(pct)) {
     if (pct <= 20) return "lock-battery low";
-    if (pct <= 50) return "lock-battery medium";
     return "lock-battery good";
   }
 
@@ -1537,11 +1536,11 @@ function hasBatteryIssue(lockStatus) {
   const pct = Number(lockStatus?.batteryPercent);
 
   if (Number.isFinite(pct) && pct >= 0) {
-    return pct <= 50;
+    return pct <= 20;
   }
 
   const status = String(lockStatus?.batteryStatus || "").toLowerCase();
-  return status.includes("low") || status.includes("medium");
+  return status.includes("low");
 }
 
 function hasLockIssue(lockStatus) {
