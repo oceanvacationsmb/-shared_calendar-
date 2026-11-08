@@ -33,10 +33,11 @@
       "task_text": "FIX WIFI , LOCK , BATTARIES",
       "assignee_name": "Zack",
       "created_by_name": "Zack",
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-08T01:03:51.548Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-08T15:44:24.284Z",
+      "media": [],
+      "completed_by_name": "Zack"
     },
     {
       "id": "6c98833c-96cd-4c36-918e-91669f1c75e1",
