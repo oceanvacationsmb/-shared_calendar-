@@ -45,10 +45,11 @@
       "task_text": "Lock battaries",
       "assignee_name": "Zack",
       "created_by_name": "Zack",
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-08T14:38:50.364Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-08T15:44:14.308Z",
+      "media": [],
+      "completed_by_name": "Zack"
     }
   ],
   "vendors": [
