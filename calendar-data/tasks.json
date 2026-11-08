@@ -37,6 +37,18 @@
       "created_at": "2026-11-08T01:03:51.548Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "6c98833c-96cd-4c36-918e-91669f1c75e1",
+      "listing_id": "68db1a97ce9351001a8c03f9",
+      "property_name": "MB - Tuscan A",
+      "task_text": "Lock battaries",
+      "assignee_name": "Zack",
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-08T14:38:50.364Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
