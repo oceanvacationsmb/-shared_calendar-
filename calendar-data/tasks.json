@@ -25,6 +25,18 @@
       "created_at": "2026-11-07T23:44:07.163Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "ca30eb87-ceae-4744-89b2-c99f90c63d04",
+      "listing_id": "68db1a9faae7e80013b0929e",
+      "property_name": "MB - Tuscan B",
+      "task_text": "FIX WIFI , LOCK , BATTARIES",
+      "assignee_name": "Zack",
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-08T01:03:51.548Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
