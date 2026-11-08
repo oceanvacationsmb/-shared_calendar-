@@ -31,6 +31,21 @@ test("failed GitHub writes are not reported as saved", async () => {
   await assert.rejects(mock.store.update(data => data.tasks.push({ id: "unsaved" })), /save failed/);
   assert.equal(mock.saved().tasks.length, 0);
 });
+test("simultaneous calendar reads share one GitHub request and return isolated data", async () => {
+  let reads = 0;
+  const data = emptyStore();
+  const store = new GitHubTaskStore({ repository: "owner/repo", token: "test-only", fetchImpl: async () => {
+    reads++;
+    await new Promise(resolve => setTimeout(resolve, 5));
+    return { ok: true, json: async () => ({ sha: "1", encoding: "base64", content: Buffer.from(JSON.stringify(data)).toString("base64") }) };
+  } });
+  const results = await Promise.all([store.read(), store.read(), store.read()]);
+  assert.equal(reads, 1);
+  results[0].data.tasks.push({ id: "local-change" });
+  assert.equal(results[1].data.tasks.length, 0);
+  assert.equal((await store.read()).data.tasks.length, 0);
+  assert.equal(reads, 1);
+});
 test("concurrent saves are serialized without losing tasks", async () => {
   const mock = mockStore();
   await Promise.all([1, 2, 3].map(id => mock.store.update(data => data.tasks.push({ id }))));

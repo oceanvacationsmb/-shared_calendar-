@@ -98,6 +98,8 @@ let taskAlertUrgentTasks = [];
 let tasksAvailable = false;
 let calendarLoading = false;
 const serviceWarnings = new Map();
+const supportingRetryTimers = new Map();
+let supportingLoadVersion = 0;
 
 function showServiceWarning(service, message) {
   if (message) serviceWarnings.set(service, message);
@@ -115,11 +117,7 @@ function showServiceWarning(service, message) {
   if (banner.hidden) return;
   const text = document.createElement("span");
   text.textContent = [...serviceWarnings.values()].join(" ");
-  const retry = document.createElement("button");
-  retry.type = "button";
-  retry.textContent = "Retry connection";
-  retry.addEventListener("click", loadCalendar);
-  banner.append(text, retry);
+  banner.append(text);
 }
 
 async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
@@ -140,6 +138,9 @@ async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
 }
 
 async function loadSupportingData() {
+  const version = ++supportingLoadVersion;
+  for (const timer of supportingRetryTimers.values()) clearTimeout(timer);
+  supportingRetryTimers.clear();
   await Promise.all([
     { name: "Tasks", url: TASKS_API_URL, apply: data => {
       tasks = data.tasks || [];
@@ -156,11 +157,20 @@ async function loadSupportingData() {
       lockStatuses = data.locks || [];
     } }
   ].map(async service => {
+    async function refresh(attempt = 0) {
+    if (version !== supportingLoadVersion) return;
     try {
-      service.apply(await requestCalendarData(`${service.url}?v=${Date.now()}`));
+      const data = await requestCalendarData(`${service.url}?v=${Date.now()}`, 60000);
+      if (version !== supportingLoadVersion) return;
+      service.apply(data);
       showServiceWarning(service.name, "");
     } catch (error) {
-      showServiceWarning(service.name, `${service.name} unavailable; reservation calendar is independent.`);
+      if (version !== supportingLoadVersion) return;
+      showServiceWarning(service.name, `${service.name}: reconnecting automatically.`);
+      supportingRetryTimers.set(service.name, setTimeout(() => {
+        supportingRetryTimers.delete(service.name);
+        refresh(attempt + 1);
+      }, Math.min(5000 * 2 ** attempt, 60000)));
     }
     taskMenuBtn.disabled = !tasksAvailable;
     newTaskBtn.disabled = !tasksAvailable;
@@ -169,6 +179,9 @@ async function loadSupportingData() {
     fillTaskVendorSelect();
     fillTaskCreatorSelect();
     updatePhoneTaskBadge();
+    if (service.name === "Tasks" && tasksAvailable && properties.length) maybeOpenTaskAlerts();
+    }
+    return refresh();
   }));
   if (tasksAvailable && properties.length) maybeOpenTaskAlerts();
 }
@@ -459,7 +472,9 @@ async function loadCalendar() {
   newTaskBtn.disabled = true;
   activeFilters.tasks = false;
   closeTaskMenu();
-  const supporting = loadSupportingData();
+  loadSupportingData().catch(error => {
+    console.error("Supporting service refresh failed", error);
+  });
   const hadCalendar = properties.length > 0;
   if (!hadCalendar) {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
@@ -472,6 +487,22 @@ async function loadCalendar() {
 
   dates = buildDates(start, VISIBLE_DAY_COUNT);
 
+  // A recent snapshot in this tab renders immediately while the backend wakes.
+  // Never present saved reservations as a successfully refreshed calendar.
+  if (!hadCalendar) {
+    try {
+      const cached = JSON.parse(sessionStorage.getItem("ocean_calendar_snapshot_v1") || "null");
+      if (cached && cached.start === start && cached.end === end &&
+          Date.now() - cached.savedAt < 10 * 60 * 1000 && Array.isArray(cached.properties)) {
+        properties = cached.properties;
+        render();
+        fillTaskPropertySelect();
+        showServiceWarning("Calendar", "Showing the last loaded calendar while checking for updates.");
+        scrollToToday(false);
+      }
+    } catch (_) { /* Storage may be disabled; live loading still works. */ }
+  }
+
   try {
     // Render reservations without waiting for task storage or the lock provider.
     // Allow a sleeping backend to wake up, with one bounded retry.
@@ -480,6 +511,11 @@ async function loadCalendar() {
     );
 
     properties = data.properties || [];
+    try {
+      sessionStorage.setItem("ocean_calendar_snapshot_v1", JSON.stringify({
+        start, end, savedAt: Date.now(), properties
+      }));
+    } catch (_) { /* A full or unavailable cache must not block the calendar. */ }
     showServiceWarning("Calendar", "");
 
     render();
@@ -498,8 +534,8 @@ async function loadCalendar() {
       scrollToToday(false);
     }, 500);
   } catch (err) {
-    if (hadCalendar) {
-      showServiceWarning("Calendar", "Calendar refresh failed. Displayed reservations have not been refreshed.");
+    if (properties.length) {
+      showServiceWarning("Calendar", "Calendar refresh delayed. Displayed reservations are not current; retrying automatically.");
     } else {
     calendarEl.innerHTML = `
       <div class="error">
@@ -510,8 +546,8 @@ async function loadCalendar() {
     `;
     document.getElementById("retryCalendarBtn").addEventListener("click", loadCalendar);
     }
+    setTimeout(loadCalendar, 15000);
   } finally {
-    await supporting;
     calendarLoading = false;
   }
 }

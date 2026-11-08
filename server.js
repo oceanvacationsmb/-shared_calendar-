@@ -594,7 +594,25 @@ function normalizeReservation(row) {
   };
 }
 
+const calendarReportCache = new Map();
+
 async function fetchAllReportReservations(reportKey) {
+  const cached = calendarReportCache.get(reportKey);
+  if (cached?.pending) return cached.pending;
+  if (cached && cached.expires > Date.now()) return cached.rows;
+  const pending = fetchReportReservationsUncached(reportKey);
+  calendarReportCache.set(reportKey, { pending });
+  try {
+    const rows = await pending;
+    calendarReportCache.set(reportKey, { rows, expires: Date.now() + 30000 });
+    return rows;
+  } catch (error) {
+    calendarReportCache.delete(reportKey);
+    throw error;
+  }
+}
+
+async function fetchReportReservationsUncached(reportKey) {
   const allRows = [];
   let skip = 0;
 

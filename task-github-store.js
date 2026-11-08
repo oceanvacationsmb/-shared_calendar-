@@ -20,6 +20,9 @@ class GitHubTaskStore {
     this.branch = branch;
     this.fetch = fetchImpl;
     this.queue = Promise.resolve();
+    this.readCache = null;
+    this.readPending = null;
+    this.readGeneration = 0;
   }
 
   async request(url, options = {}) {
@@ -37,7 +40,22 @@ class GitHubTaskStore {
     return response;
   }
 
-  async read() {
+  async read(fresh = false) {
+    if (!fresh && this.readCache && this.readCache.expires > Date.now()) {
+      return structuredClone(this.readCache.value);
+    }
+    if (!fresh && this.readPending) return structuredClone(await this.readPending);
+    const generation = this.readGeneration;
+    const pending = this.readRemote().then(value => {
+      if (generation === this.readGeneration) this.readCache = { value, expires: Date.now() + 15000 };
+      return value;
+    });
+    if (!fresh) this.readPending = pending;
+    try { return structuredClone(await pending); }
+    finally { if (this.readPending === pending) this.readPending = null; }
+  }
+
+  async readRemote() {
     const response = await this.request(`${this.url}?ref=${encodeURIComponent(this.branch)}`);
     if (!response.ok) {
       throw new Error(`GitHub task storage could not be read (${response.status}). Check repository, branch, file and token permissions.`);
@@ -54,7 +72,7 @@ class GitHubTaskStore {
   update(change) {
     const operation = this.queue.then(async () => {
       for (let attempt = 0; attempt < 4; attempt++) {
-        const { data, sha } = await this.read();
+        const { data, sha } = await this.read(true);
         const result = change(data);
         const serialized = JSON.stringify(data, null, 2) + "\n";
         if (Buffer.byteLength(serialized) > 700000) throw new Error("Task storage is full. Archive old tasks before adding more attachments.");
@@ -69,6 +87,9 @@ class GitHubTaskStore {
         });
         if (response.status === 409) continue;
         if (!response.ok) throw new Error(`Task save failed (${response.status}); no successful save was confirmed.`);
+        this.readGeneration++;
+        this.readCache = null;
+        this.readPending = null;
         return result;
       }
       throw new Error("Another user updated tasks. Please retry your change.");
