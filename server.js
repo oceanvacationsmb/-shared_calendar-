@@ -9,8 +9,6 @@ require("dotenv").config();
 const app = express();
 
 app.use(cors());
-app.use("/api/guides", require("./guide-github-store").guideRouter());
-
 app.use(express.json({ limit: "75mb" }));
 if (process.env.TASK_STORAGE === "github") {
   const { GitHubTaskStore, taskRouter } = require("./task-github-store");
