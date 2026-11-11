@@ -21,10 +21,11 @@
       "task_text": "LOCK",
       "assignee_name": "Zack",
       "created_by_name": "Zack",
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-07T23:44:07.163Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-11T06:54:27.194Z",
+      "media": [],
+      "completed_by_name": "Zack"
     },
     {
       "id": "ca30eb87-ceae-4744-89b2-c99f90c63d04",
