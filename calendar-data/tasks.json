@@ -60,10 +60,11 @@
       "task_text": "Paint the door",
       "assignee_name": null,
       "created_by_name": "Zack",
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-20T19:15:53.704Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-20T19:16:45.828Z",
+      "media": [],
+      "completed_by_name": null
     }
   ],
   "vendors": [
