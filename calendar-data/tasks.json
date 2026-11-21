@@ -77,6 +77,18 @@
       "created_at": "2026-11-20T19:19:45.121Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "c6859982-81ee-4f07-a148-83a8491723a1",
+      "listing_id": "68db1a4bccc0790022ab8212",
+      "property_name": "MB - 2131",
+      "task_text": "Paint the door",
+      "assignee_name": null,
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-21T23:57:01.751Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
