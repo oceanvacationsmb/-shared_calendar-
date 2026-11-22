@@ -73,10 +73,11 @@
       "task_text": "Paint the garage door",
       "assignee_name": null,
       "created_by_name": "Zack",
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-20T19:19:45.121Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-22T02:31:56.081Z",
+      "media": [],
+      "completed_by_name": null
     },
     {
       "id": "c6859982-81ee-4f07-a148-83a8491723a1",
