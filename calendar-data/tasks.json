@@ -91,6 +91,18 @@
       "completed_at": "2026-11-22T02:31:46.664Z",
       "media": [],
       "completed_by_name": null
+    },
+    {
+      "id": "4c0d6a71-9362-4531-8a5a-4f544ff2eeb7",
+      "listing_id": "6ad57689b3d401003124f784",
+      "property_name": "MB - BRK-1670",
+      "task_text": "Remove lockbox from door",
+      "assignee_name": "Zack",
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-25T20:49:39.874Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
