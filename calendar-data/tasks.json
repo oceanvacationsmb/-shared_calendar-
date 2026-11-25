@@ -103,6 +103,18 @@
       "created_at": "2026-11-25T20:49:39.874Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "b7e01b7f-237e-4ce9-8557-741acf2b7ab9",
+      "listing_id": "68db1a3f34efe70012fd1284",
+      "property_name": "GC - 827B",
+      "task_text": "Repair or replace the broken toilet paper holder in the main-level primary bedroom bathroom. The guest reported it at check-in.",
+      "assignee_name": null,
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-25T23:51:45.392Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
