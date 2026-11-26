@@ -394,12 +394,12 @@ button {
 .calendar-shell {
   display: grid;
   grid-template-columns: var(--property-width) 1fr;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 158px);
   overflow: hidden;
 }
 
 body.list-open .calendar-shell {
-  height: calc(100vh - 253px);
+  height: calc(100vh - 291px);
 }
 
 .property-side {
@@ -1513,11 +1513,11 @@ body.list-open .calendar-shell {
   }
 
   .calendar-shell {
-    height: calc(100vh - 128px);
+    height: calc(100vh - 166px);
   }
 
   body.list-open .calendar-shell {
-    height: calc(100vh - 268px);
+    height: calc(100vh - 306px);
   }
 
   .property-row {
@@ -1631,3 +1631,14 @@ body.list-open .calendar-shell {
   cursor: pointer;
 }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.lock-refresh-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  color: #475569;
+  font-size: 13px;
+}

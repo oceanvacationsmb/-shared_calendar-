@@ -27,6 +27,8 @@ const cityFilterSelect = document.getElementById("cityFilterSelect");
 const lockMenuBtn = document.getElementById("lockMenuBtn");
 const lockMenuLabel = document.getElementById("lockMenuLabel");
 const lockAlertBadge = document.getElementById("lockAlertBadge");
+const refreshLocksBtn = document.getElementById("refreshLocksBtn");
+const lockRefreshStatus = document.getElementById("lockRefreshStatus");
 
 const filteredListPanel = document.getElementById("filteredListPanel");
 const filteredListTitle = document.getElementById("filteredListTitle");
@@ -138,6 +140,32 @@ async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
   }
 }
 
+async function refreshLocks() {
+  if (refreshLocksBtn.disabled) return;
+  refreshLocksBtn.disabled = true;
+  lockRefreshStatus.textContent = "Checking for lock updates…";
+  try {
+    const data = await requestCalendarData(`${LOCKS_API_URL}?v=${Date.now()}`);
+    if (!Array.isArray(data.locks) || (data.capturedAt !== null && !Number.isFinite(Date.parse(data.capturedAt)))) {
+      throw new Error("Invalid lock snapshot");
+    }
+    lockStatuses = data.locks;
+    lockObservationTime = data.capturedAt ? new Date(data.capturedAt).toLocaleString("en-US", {
+      dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York"
+    }) + " ET" : "";
+    lockRefreshStatus.textContent = lockObservationTime ?
+      `Lock readings as of ${lockObservationTime}` : "Waiting for Dot’s first lock update";
+    if (properties.length) render({ preserveScroll: true });
+  } catch {
+    lockRefreshStatus.textContent = lockObservationTime ?
+      `Refresh failed. Showing readings from ${lockObservationTime}.` : "Couldn’t load lock readings. Try Refresh locks again.";
+  } finally {
+    refreshLocksBtn.disabled = false;
+  }
+}
+
+refreshLocksBtn.addEventListener("click", refreshLocks);
+
 async function loadSupportingData() {
   const version = ++supportingLoadVersion;
   for (const timer of supportingRetryTimers.values()) clearTimeout(timer);
@@ -152,12 +180,6 @@ async function loadSupportingData() {
     } },
     { name: "Task creators", url: TASK_CREATORS_API_URL, apply: data => {
       taskCreators = data.creators || [];
-    } },
-    { name: "Locks", url: LOCKS_API_URL, apply: data => {
-      lockStatuses = data.locks || [];
-      lockObservationTime = data.capturedAt ? new Date(data.capturedAt).toLocaleString("en-US", {
-        dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York"
-      }) + " ET" : "";
     } }
   ].map(async service => {
     async function refresh(attempt = 0) {
@@ -397,6 +419,7 @@ propertyListEl.addEventListener("scroll", () => {
   });
 });
 
+refreshLocks();
 loadCalendar();
 
 function todayString() {
