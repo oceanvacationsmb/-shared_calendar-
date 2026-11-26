@@ -176,6 +176,18 @@
       "created_at": "2026-11-26T19:50:43.643Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "1cf79c61-2332-4b37-be6f-69aa5c1bd992",
+      "listing_id": "68db1a4bccc0790022ab8212",
+      "property_name": "MB - 2131",
+      "task_text": "Paint the wall",
+      "assignee_name": "Matan",
+      "created_by_name": null,
+      "status": "open",
+      "created_at": "2026-11-26T21:52:18.978Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
