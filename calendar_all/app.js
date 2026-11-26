@@ -2,7 +2,7 @@ const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
 const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
 const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
-const LOCKS_API_URL = "https://shared-calendar-api.onrender.com/api/locks-status";
+const reportMode = calendarBrowserData.reportMode;
 const GAPS_API_BASE_URL = "https://shared-calendar-api.onrender.com/api/gaps";
 
 const DAYS_TO_SHOW = 45;
@@ -144,11 +144,11 @@ async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
   }
 }
 
-async function refreshLocks() {
+function refreshLocks() {
   if (refreshLocksBtn.disabled) return;
   refreshLocksBtn.disabled = true;
   try {
-    const { capturedAt, locks } = await requestCalendarData(LOCKS_API_URL, 60000);
+    const { capturedAt, locks } = calendarBrowserData.read("locks", { capturedAt: null, locks: [] });
     const observation = capturedAt ? lockTimeFormat.format(new Date(capturedAt)) : "";
     lockStatuses = new Map(locks.map(reading => [reading.listingId, reading]));
     lockSnapshotTime.textContent = observation ? `Lock readings as of ${observation} ET` : "No lock snapshot imported";
@@ -221,7 +221,28 @@ todayBtn.addEventListener("click", () => {
   scrollToToday(true);
 });
 
-warmGapsService();
+if (reportMode) {
+  document.getElementById("reportForm").hidden = false;
+  document.querySelector(".settings-link").href = "./settings/?mode=report";
+  taskMenuBtn.closest(".task-menu").hidden = true;
+  gapsBtn.style.display = "none";
+  for (const value of ["ELEVATORS", "PAYMENT_ISSUES"]) {
+    cityFilterSelect.querySelector(`[value="${value}"]`).remove();
+  }
+  document.getElementById("reportForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const input = document.getElementById("reportLink");
+    try {
+      calendarBrowserData.setReportLink(input.value);
+      input.value = "";
+      loadCalendar();
+    } catch (err) {
+      showServiceWarning("Calendar", err.message);
+    }
+  });
+} else {
+  warmGapsService();
+}
 
 newTaskBtn.addEventListener("click", () => {
   closeTaskMenu();
@@ -495,9 +516,11 @@ async function loadCalendar() {
   newTaskBtn.disabled = true;
   activeFilters.tasks = false;
   closeTaskMenu();
-  loadSupportingData().catch(error => {
-    console.error("Supporting service refresh failed", error);
-  });
+  if (!reportMode) {
+    loadSupportingData().catch(error => {
+      console.error("Supporting service refresh failed", error);
+    });
+  }
   const hadCalendar = properties.length > 0;
   if (!hadCalendar) {
   calendarEl.innerHTML = `<div class="loading">Loading calendar...</div>`;
@@ -512,7 +535,7 @@ async function loadCalendar() {
 
   // A recent snapshot in this tab renders immediately while the backend wakes.
   // Never present saved reservations as a successfully refreshed calendar.
-  if (!hadCalendar) {
+  if (!reportMode && !hadCalendar) {
     try {
       const cached = JSON.parse(sessionStorage.getItem("ocean_calendar_snapshot_v1") || "null");
       if (cached && cached.start === start && cached.end === end &&
@@ -529,13 +552,14 @@ async function loadCalendar() {
   try {
     // Render reservations without waiting for task storage or the lock provider.
     // Allow a sleeping backend to wake up, with one bounded retry.
-    const data = await requestCalendarData(
+    const data = reportMode ? await calendarBrowserData.loadReport(start, end) : await requestCalendarData(
       `${API_URL}?start=${start}&end=${end}&v=${Date.now()}`, 60000, 2
     );
 
     properties = data.properties || [];
     try {
-      sessionStorage.setItem("ocean_calendar_snapshot_v1", JSON.stringify({
+      calendarBrowserData.write("properties", properties.map(({ listingId, nickname, name }) => ({ listingId, nickname, name })));
+      if (!reportMode) sessionStorage.setItem("ocean_calendar_snapshot_v1", JSON.stringify({
         start, end, savedAt: Date.now(), properties
       }));
     } catch (_) { /* A full or unavailable cache must not block the calendar. */ }
@@ -569,7 +593,7 @@ async function loadCalendar() {
     `;
     document.getElementById("retryCalendarBtn").addEventListener("click", loadCalendar);
     }
-    setTimeout(loadCalendar, 15000);
+    if (!reportMode) setTimeout(loadCalendar, 15000);
   } finally {
     calendarLoading = false;
   }

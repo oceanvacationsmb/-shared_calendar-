@@ -3,7 +3,6 @@ const STORAGE_KEY = "ocean_settings_admin_key";
 
 const settingsAdminKey = document.getElementById("settingsAdminKey");
 const rememberAdminKey = document.getElementById("rememberAdminKey");
-const lockSnapshotKey = document.getElementById("lockSnapshotKey");
 const lockSnapshotJson = document.getElementById("lockSnapshotJson");
 const lockTemplateBtn = document.getElementById("lockTemplateBtn");
 const importLocksBtn = document.getElementById("importLocksBtn");
@@ -14,7 +13,13 @@ const loadBtn = document.getElementById("loadBtn");
 const saveBtn = document.getElementById("saveBtn");
 const statusBox = document.getElementById("statusBox");
 
-const savedAdminKey = localStorage.getItem(STORAGE_KEY) || "";
+const reportMode = calendarBrowserData.reportMode;
+if (reportMode) {
+  document.getElementById("legacySettings").hidden = true;
+  document.querySelector(".settings-header a").href = "../?mode=report";
+}
+
+const savedAdminKey = reportMode ? "" : localStorage.getItem(STORAGE_KEY) || "";
 
 if (savedAdminKey) {
   settingsAdminKey.value = savedAdminKey;
@@ -45,10 +50,9 @@ function showLockImportStatus(message, type = "ok") {
   lockImportStatus.className = `status-box ${type}`;
 }
 
-async function getCalendarProperties() {
-  const response = await fetch(`${API_BASE_URL}/api/calendar-all`, { cache: "no-store" });
-  const { properties } = await parseJsonResponse(response);
-  if (!properties?.length) throw new Error("No properties are available from the calendar.");
+function getCalendarProperties() {
+  const properties = calendarBrowserData.read("properties", []);
+  if (!properties.length) throw new Error("Open the calendar and load its property list before importing readings.");
   return properties;
 }
 
@@ -60,7 +64,7 @@ async function loadLockTemplate() {
   importLocksBtn.disabled = true;
   lockSnapshotJson.readOnly = true;
   try {
-    const properties = await getCalendarProperties();
+    const properties = getCalendarProperties();
     const locks = properties.map(property => ({
       listingId: String(property.listingId),
       propertyName: property.nickname || property.name,
@@ -95,7 +99,7 @@ async function readLockSnapshot(input) {
 
   const [capturedAt, ...lines] = input.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   if (!lines.length) throw new Error("Enter the observation time and at least one lock reading.");
-  const properties = await getCalendarProperties();
+  const properties = getCalendarProperties();
   const connection = new Map([["online", true], ["offline", false], ["unknown", null]]);
   const locks = lines.map((line, index) => {
     const parts = line.split("|").map(part => part.trim());
@@ -133,27 +137,19 @@ async function readLockSnapshot(input) {
 }
 
 async function importLockReadings() {
-  const key = lockSnapshotKey.value.trim();
-  if (!key) {
-    showLockImportStatus("Enter the staff lock import key.", "error");
-    lockSnapshotKey.focus();
-    return;
-  }
-
   importLocksBtn.disabled = true;
   lockTemplateBtn.disabled = true;
   lockSnapshotJson.readOnly = true;
   try {
-    const snapshot = await readLockSnapshot(lockSnapshotJson.value.trim());
-    const response = await fetch(`${API_BASE_URL}/api/locks-status`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-lock-snapshot-key": key },
-      body: JSON.stringify(snapshot)
-    });
-    const { capturedAt, count } = await parseJsonResponse(response);
-    lockSnapshotKey.value = "";
+    const snapshot = validateLockSnapshot(await readLockSnapshot(lockSnapshotJson.value.trim()));
+    const saved = calendarBrowserData.read("locks", null);
+    if (saved && saved.capturedAt >= snapshot.capturedAt) {
+      throw new Error("A snapshot with the same or a newer observation time is already saved.");
+    }
+    calendarBrowserData.write("locks", snapshot);
+    const { capturedAt, locks } = snapshot;
     const time = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York" }).format(new Date(capturedAt));
-    showLockImportStatus(`Saved ${count} lock readings as of ${time} ET. Use Refresh locks on the calendar to see them.`);
+    showLockImportStatus(`Saved ${locks.length} lock readings in this browser as of ${time} ET. Click Refresh locks on the calendar.`);
   } catch (err) {
     showLockImportStatus(err.message || "Unable to import lock readings.", "error");
   } finally {
@@ -161,6 +157,44 @@ async function importLockReadings() {
     lockTemplateBtn.disabled = false;
     lockSnapshotJson.readOnly = false;
   }
+}
+
+function validateLockSnapshot(body) {
+  // Require a real, unambiguous observation time. Round-trip catches dates like February 30.
+  const timestamp = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
+  const time = typeof body?.capturedAt === "string" && timestamp.exec(body.capturedAt);
+  if (!time || !Array.isArray(body.locks) || body.locks.length < 1 || body.locks.length > 500 ||
+      Object.keys(body).some(key => key !== "capturedAt" && key !== "locks")) {
+    throw new Error("Provide capturedAt with a time zone and between 1 and 500 lock readings.");
+  }
+
+  const localTime = `${time[1]}.${(time[2] || "").padEnd(3, "0")}Z`;
+  const localDate = new Date(localTime);
+  const capturedDate = new Date(body.capturedAt);
+  if (!Number.isFinite(+capturedDate) || !Number.isFinite(+localDate) ||
+      localDate.toISOString() !== localTime || +capturedDate > Date.now()) {
+    throw new Error("Use a valid observation time in the past or present.");
+  }
+
+  const seen = new Set();
+  const locks = body.locks.map((lock, index) => {
+    const { listingId, batteryPercent, batteryStatus = null, online } = lock || {};
+    const label = `Reading ${index + 1}`;
+    if (typeof listingId !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(listingId) || seen.has(listingId)) {
+      throw new Error(`${label} needs a unique calendar listing ID.`);
+    }
+    if (Object.keys(lock).some(key => !["listingId", "batteryPercent", "batteryStatus", "online"].includes(key)) ||
+        (batteryPercent !== null && (!Number.isInteger(batteryPercent) || batteryPercent < 0 || batteryPercent > 100)) ||
+        (batteryStatus !== null && !["good", "low", "critical", "unknown"].includes(batteryStatus)) ||
+        (online !== null && typeof online !== "boolean") ||
+        (batteryPercent === null && batteryStatus === null && online === null)) {
+      throw new Error(`${label} needs a battery percentage from 0 to 100 or null, an optional batteryStatus (good, low, critical, or unknown), and online as true, false, or null.`);
+    }
+    seen.add(listingId);
+    return { listingId, batteryPercent, online, ...(batteryStatus === null ? {} : { batteryStatus }) };
+  });
+
+  return { capturedAt: capturedDate.toISOString(), locks };
 }
 
 function adminHeaders() {

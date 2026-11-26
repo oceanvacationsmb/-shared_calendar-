@@ -9,7 +9,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
 
-  <link rel="stylesheet" href="./style.css?v=132" />
+  <link rel="stylesheet" href="./style.css?v=133" />
 </head>
 <body>
   <div class="page">
@@ -63,6 +63,12 @@
 
       <button id="gapsBtn" class="filter-btn gaps-btn" type="button">GAPS</button>
     </div>
+
+    <form id="reportForm" class="lock-snapshot-bar" hidden>
+      <label for="reportLink">Guesty report link</label>
+      <input id="reportLink" type="password" autocomplete="off" required />
+      <button type="submit" class="filter-btn">Load report</button>
+    </form>
 
     <div class="lock-snapshot-bar">
       <button id="refreshLocksBtn" class="filter-btn" type="button">Refresh locks</button>
@@ -228,6 +234,7 @@
     </div>
   </div>
 
-  <script src="./app.js?v=136"></script>
+  <script src="./browser-data.js?v=1"></script>
+  <script src="./app.js?v=137"></script>
 </body>
 </html>
