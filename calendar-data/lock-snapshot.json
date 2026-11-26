@@ -1,5 +1,162 @@
 {
   "ok": true,
-  "capturedAt": null,
-  "locks": []
+  "capturedAt": "2026-11-26T17:37:58.948Z",
+  "locks": [
+    {
+      "propertyName": "GCSSB - 113B-13N",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "GCSSB - 115C 15N",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "GC - 1463",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 1501",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - 1552",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 204-27N",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - 209/5112",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - 209/5113",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - 2131",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 304B",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 3104-2",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 3104-3",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 400A",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 400B",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - 4765",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - 7500",
+      "batteryPercent": null,
+      "batteryStatus": "low",
+      "online": true
+    },
+    {
+      "propertyName": "GC - 827B",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - BRK-1670",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - 2000",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 3104-1",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 508/1-33S",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "NMB - 508/2-33S",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "GCSSB - 204-2D",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - Tuscan A",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB - Tuscan B",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    },
+    {
+      "propertyName": "MB-TUS-CR",
+      "batteryPercent": null,
+      "batteryStatus": "good",
+      "online": true
+    }
+  ]
 }
