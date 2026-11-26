@@ -86,5 +86,11 @@ const calendarBrowserData = (() => {
     throw new Error("The Guesty report returned an unrecognized format.");
   }
 
-  return { reportMode, read, write, setReportLink, loadReport };
+  async function loadPublishedLocks() {
+    const response = await fetch("/api/lock-snapshot", { cache: "no-store" });
+    if (!response.ok) throw new Error("Unable to load Dot’s lock readings.");
+    return response.json();
+  }
+
+  return { reportMode, read, write, setReportLink, loadReport, loadPublishedLocks };
 })();

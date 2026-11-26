@@ -144,14 +144,17 @@ async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
   }
 }
 
-function refreshLocks() {
+async function refreshLocks() {
   if (refreshLocksBtn.disabled) return;
   refreshLocksBtn.disabled = true;
   try {
-    const { capturedAt, locks } = calendarBrowserData.read("locks", { capturedAt: null, locks: [] });
+    const { capturedAt, locks } = reportMode ? await calendarBrowserData.loadPublishedLocks() :
+      calendarBrowserData.read("locks", { capturedAt: null, locks: [] });
     const observation = capturedAt ? lockTimeFormat.format(new Date(capturedAt)) : "";
-    lockStatuses = new Map(locks.map(reading => [reading.listingId, reading]));
-    lockSnapshotTime.textContent = observation ? `Lock readings as of ${observation} ET` : "No lock snapshot imported";
+    lockStatuses = new Map(locks.map(reading => [
+      reading.listingId ? String(reading.listingId) : `name:${reading.propertyName.trim().toLowerCase()}`, reading
+    ]));
+    lockSnapshotTime.textContent = observation ? `Lock readings as of ${observation} ET` : "Waiting for the first Dot lock update";
     showServiceWarning("Locks", "");
     if (properties.length) render({ preserveScroll: true });
   } catch {
@@ -223,7 +226,7 @@ todayBtn.addEventListener("click", () => {
 
 if (reportMode) {
   document.getElementById("reportForm").hidden = false;
-  document.querySelector(".settings-link").href = "./settings/?mode=report";
+  document.querySelector(".settings-link").style.display = "none";
   taskMenuBtn.closest(".task-menu").hidden = true;
   gapsBtn.style.display = "none";
   for (const value of ["ELEVATORS", "PAYMENT_ISSUES"]) {
@@ -1530,8 +1533,20 @@ function getCompactPropertyName(property) {
     .trim();
 }
 
+function lockPropertyNames(property) {
+  return [property.nickname, property.name, getCompactPropertyName(property)]
+    .filter(Boolean).map(name => String(name).trim().toLowerCase());
+}
+
 function getLockStatusForProperty(property) {
-  return lockStatuses.get(String(property.listingId)) || null;
+  const byId = lockStatuses.get(String(property.listingId));
+  if (byId || !reportMode) return byId || null;
+  const names = lockPropertyNames(property);
+  for (const name of names) {
+    const reading = lockStatuses.get(`name:${name}`);
+    if (reading && properties.filter(item => lockPropertyNames(item).includes(name)).length === 1) return reading;
+  }
+  return null;
 }
 
 function hasBatteryIssue(lockStatus) {
