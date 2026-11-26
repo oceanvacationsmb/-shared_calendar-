@@ -1,18 +1,19 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync('calendar_all/app.js', 'utf8').replace(/^(?:refreshLocks|loadCalendar)\(\);$/gm, '');
+const source = fs.readFileSync('calendar_all/app.js', 'utf8').replace(/^(?:initializeLocks|loadCalendar)\(\);$/gm, '');
 async function scenario({ taskFails = false, pendingLocks = false, calendarFails = false, recoverAutomatically = false, cachedCalendar = false, testLockButton = false }) {
  const elements = new Map();
  const retries = [];
  const handlers = new Map();
+ const storage = new Map();
  const requests = [];
  const revision = "a".repeat(40);
  let refAvailable = true;
  let lockData = {ok:true,capturedAt:null,locks:[]};
  let taskServiceRecovered = false;
  function element(id) { if (!elements.has(id)) elements.set(id, {innerHTML:'',textContent:'',classList:{add(){},remove(){},toggle(){}},addEventListener(event, callback){handlers.set(`${String(id)}:${event}`,callback);},setAttribute(){},replaceChildren(){},append(){},before(){},scrollTo(){}}); return elements.get(id); }
- const context = vm.createContext({console, AbortController, AbortSignal, Date, Map, Set, sessionStorage:{getItem(){return null;},setItem(){}}, document:{addEventListener(){},getElementById:element,createElement:()=>element(Symbol()),querySelector:element},window:{addEventListener(){}},requestAnimationFrame:()=>{},setTimeout:(fn,ms)=>{const timer=setTimeout(fn,ms); if(ms===5000)retries.push({fn,timer});return timer;},clearTimeout, fetch:async url=>{
+ const context = vm.createContext({console, AbortController, AbortSignal, Date, Map, Set, localStorage:{getItem:key=>storage.get(key) ?? null,setItem:(key,value)=>storage.set(key,value)}, sessionStorage:{getItem(){return null;},setItem(){}}, document:{addEventListener(){},getElementById:element,createElement:()=>element(Symbol()),querySelector:element},window:{addEventListener(){}},requestAnimationFrame:()=>{},setTimeout:(fn,ms)=>{const timer=setTimeout(fn,ms); if(ms===5000)retries.push({fn,timer});return timer;},clearTimeout, fetch:async url=>{
   requests.push(url);
   if(url.includes('/warmup')) return {ok:true,json:async()=>({ok:true})};
   if(url.includes('/git/ref/heads/lock-data')) return {ok:refAvailable,json:async()=>({object:{sha:revision}})};
@@ -26,7 +27,7 @@ async function scenario({ taskFails = false, pendingLocks = false, calendarFails
  assert.equal(vm.runInContext('getLockStatusForProperty({nickname:"test"})',context),null);
  vm.runInContext('render = () => { calendarEl.innerHTML = "reservations rendered"; }; fillTaskPropertySelect = fillTaskVendorSelect = fillTaskCreatorSelect = updatePhoneTaskBadge = maybeOpenTaskAlerts = scrollToToday = () => {};',context);
  if(cachedCalendar) vm.runInContext('sessionStorage.getItem = () => JSON.stringify({start:addDays(todayString(),-DAYS_BEFORE_TODAY),end:addDays(todayString(),DAYS_TO_SHOW+1),savedAt:Date.now(),properties:[{listingId:"cached"}]});',context);
- const promise = vm.runInContext('refreshLocks(); loadCalendar()',context);
+ const promise = vm.runInContext('initializeLocks(); loadCalendar()',context);
  await new Promise(resolve=>setTimeout(resolve,20));
  if(pendingLocks || cachedCalendar) { assert.equal(element('calendar').innerHTML,'reservations rendered'); if(cachedCalendar)assert.equal(vm.runInContext('serviceWarnings.has("Calendar")',context),true);return; }
  await promise;
@@ -50,6 +51,20 @@ async function scenario({ taskFails = false, pendingLocks = false, calendarFails
   await handlers.get("refreshLocksBtn:click")();
   assert.equal(vm.runInContext('getLockStatusForProperty({listingId:"example"}).batteryPercent',context),87);
   assert.match(element('lockRefreshStatus').textContent,/Showing readings/);
+  requests.length = 0;
+  vm.runInContext('lockStatuses = []; lockCapturedAt = 0; initializeLocks();',context);
+  assert.equal(requests.length,0);
+  assert.equal(vm.runInContext('getLockStatusForProperty({listingId:"example"}).batteryPercent',context),87);
+
+  lockData = {ok:false,message:"Rate limited"};
+  vm.runInContext('lockCalendarDay = () => "2099-01-01";',context);
+  await vm.runInContext('initializeLocks()',context);
+  assert.equal(requests.length,2);
+  assert.equal(vm.runInContext('getLockStatusForProperty({listingId:"example"}).batteryPercent',context),87);
+  await vm.runInContext('initializeLocks()',context);
+  assert.equal(requests.length,2);
+  await handlers.get("refreshLocksBtn:click")();
+  assert.equal(requests.length,4);
  }
  if(recoverAutomatically) {
   taskServiceRecovered=true;

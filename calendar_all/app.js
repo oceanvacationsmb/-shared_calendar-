@@ -4,6 +4,8 @@ const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calen
 const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
 const LOCKS_RAW_BASE = "https://raw.githubusercontent.com/oceanvacationsmb/-shared_calendar-";
 const LOCKS_REF_URL = "https://api.github.com/repos/oceanvacationsmb/-shared_calendar-/git/ref/heads/lock-data";
+const LOCK_SNAPSHOT_CACHE_KEY = "ocean_calendar_locks_v1";
+const LOCK_REFRESH_DAY_KEY = "ocean_calendar_locks_refresh_day_v1";
 const GAPS_API_BASE_URL = "https://shared-calendar-api.onrender.com/api/gaps";
 
 const DAYS_TO_SHOW = 45;
@@ -155,25 +157,64 @@ async function getLockRevision() {
   return "lock-data";
 }
 
+function lockCalendarDay() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+}
+
+function applyLockSnapshot(data) {
+  if (!data || !Array.isArray(data.locks) ||
+      (data.capturedAt !== null && !Number.isFinite(Date.parse(data.capturedAt)))) {
+    throw new Error("Invalid lock snapshot");
+  }
+  const capturedAt = data.capturedAt ? Date.parse(data.capturedAt) : 0;
+  if (capturedAt < lockCapturedAt) throw new Error("Older lock snapshot");
+
+  lockCapturedAt = capturedAt;
+  lockStatuses = data.locks;
+  lockObservationTime = data.capturedAt ? new Date(data.capturedAt).toLocaleString("en-US", {
+    dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York"
+  }) + " ET" : "";
+  lockRefreshStatus.textContent = lockObservationTime ?
+    `Lock readings as of ${lockObservationTime}` : "Waiting for the first lock update";
+}
+
+function initializeLocks() {
+  let checkedToday = false;
+  let hasSnapshot = false;
+  try {
+    checkedToday = localStorage.getItem(LOCK_REFRESH_DAY_KEY) === lockCalendarDay();
+    const cached = localStorage.getItem(LOCK_SNAPSHOT_CACHE_KEY);
+    if (cached) {
+      applyLockSnapshot(JSON.parse(cached));
+      hasSnapshot = true;
+    }
+  } catch {
+    // Missing or invalid browser storage should not block lock reads.
+  }
+
+  if (!checkedToday) return refreshLocks();
+  if (!hasSnapshot) lockRefreshStatus.textContent = "No saved lock readings. Use Refresh locks to retry.";
+}
+
 async function refreshLocks() {
   if (refreshLocksBtn.disabled) return;
   refreshLocksBtn.disabled = true;
   lockRefreshStatus.textContent = "Checking for lock updates…";
   try {
+    localStorage.setItem(LOCK_REFRESH_DAY_KEY, lockCalendarDay());
+  } catch {
+    // Manual refresh still works if local storage is disabled.
+  }
+
+  try {
     const revision = await getLockRevision();
     const data = await requestCalendarData(`${LOCKS_RAW_BASE}/${revision}/calendar-data/lock-snapshot.json?v=${Date.now()}`);
-    if (!Array.isArray(data.locks) || (data.capturedAt !== null && !Number.isFinite(Date.parse(data.capturedAt)))) {
-      throw new Error("Invalid lock snapshot");
+    applyLockSnapshot(data);
+    try {
+      localStorage.setItem(LOCK_SNAPSHOT_CACHE_KEY, JSON.stringify(data));
+    } catch {
+      // The fresh readings still display for this visit.
     }
-    const capturedAt = data.capturedAt ? Date.parse(data.capturedAt) : 0;
-    if (capturedAt < lockCapturedAt) throw new Error("Older lock snapshot");
-    lockCapturedAt = capturedAt;
-    lockStatuses = data.locks;
-    lockObservationTime = data.capturedAt ? new Date(data.capturedAt).toLocaleString("en-US", {
-      dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York"
-    }) + " ET" : "";
-    lockRefreshStatus.textContent = lockObservationTime ?
-      `Lock readings as of ${lockObservationTime}` : "Waiting for Dot’s first lock update";
     if (properties.length) render({ preserveScroll: true });
   } catch {
     lockRefreshStatus.textContent = lockObservationTime ?
@@ -438,7 +479,7 @@ propertyListEl.addEventListener("scroll", () => {
   });
 });
 
-refreshLocks();
+initializeLocks();
 loadCalendar();
 
 function todayString() {
