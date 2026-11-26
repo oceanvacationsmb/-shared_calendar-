@@ -139,6 +139,18 @@
       "created_at": "2026-11-26T04:36:51.523Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "157b6dac-5dd7-429c-9206-8cab5ea4e692",
+      "listing_id": "68db1aa7aae7e80013b094d9",
+      "property_name": "NMB - 400A",
+      "task_text": "Clean the sofa.",
+      "assignee_name": null,
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-26T04:37:02.808Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
