@@ -127,6 +127,18 @@
       "created_at": "2026-11-26T00:01:36.712Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "97719f48-8d39-4d1c-bac9-16780b07370b",
+      "listing_id": "68db1a5a249ebf0018db0f1b",
+      "property_name": "NMB - 204-27N",
+      "task_text": "Clean the sofa, stair carpet, and second-floor carpet.",
+      "assignee_name": null,
+      "created_by_name": "Zack",
+      "status": "open",
+      "created_at": "2026-11-26T04:36:51.523Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
