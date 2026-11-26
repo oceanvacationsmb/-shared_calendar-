@@ -7,12 +7,15 @@ async function scenario({ taskFails = false, pendingLocks = false, calendarFails
  const retries = [];
  const handlers = new Map();
  const requests = [];
+ const revision = "a".repeat(40);
+ let refAvailable = true;
  let lockData = {ok:true,capturedAt:null,locks:[]};
  let taskServiceRecovered = false;
  function element(id) { if (!elements.has(id)) elements.set(id, {innerHTML:'',textContent:'',classList:{add(){},remove(){},toggle(){}},addEventListener(event, callback){handlers.set(`${String(id)}:${event}`,callback);},setAttribute(){},replaceChildren(){},append(){},before(){},scrollTo(){}}); return elements.get(id); }
- const context = vm.createContext({console, AbortController, Date, Map, Set, sessionStorage:{getItem(){return null;},setItem(){}}, document:{addEventListener(){},getElementById:element,createElement:()=>element(Symbol()),querySelector:element},window:{addEventListener(){}},requestAnimationFrame:()=>{},setTimeout:(fn,ms)=>{const timer=setTimeout(fn,ms); if(ms===5000)retries.push({fn,timer});return timer;},clearTimeout, fetch:async url=>{
+ const context = vm.createContext({console, AbortController, AbortSignal, Date, Map, Set, sessionStorage:{getItem(){return null;},setItem(){}}, document:{addEventListener(){},getElementById:element,createElement:()=>element(Symbol()),querySelector:element},window:{addEventListener(){}},requestAnimationFrame:()=>{},setTimeout:(fn,ms)=>{const timer=setTimeout(fn,ms); if(ms===5000)retries.push({fn,timer});return timer;},clearTimeout, fetch:async url=>{
   requests.push(url);
   if(url.includes('/warmup')) return {ok:true,json:async()=>({ok:true})};
+  if(url.includes('/git/ref/heads/lock-data')) return {ok:refAvailable,json:async()=>({object:{sha:revision}})};
   if(url.includes('/lock-snapshot.json')) return pendingLocks ? new Promise(()=>{}) : {ok:lockData.ok,json:async()=>lockData};
   if(url.includes('/calendar-all') && cachedCalendar) return new Promise(()=>{});
   if(url.includes('/calendar-all')) return {ok:!calendarFails,json:async()=>calendarFails?{ok:false,message:'Unavailable'}:{ok:true,properties:[{listingId:'example'}]}};
@@ -35,11 +38,15 @@ async function scenario({ taskFails = false, pendingLocks = false, calendarFails
   requests.length = 0;
   lockData = {ok:true,capturedAt:"2026-11-25T12:00:00-05:00",locks:[{listingId:"example",batteryPercent:87,online:true}]};
   await handlers.get("refreshLocksBtn:click")();
-  assert.equal(requests.length,1);
-  assert.match(requests[0], /lock-snapshot\.json\?v=/);
+  assert.equal(requests.length,2);
+  assert.match(requests[0], /git\/ref\/heads\/lock-data$/);
+  assert.ok(requests[1].includes(`/${revision}/calendar-data/lock-snapshot.json?v=`));
   assert.equal(vm.runInContext('getLockStatusForProperty({listingId:"example"}).batteryPercent',context),87);
   assert.match(element('lockRefreshStatus').textContent,/Lock readings as of/);
-  lockData = {ok:false,message:"Unavailable"};
+  refAvailable = false;
+  lockData = {ok:true,capturedAt:null,locks:[]};
+  await handlers.get("refreshLocksBtn:click")();
+  assert.ok(requests.at(-1).includes("/lock-data/calendar-data/lock-snapshot.json?v="));
   await handlers.get("refreshLocksBtn:click")();
   assert.equal(vm.runInContext('getLockStatusForProperty({listingId:"example"}).batteryPercent',context),87);
   assert.match(element('lockRefreshStatus').textContent,/Showing readings/);

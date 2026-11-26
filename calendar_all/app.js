@@ -2,7 +2,8 @@ const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
 const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
 const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
-const LOCKS_API_URL = "https://raw.githubusercontent.com/oceanvacationsmb/-shared_calendar-/lock-data/calendar-data/lock-snapshot.json";
+const LOCKS_RAW_BASE = "https://raw.githubusercontent.com/oceanvacationsmb/-shared_calendar-";
+const LOCKS_REF_URL = "https://api.github.com/repos/oceanvacationsmb/-shared_calendar-/git/ref/heads/lock-data";
 const GAPS_API_BASE_URL = "https://shared-calendar-api.onrender.com/api/gaps";
 
 const DAYS_TO_SHOW = 45;
@@ -88,6 +89,7 @@ let taskVendors = [];
 let taskCreators = [];
 let lockStatuses = [];
 let lockObservationTime = "";
+let lockCapturedAt = 0;
 let isSyncingScroll = false;
 let isListOpen = false;
 let renderTimer = null;
@@ -140,15 +142,32 @@ async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
   }
 }
 
+async function getLockRevision() {
+  try {
+    const response = await fetch(LOCKS_REF_URL, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+    if (response.ok) {
+      const { object } = await response.json();
+      if (/^[a-f0-9]{40}$/.test(object?.sha)) return object.sha;
+    }
+  } catch {
+    // The branch URL still works if GitHub's API is unavailable or rate limited.
+  }
+  return "lock-data";
+}
+
 async function refreshLocks() {
   if (refreshLocksBtn.disabled) return;
   refreshLocksBtn.disabled = true;
   lockRefreshStatus.textContent = "Checking for lock updates…";
   try {
-    const data = await requestCalendarData(`${LOCKS_API_URL}?v=${Date.now()}`);
+    const revision = await getLockRevision();
+    const data = await requestCalendarData(`${LOCKS_RAW_BASE}/${revision}/calendar-data/lock-snapshot.json?v=${Date.now()}`);
     if (!Array.isArray(data.locks) || (data.capturedAt !== null && !Number.isFinite(Date.parse(data.capturedAt)))) {
       throw new Error("Invalid lock snapshot");
     }
+    const capturedAt = data.capturedAt ? Date.parse(data.capturedAt) : 0;
+    if (capturedAt < lockCapturedAt) throw new Error("Older lock snapshot");
+    lockCapturedAt = capturedAt;
     lockStatuses = data.locks;
     lockObservationTime = data.capturedAt ? new Date(data.capturedAt).toLocaleString("en-US", {
       dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York"
