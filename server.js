@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const { timingSafeEqual } = require("node:crypto");
 const {
   AirbnbHydrationProvider,
   buildMultiDateAirbnbAnalysis
@@ -9,6 +10,22 @@ require("dotenv").config();
 const app = express();
 
 app.use(cors());
+app.route("/api/locks-status")
+  .all((req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  })
+  .get(getLockSnapshot)
+  .post(requireLockSnapshotStaff, express.json({ limit: "128kb" }), importLockSnapshot);
+app.use("/api/locks-status", (err, req, res, next) => {
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ ok: false, message: "The lock snapshot is too large." });
+  }
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ ok: false, message: "The lock snapshot must be valid JSON." });
+  }
+  next(err);
+});
 app.use(express.json({ limit: "75mb" }));
 if (process.env.TASK_STORAGE === "github") {
   const { GitHubTaskStore, taskRouter } = require("./task-github-store");
@@ -34,11 +51,7 @@ const GUESTY_ALL_REPORT_API_KEY = process.env.GUESTY_ALL_REPORT_API_KEY;
 const SUPABASE_URL = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const TASK_MEDIA_BUCKET = process.env.TASK_MEDIA_BUCKET || "calendar-task-media";
-const LOCKS_API_CLIENT = process.env.LOCKS_API_CLIENT;
-const LOCKS_API_SECRET = process.env.LOCKS_API_SECRET;
-const LOCKS_API_BEARER = process.env.LOCKS_API_BEARER || process.env.LOCKS_API_TOKEN || "";
-const LOCKS_API_COOKIE = process.env.LOCKS_API_COOKIE || "";
-const LOCKS_API_URL = process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "";
+const LOCK_SNAPSHOT_STAFF_KEY = process.env.LOCK_SNAPSHOT_STAFF_KEY || "";
 const DEFAULT_GAPS_API_URL = "https://guesty-gaps.onrender.com";
 const GAPS_API_URL = String(process.env.GAPS_API_URL || process.env.GUESTY_GAPS_URL || DEFAULT_GAPS_API_URL).replace(/\/$/, "");
 const GAPS_API_URL_SOURCE = process.env.GAPS_API_URL
@@ -59,12 +72,6 @@ const REPORT_API_URL = "https://report.guesty.com/api/shared-reservations-report
 const TIMEZONE = "America/New_York";
 const DAYS_TO_SHOW = 90;
 const PAGE_LIMIT = 100;
-const LOCKS_CACHE_MS = 15 * 60 * 1000;
-
-let locksCache = {
-  expiresAt: 0,
-  data: []
-};
 
 const revenueAirbnbProvider = new AirbnbHydrationProvider({
   maxSearchPages: 3,
@@ -887,142 +894,6 @@ function publicStorageUrl(path) {
   return `${SUPABASE_URL}/storage/v1/object/public/${TASK_MEDIA_BUCKET}/${path}`;
 }
 
-function normalizeTextKey(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/\b(mb|gc|gcssb|ssb|nmb|mi)\b/g, "")
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-}
-
-function normalizeLockItem(item) {
-  const propertyName =
-    item.propertyName ||
-    item.property?.nickname ||
-    item.property?.name ||
-    item.listing?.nickname ||
-    item.listing?.name ||
-    item.listings?.[0]?.nickname ||
-    item.listings?.[0]?.name ||
-    item.listingName ||
-    item.linkedListing?.nickname ||
-    item.linkedListing?.name ||
-    item.doorLock ||
-    "";
-
-  const batteryRaw =
-    item.batteryLevel ??
-    item.battery ??
-    item.batteryPercent ??
-    item.batteryPercentage ??
-    item.status?.batteryLevel;
-
-  let batteryPercent = null;
-
-  if (typeof batteryRaw === "number") {
-    batteryPercent = batteryRaw <= 1 ? Math.round(batteryRaw * 100) : Math.round(batteryRaw);
-  } else if (batteryRaw) {
-    const match = String(batteryRaw).match(/\d+/);
-    batteryPercent = match ? Number(match[0]) : null;
-  }
-
-  const batteryStatus = batteryPercent === null
-    ? String(item.batteryStatus || item.battery || "").trim()
-    : "";
-
-  return {
-    id: item.id || item._id || item.referenceId || "",
-    lockName: item.name || item.lockName || item.title || "",
-    propertyName,
-    propertyKey: normalizeTextKey(propertyName),
-    batteryPercent,
-    batteryStatus,
-    online: Boolean(item.online ?? item.isOnline ?? item.status?.online),
-    provider: item.providerDisplayName || item.provider || item.providerName || ""
-  };
-}
-
-function extractLockItems(data) {
-  if (Array.isArray(data)) return data;
-
-  const direct =
-    data?.locks ||
-    data?.results ||
-    data?.items ||
-    data?.data ||
-    data?.rows;
-
-  if (Array.isArray(direct)) return direct;
-
-  const seen = new Set();
-  const stack = [data];
-
-  while (stack.length) {
-    const value = stack.pop();
-
-    if (!value || typeof value !== "object" || seen.has(value)) continue;
-    seen.add(value);
-
-    for (const child of Object.values(value)) {
-      if (Array.isArray(child)) {
-        const hasLocks = child.some(item => item && typeof item === "object" && (
-          "batteryLevel" in item ||
-          "online" in item ||
-          "doorLock" in item ||
-          "providerDisplayName" in item ||
-          Array.isArray(item.listings)
-        ));
-
-        if (hasLocks) return child;
-      } else if (child && typeof child === "object") {
-        stack.push(child);
-      }
-    }
-  }
-
-  return [];
-}
-
-async function fetchLocksFromConfiguredApi() {
-  if (!LOCKS_API_URL) return [];
-
-  const headers = {
-    accept: "application/json"
-  };
-
-  if (LOCKS_API_BEARER) {
-    const token = String(LOCKS_API_BEARER).replace(/^Bearer\s+/i, "").trim();
-    headers.authorization = `Bearer ${token}`;
-  } else if (LOCKS_API_CLIENT && LOCKS_API_SECRET) {
-    headers.authorization = `Basic ${Buffer.from(`${LOCKS_API_CLIENT}:${LOCKS_API_SECRET}`).toString("base64")}`;
-  }
-
-  if (LOCKS_API_COOKIE) {
-    headers.cookie = LOCKS_API_COOKIE;
-  }
-
-  const response = await fetch(LOCKS_API_URL, {
-    method: "GET",
-    headers
-  });
-  const text = await response.text();
-
-  let data = null;
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      data = text;
-    }
-  }
-
-  if (!response.ok) {
-    throw new Error(`Locks API failed (${response.status}): ${text}`);
-  }
-
-  return extractLockItems(data).map(normalizeLockItem).filter(item => item.propertyKey);
-}
-
 async function saveTaskMedia(taskId, files = [], uploadedFor = "open") {
   if (!taskId || !Array.isArray(files) || files.length === 0) {
     return [];
@@ -1271,38 +1142,98 @@ app.get("/api/calendar-all", async (req, res) => {
   }
 });
 
-app.get("/api/locks-status", async (req, res) => {
-  try {
-    if (Date.now() < locksCache.expiresAt) {
-      return res.json({
-        ok: true,
-        cached: true,
-        locks: locksCache.data
-      });
-    }
-
-    const locks = await fetchLocksFromConfiguredApi();
-
-    locksCache = {
-      expiresAt: Date.now() + LOCKS_CACHE_MS,
-      data: locks
-    };
-
-    res.json({
-      ok: true,
-      cached: false,
-      locks
-    });
-  } catch (err) {
-    console.error("Locks status error:", err);
-
-    res.json({
-      ok: true,
-      warning: err.message || "Failed to load locks",
-      locks: locksCache.data || []
-    });
+function requireLockSnapshotStaff(req, res, next) {
+  if (!LOCK_SNAPSHOT_STAFF_KEY) {
+    return res.status(503).json({ ok: false, message: "Staff lock imports are disabled." });
   }
-});
+
+  const supplied = Buffer.from(req.get("x-lock-snapshot-key") || "");
+  const expected = Buffer.from(LOCK_SNAPSHOT_STAFF_KEY);
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
+    return res.status(401).json({ ok: false, message: "Enter a valid staff lock import key." });
+  }
+
+  next();
+}
+
+function validateLockSnapshot(body) {
+  // Require a real, unambiguous observation time. Round-trip catches dates like February 30.
+  const timestamp = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
+  const time = typeof body?.capturedAt === "string" && timestamp.exec(body.capturedAt);
+  if (!time || !Array.isArray(body.locks) || body.locks.length < 1 || body.locks.length > 500 ||
+      Object.keys(body).some(key => key !== "capturedAt" && key !== "locks")) {
+    throw new Error("Provide capturedAt with a time zone and between 1 and 500 lock readings.");
+  }
+
+  const localTime = `${time[1]}.${(time[2] || "").padEnd(3, "0")}Z`;
+  const localDate = new Date(localTime);
+  const capturedDate = new Date(body.capturedAt);
+  if (!Number.isFinite(+capturedDate) || !Number.isFinite(+localDate) ||
+      localDate.toISOString() !== localTime || +capturedDate > Date.now()) {
+    throw new Error("Use a valid observation time in the past or present.");
+  }
+
+  const seen = new Set();
+  const locks = body.locks.map((lock, index) => {
+    const { listingId, batteryPercent, batteryStatus = null, online } = lock || {};
+    const label = `Reading ${index + 1}`;
+    if (typeof listingId !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(listingId) || seen.has(listingId)) {
+      throw new Error(`${label} needs a unique calendar listing ID.`);
+    }
+    if (Object.keys(lock).some(key => !["listingId", "batteryPercent", "batteryStatus", "online"].includes(key)) ||
+        (batteryPercent !== null && (!Number.isInteger(batteryPercent) || batteryPercent < 0 || batteryPercent > 100)) ||
+        (batteryStatus !== null && !["good", "low", "critical", "unknown"].includes(batteryStatus)) ||
+        (online !== null && typeof online !== "boolean") ||
+        (batteryPercent === null && batteryStatus === null && online === null)) {
+      throw new Error(`${label} needs a battery percentage from 0 to 100 or null, an optional batteryStatus (good, low, critical, or unknown), and online as true, false, or null.`);
+    }
+    seen.add(listingId);
+    return { listingId, batteryPercent, online, ...(batteryStatus === null ? {} : { batteryStatus }) };
+  });
+
+  return { capturedAt: capturedDate.toISOString(), locks };
+}
+
+async function getLockSnapshot(req, res) {
+  try {
+    const [snapshot] = await supabaseRequest("calendar_lock_snapshot?id=eq.1&select=captured_at,locks");
+    if (!snapshot) throw new Error("Lock snapshot row missing");
+    res.json({ ok: true, capturedAt: snapshot.captured_at, locks: snapshot.locks });
+  } catch (err) {
+    console.error("Could not read lock snapshot:", err.message);
+    res.status(503).json({ ok: false, message: "The saved lock readings are temporarily unavailable." });
+  }
+}
+
+async function importLockSnapshot(req, res) {
+  let snapshot;
+  try {
+    snapshot = validateLockSnapshot(req.body);
+  } catch (err) {
+    return res.status(400).json({ ok: false, message: err.message });
+  }
+
+  try {
+    // Supabase applies the condition and write in a single database operation.
+    const query = new URLSearchParams({
+      id: "eq.1",
+      or: `(captured_at.is.null,captured_at.lt.${snapshot.capturedAt})`,
+      select: "captured_at"
+    });
+    const rows = await supabaseRequest(`calendar_lock_snapshot?${query}`, {
+      method: "PATCH",
+      headers: { prefer: "return=representation" },
+      body: JSON.stringify({ captured_at: snapshot.capturedAt, locks: snapshot.locks })
+    });
+    if (rows.length === 0) {
+      return res.status(409).json({ ok: false, message: "A snapshot with the same or a newer observation time is already saved." });
+    }
+    res.json({ ok: true, capturedAt: rows[0].captured_at, count: snapshot.locks.length });
+  } catch (err) {
+    console.error("Could not save lock snapshot:", err.message);
+    res.status(503).json({ ok: false, message: "The lock snapshot could not be saved. Try again." });
+  }
+}
 
 app.get("/api/gaps/enabled-listings", async (req, res) => {
   try {
@@ -1803,9 +1734,6 @@ app.get("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
     renderServiceId: RENDER_SERVICE_ID ? maskSecret(RENDER_SERVICE_ID) : "",
     gapsRenderServiceId: RENDER_GAPS_SERVICE_ID ? maskSecret(RENDER_GAPS_SERVICE_ID) : "",
     values: {
-      LOCKS_API_URL: process.env.LOCKS_API_URL || process.env.LOCKS_API_BASE_URL || "",
-      LOCKS_API_BEARER: maskSecret(process.env.LOCKS_API_BEARER || process.env.LOCKS_API_TOKEN || ""),
-      LOCKS_API_COOKIE: maskSecret(process.env.LOCKS_API_COOKIE || ""),
       GAPS_API_URL: process.env.GAPS_API_URL || process.env.GUESTY_GAPS_URL || DEFAULT_GAPS_API_URL,
       GAPS_ADMIN_KEY: maskSecret(process.env.GAPS_ADMIN_KEY || ""),
       GUESTY_CLIENT_ID: maskSecret(process.env.GUESTY_CLIENT_ID || ""),
@@ -1816,20 +1744,8 @@ app.get("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
 
 app.post("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
   try {
-    const lockKeys = ["LOCKS_API_BEARER", "LOCKS_API_COOKIE"];
     const gapsKeys = ["GUESTY_CLIENT_ID", "GUESTY_CLIENT_SECRET"];
-    const lockValues = {};
     const gapsValues = {};
-
-    lockKeys.forEach(key => {
-      if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
-        const value = String(req.body[key] || "").trim();
-
-        if (value) {
-          lockValues[key] = value;
-        }
-      }
-    });
 
     gapsKeys.forEach(key => {
       if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
@@ -1841,7 +1757,7 @@ app.post("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
       }
     });
 
-    if (Object.keys(lockValues).length === 0 && Object.keys(gapsValues).length === 0) {
+    if (Object.keys(gapsValues).length === 0) {
       return res.status(400).json({
         ok: false,
         message: "Nothing to save. Paste at least one value."
@@ -1850,16 +1766,6 @@ app.post("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
 
     const changed = [];
     const deploys = [];
-
-    if (Object.keys(lockValues).length > 0) {
-      const lockChanged = await upsertRenderEnvVars(RENDER_SERVICE_ID, lockValues);
-      changed.push(...lockChanged);
-
-      if (lockChanged.length > 0) {
-        const deploy = await triggerRenderDeploy(RENDER_SERVICE_ID);
-        deploys.push(deploy?.id || deploy?.deploy?.id || null);
-      }
-    }
 
     if (Object.keys(gapsValues).length > 0) {
       const gapsChanged = await upsertRenderEnvVars(RENDER_GAPS_SERVICE_ID, gapsValues);
@@ -1889,6 +1795,10 @@ app.post("/api/settings/render-env", requireSettingsAdmin, async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`Shared Calendar API running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Shared Calendar API running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

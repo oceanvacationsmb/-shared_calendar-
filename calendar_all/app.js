@@ -27,6 +27,13 @@ const cityFilterSelect = document.getElementById("cityFilterSelect");
 const lockMenuBtn = document.getElementById("lockMenuBtn");
 const lockMenuLabel = document.getElementById("lockMenuLabel");
 const lockAlertBadge = document.getElementById("lockAlertBadge");
+const refreshLocksBtn = document.getElementById("refreshLocksBtn");
+const lockSnapshotTime = document.getElementById("lockSnapshotTime");
+const lockTimeFormat = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "America/New_York"
+});
 
 const filteredListPanel = document.getElementById("filteredListPanel");
 const filteredListTitle = document.getElementById("filteredListTitle");
@@ -84,7 +91,7 @@ let tasks = [];
 let completedTasks = [];
 let taskVendors = [];
 let taskCreators = [];
-let lockStatuses = [];
+let lockStatuses = new Map();
 let isSyncingScroll = false;
 let isListOpen = false;
 let renderTimer = null;
@@ -137,6 +144,25 @@ async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
   }
 }
 
+async function refreshLocks() {
+  if (refreshLocksBtn.disabled) return;
+  refreshLocksBtn.disabled = true;
+  try {
+    const { capturedAt, locks } = await requestCalendarData(LOCKS_API_URL, 60000);
+    const observation = capturedAt ? lockTimeFormat.format(new Date(capturedAt)) : "";
+    lockStatuses = new Map(locks.map(reading => [reading.listingId, reading]));
+    lockSnapshotTime.textContent = observation ? `Lock readings as of ${observation} ET` : "No lock snapshot imported";
+    showServiceWarning("Locks", "");
+    if (properties.length) render({ preserveScroll: true });
+  } catch {
+    showServiceWarning("Locks", "Unable to refresh lock readings. Use Refresh locks to try again.");
+  } finally {
+    refreshLocksBtn.disabled = false;
+  }
+}
+
+refreshLocksBtn.addEventListener("click", refreshLocks);
+
 async function loadSupportingData() {
   const version = ++supportingLoadVersion;
   for (const timer of supportingRetryTimers.values()) clearTimeout(timer);
@@ -151,10 +177,6 @@ async function loadSupportingData() {
     } },
     { name: "Task creators", url: TASK_CREATORS_API_URL, apply: data => {
       taskCreators = data.creators || [];
-    } },
-    { name: "Locks", url: LOCKS_API_URL, apply: data => {
-      if (data.warning) throw new Error(data.warning);
-      lockStatuses = data.locks || [];
     } }
   ].map(async service => {
     async function refresh(attempt = 0) {
@@ -394,6 +416,7 @@ propertyListEl.addEventListener("scroll", () => {
   });
 });
 
+refreshLocks();
 loadCalendar();
 
 function todayString() {
@@ -610,18 +633,24 @@ function renderProperties() {
 
     if (lockStatus) {
       const battery = document.createElement("span");
-      battery.className = getBatteryClass(lockStatus);
-      battery.textContent = formatBattery(lockStatus);
-      battery.title = `Lock battery ${formatBattery(lockStatus)}`;
+      const percent = lockStatus.batteryPercent;
+      const reportedStatus = lockStatus.batteryStatus;
+      const statusLabel = { good: "Good", low: "Low", critical: "Critical" }[reportedStatus];
+      const batteryClass = hasBatteryIssue(lockStatus) ? "low" : percent !== null || statusLabel ? "good" : "unknown";
+      battery.className = `lock-battery ${batteryClass}`;
+      battery.textContent = percent === null ? statusLabel || "—" : `${percent}%`;
+      battery.title = battery.textContent === "—" ? "Lock battery unknown" : `Lock battery ${battery.textContent}`;
       lockGroup.appendChild(battery);
 
       const online = document.createElement("span");
-      online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
+      const connection = lockStatus.online === null ? "unknown" : lockStatus.online ? "online" : "offline";
+      online.className = `lock-online ${connection}`;
+      online.setAttribute("role", "img");
       online.innerHTML = `
         <span class="wifi-bars" aria-hidden="true"><span></span><span></span><span></span></span>
       `;
-      online.title = lockStatus.online ? "Lock online" : "Lock offline";
-      online.setAttribute("aria-label", lockStatus.online ? "Lock online" : "Lock offline");
+      online.title = connection === "unknown" ? "Lock connection unknown" : `Lock ${connection}`;
+      online.setAttribute("aria-label", online.title);
       lockGroup.appendChild(online);
     }
 
@@ -1470,14 +1499,6 @@ function getPropertyArea(property) {
   return "MB";
 }
 
-function normalizePropertyKey(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/\b(mb|gc|gcssb|ssb|nmb|mi)\b/g, "")
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-}
-
 function getCompactPropertyName(property) {
   const name = property.nickname || property.name || "Property";
   return String(name)
@@ -1486,65 +1507,16 @@ function getCompactPropertyName(property) {
 }
 
 function getLockStatusForProperty(property) {
-  if (!lockStatuses.length) {
-    return null;
-  }
-
-  const names = [
-    property.nickname,
-    property.name,
-    getCompactPropertyName(property)
-  ].filter(Boolean);
-
-  const keys = names.map(normalizePropertyKey).filter(Boolean);
-
-  return lockStatuses.find(lock => {
-    const lockKeys = [
-      lock.propertyKey,
-      normalizePropertyKey(lock.propertyName),
-      normalizePropertyKey(lock.lockName)
-    ].filter(Boolean);
-
-    return keys.some(key => lockKeys.includes(key) || lockKeys.some(lockKey => lockKey.includes(key) || key.includes(lockKey)));
-  }) || null;
-}
-
-function formatBattery(lockStatus) {
-  const pct = Number(lockStatus.batteryPercent);
-
-  if (Number.isFinite(pct) && pct >= 0) {
-    return `${pct}%`;
-  }
-
-  return lockStatus.batteryStatus || "--";
-}
-
-function getBatteryClass(lockStatus) {
-  const pct = Number(lockStatus.batteryPercent);
-
-  if (Number.isFinite(pct)) {
-    if (pct <= 20) return "lock-battery low";
-    return "lock-battery good";
-  }
-
-  const status = String(lockStatus.batteryStatus || "").toLowerCase();
-  if (status.includes("low")) return "lock-battery low";
-  return "lock-battery good";
+  return lockStatuses.get(String(property.listingId)) || null;
 }
 
 function hasBatteryIssue(lockStatus) {
-  const pct = Number(lockStatus?.batteryPercent);
-
-  if (Number.isFinite(pct) && pct >= 0) {
-    return pct <= 20;
-  }
-
-  const status = String(lockStatus?.batteryStatus || "").toLowerCase();
-  return status.includes("low");
+  return lockStatus.batteryStatus === "low" || lockStatus.batteryStatus === "critical" ||
+    (lockStatus.batteryPercent !== null && lockStatus.batteryPercent <= 20);
 }
 
 function hasLockIssue(lockStatus) {
-  return hasBatteryIssue(lockStatus) || lockStatus?.online === false;
+  return lockStatus.online === false || hasBatteryIssue(lockStatus);
 }
 
 /* Tasks */

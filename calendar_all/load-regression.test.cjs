@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const source = fs.readFileSync('calendar_all/app.js', 'utf8').replace(/^loadCalendar\(\);$/m, '');
+const source = fs.readFileSync('calendar_all/app.js', 'utf8').replace(/^(?:refreshLocks|loadCalendar)\(\);$/gm, '');
 async function scenario({ taskFails = false, pendingLocks = false, calendarFails = false, recoverAutomatically = false, cachedCalendar = false }) {
  const elements = new Map();
  const retries = [];
@@ -19,7 +19,7 @@ async function scenario({ taskFails = false, pendingLocks = false, calendarFails
  assert.equal(vm.runInContext('getLockStatusForProperty({nickname:"test"})',context),null);
  vm.runInContext('render = () => { calendarEl.innerHTML = "reservations rendered"; }; fillTaskPropertySelect = fillTaskVendorSelect = fillTaskCreatorSelect = updatePhoneTaskBadge = maybeOpenTaskAlerts = scrollToToday = () => {};',context);
  if(cachedCalendar) vm.runInContext('sessionStorage.getItem = () => JSON.stringify({start:addDays(todayString(),-DAYS_BEFORE_TODAY),end:addDays(todayString(),DAYS_TO_SHOW+1),savedAt:Date.now(),properties:[{listingId:"cached"}]});',context);
- const promise = vm.runInContext('loadCalendar()',context);
+ const promise = vm.runInContext('refreshLocks(); loadCalendar()',context);
  await new Promise(resolve=>setTimeout(resolve,20));
  if(pendingLocks || cachedCalendar) { assert.equal(element('calendar').innerHTML,'reservations rendered'); if(cachedCalendar)assert.equal(vm.runInContext('serviceWarnings.has("Calendar")',context),true);return; }
  await promise;

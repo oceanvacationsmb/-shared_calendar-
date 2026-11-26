@@ -8,6 +8,7 @@
   --row-height: 52px;
   --month-height: 28px;
   --header-height: 58px;
+  --lock-snapshot-height: 40px;
   --total-days: 65;
 
   --green: #5c9d8b;
@@ -394,12 +395,12 @@ button {
 .calendar-shell {
   display: grid;
   grid-template-columns: var(--property-width) 1fr;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 120px - var(--lock-snapshot-height));
   overflow: hidden;
 }
 
 body.list-open .calendar-shell {
-  height: calc(100vh - 253px);
+  height: calc(100vh - 253px - var(--lock-snapshot-height));
 }
 
 .property-side {
@@ -553,6 +554,23 @@ body.list-open .calendar-shell {
 .lock-online.online {
   background: #dcfce7;
   color: #166534;
+}
+
+.lock-battery.unknown,
+.lock-online.unknown {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.lock-snapshot-bar {
+  display: flex;
+  min-height: var(--lock-snapshot-height);
+  align-items: center;
+  gap: 8px;
+  padding: 6px 18px;
+  border-bottom: 1px solid var(--border);
+  color: #475569;
+  font-size: 13px;
 }
 
 .lock-battery.medium {
@@ -1513,11 +1531,11 @@ body.list-open .calendar-shell {
   }
 
   .calendar-shell {
-    height: calc(100vh - 128px);
+    height: calc(100vh - 128px - var(--lock-snapshot-height));
   }
 
   body.list-open .calendar-shell {
-    height: calc(100vh - 268px);
+    height: calc(100vh - 268px - var(--lock-snapshot-height));
   }
 
   .property-row {

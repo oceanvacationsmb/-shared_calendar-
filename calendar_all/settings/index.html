@@ -14,10 +14,34 @@
     <header class="settings-header">
       <div>
         <h1>OCEAN VACATIONS</h1>
-        <p>Update Render keys</p>
+        <p>Calendar settings</p>
       </div>
       <a href="../">Calendar</a>
     </header>
+
+    <section class="settings-card">
+      <div class="section-title">
+        <h2>Lock readings</h2>
+        <a class="inline-link" href="https://app.guesty.com/integrations/guesty-locks-manager/locks/linked" target="_blank" rel="noreferrer">Open Guesty Locks Manager</a>
+      </div>
+      <p>Paste Dot's readings with the observation time on the first line and one property per line. Use the exact calendar property name or listing ID.</p>
+      <pre>2026-11-25T18:30:00-05:00
+Example property | Low | Online
+Another property | 87% | Offline</pre>
+      <p>Battery accepts a percentage, Good, Low, Critical, or Unknown. Connection accepts Online, Offline, or Unknown. You can also load and edit the JSON template.</p>
+      <p>Each import replaces all displayed readings. Omit properties you did not check. The calendar shows the time of the saved snapshot.</p>
+      <button id="lockTemplateBtn" type="button">Load property template</button>
+      <label>
+        <span>Lock snapshot</span>
+        <textarea id="lockSnapshotJson" rows="10" spellcheck="false" placeholder="Load the property template or paste a snapshot"></textarea>
+      </label>
+      <label>
+        <span>Staff lock import key</span>
+        <input id="lockSnapshotKey" type="password" autocomplete="off" />
+      </label>
+      <p><button id="importLocksBtn" type="button">Import lock readings</button></p>
+      <div id="lockImportStatus" class="status-box hidden" role="status"></div>
+    </section>
 
     <section class="settings-card">
       <div class="section-title">
@@ -30,21 +54,6 @@
       <label class="remember-line">
         <input id="rememberAdminKey" type="checkbox" />
         <span>Remember on this device</span>
-      </label>
-    </section>
-
-    <section class="settings-card">
-      <div class="section-title">
-        <h2>LOCKS API</h2>
-        <a class="inline-link" href="https://app.guesty.com/integrations/guesty-locks-manager/locks/linked" target="_blank" rel="noreferrer">Click here to access locks page</a>
-      </div>
-      <label>
-        <span>LOCKS API</span>
-        <textarea id="locksApiBearer" rows="5" placeholder="Paste locks API key"></textarea>
-      </label>
-      <label>
-        <span>LOCKS COOKIE</span>
-        <textarea id="locksApiCookie" rows="5" placeholder="Paste cookie only if needed"></textarea>
       </label>
     </section>
 
@@ -71,6 +80,6 @@
     <div id="statusBox" class="status-box hidden"></div>
   </main>
 
-  <script src="./app.js?v=6"></script>
+  <script src="./app.js?v=8"></script>
 </body>
 </html>
