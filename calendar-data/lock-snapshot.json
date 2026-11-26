@@ -1,160 +1,160 @@
 {
   "ok": true,
-  "capturedAt": "2026-11-26T17:37:58.948Z",
+  "capturedAt": "2026-11-26T17:43:41.134Z",
   "locks": [
     {
       "propertyName": "GCSSB - 113B-13N",
-      "batteryPercent": null,
+      "batteryPercent": 94,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "GCSSB - 115C 15N",
-      "batteryPercent": null,
+      "batteryPercent": 90,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "GC - 1463",
-      "batteryPercent": null,
+      "batteryPercent": 99,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 1501",
-      "batteryPercent": null,
+      "batteryPercent": 100,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - 1552",
-      "batteryPercent": null,
+      "batteryPercent": 89,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 204-27N",
-      "batteryPercent": null,
+      "batteryPercent": 93,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - 209/5112",
-      "batteryPercent": null,
+      "batteryPercent": 88,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - 209/5113",
-      "batteryPercent": null,
+      "batteryPercent": 71,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - 2131",
-      "batteryPercent": null,
+      "batteryPercent": 81,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 304B",
-      "batteryPercent": null,
+      "batteryPercent": 55,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 3104-2",
-      "batteryPercent": null,
+      "batteryPercent": 93,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 3104-3",
-      "batteryPercent": null,
+      "batteryPercent": 78,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 400A",
-      "batteryPercent": null,
+      "batteryPercent": 98,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 400B",
-      "batteryPercent": null,
+      "batteryPercent": 46,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - 4765",
-      "batteryPercent": null,
+      "batteryPercent": 87,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - 7500",
-      "batteryPercent": null,
+      "batteryPercent": 27,
       "batteryStatus": "low",
       "online": true
     },
     {
       "propertyName": "GC - 827B",
-      "batteryPercent": null,
+      "batteryPercent": 90,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - BRK-1670",
-      "batteryPercent": null,
+      "batteryPercent": 98,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - 2000",
-      "batteryPercent": null,
+      "batteryPercent": 52,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 3104-1",
-      "batteryPercent": null,
+      "batteryPercent": 59,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 508/1-33S",
-      "batteryPercent": null,
+      "batteryPercent": 54,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "NMB - 508/2-33S",
-      "batteryPercent": null,
+      "batteryPercent": 37,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "GCSSB - 204-2D",
-      "batteryPercent": null,
+      "batteryPercent": 84,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - Tuscan A",
-      "batteryPercent": null,
+      "batteryPercent": 95,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB - Tuscan B",
-      "batteryPercent": null,
+      "batteryPercent": 93,
       "batteryStatus": "good",
       "online": true
     },
     {
       "propertyName": "MB-TUS-CR",
-      "batteryPercent": null,
+      "batteryPercent": 62,
       "batteryStatus": "good",
       "online": true
     }
