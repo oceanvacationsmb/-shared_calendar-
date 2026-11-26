@@ -9,7 +9,7 @@ async function scenario({ taskFails = false, pendingLocks = false, calendarFails
  function element(id) { if (!elements.has(id)) elements.set(id, {innerHTML:'',textContent:'',classList:{add(){},remove(){},toggle(){}},addEventListener(){},setAttribute(){},replaceChildren(){},append(){},before(){},scrollTo(){}}); return elements.get(id); }
  const context = vm.createContext({console, AbortController, Date, Map, Set, sessionStorage:{getItem(){return null;},setItem(){}}, document:{addEventListener(){},getElementById:element,createElement:()=>element(Symbol()),querySelector:element},window:{addEventListener(){}},requestAnimationFrame:()=>{},setTimeout:(fn,ms)=>{const timer=setTimeout(fn,ms); if(ms===5000)retries.push({fn,timer});return timer;},clearTimeout, fetch:async url=>{
   if(url.includes('/warmup')) return {ok:true,json:async()=>({ok:true})};
-  if(url.includes('/locks-status') && pendingLocks) return new Promise(()=>{});
+  if(url.includes('/lock-snapshot.json') && pendingLocks) return new Promise(()=>{});
   if(url.includes('/calendar-all') && cachedCalendar) return new Promise(()=>{});
   if(url.includes('/calendar-all')) return {ok:!calendarFails,json:async()=>calendarFails?{ok:false,message:'Unavailable'}:{ok:true,properties:[{listingId:'example'}]}};
   if(taskFails && !taskServiceRecovered && url.includes('/calendar-task')) return {ok:false,json:async()=>({ok:false,message:'fetch failed'})};

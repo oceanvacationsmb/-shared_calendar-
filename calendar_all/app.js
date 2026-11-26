@@ -2,7 +2,7 @@ const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
 const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
 const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
-const LOCKS_API_URL = "https://shared-calendar-api.onrender.com/api/locks-status";
+const LOCKS_API_URL = "https://raw.githubusercontent.com/oceanvacationsmb/-shared_calendar-/lock-data/calendar-data/lock-snapshot.json";
 const GAPS_API_BASE_URL = "https://shared-calendar-api.onrender.com/api/gaps";
 
 const DAYS_TO_SHOW = 45;
@@ -85,6 +85,7 @@ let completedTasks = [];
 let taskVendors = [];
 let taskCreators = [];
 let lockStatuses = [];
+let lockObservationTime = "";
 let isSyncingScroll = false;
 let isListOpen = false;
 let renderTimer = null;
@@ -153,8 +154,10 @@ async function loadSupportingData() {
       taskCreators = data.creators || [];
     } },
     { name: "Locks", url: LOCKS_API_URL, apply: data => {
-      if (data.warning) throw new Error(data.warning);
       lockStatuses = data.locks || [];
+      lockObservationTime = data.capturedAt ? new Date(data.capturedAt).toLocaleString("en-US", {
+        dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York"
+      }) + " ET" : "";
     } }
   ].map(async service => {
     async function refresh(attempt = 0) {
@@ -612,16 +615,18 @@ function renderProperties() {
       const battery = document.createElement("span");
       battery.className = getBatteryClass(lockStatus);
       battery.textContent = formatBattery(lockStatus);
-      battery.title = `Lock battery ${formatBattery(lockStatus)}`;
+      battery.title = [`Lock battery ${formatBattery(lockStatus)}`, lockObservationTime].filter(Boolean).join(" · ");
       lockGroup.appendChild(battery);
 
       const online = document.createElement("span");
-      online.className = lockStatus.online ? "lock-online online" : "lock-online offline";
+      const connection = lockStatus.online === true ? "online" : lockStatus.online === false ? "offline" : "unknown";
+      online.className = connection === "unknown" ? "lock-online" : `lock-online ${connection}`;
       online.innerHTML = `
         <span class="wifi-bars" aria-hidden="true"><span></span><span></span><span></span></span>
       `;
-      online.title = lockStatus.online ? "Lock online" : "Lock offline";
-      online.setAttribute("aria-label", lockStatus.online ? "Lock online" : "Lock offline");
+      online.setAttribute("role", "img");
+      online.title = connection === "unknown" ? "Lock connection unknown" : `Lock ${connection}`;
+      online.setAttribute("aria-label", online.title);
       lockGroup.appendChild(online);
     }
 
@@ -1470,14 +1475,6 @@ function getPropertyArea(property) {
   return "MB";
 }
 
-function normalizePropertyKey(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/\b(mb|gc|gcssb|ssb|nmb|mi)\b/g, "")
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-}
-
 function getCompactPropertyName(property) {
   const name = property.nickname || property.name || "Property";
   return String(name)
@@ -1485,66 +1482,40 @@ function getCompactPropertyName(property) {
     .trim();
 }
 
+function lockPropertyNames(property) {
+  return [property.nickname, property.name, getCompactPropertyName(property)]
+    .filter(Boolean).map(name => String(name).trim().toLowerCase());
+}
+
 function getLockStatusForProperty(property) {
-  if (!lockStatuses.length) {
-    return null;
-  }
-
-  const names = [
-    property.nickname,
-    property.name,
-    getCompactPropertyName(property)
-  ].filter(Boolean);
-
-  const keys = names.map(normalizePropertyKey).filter(Boolean);
-
+  if (!lockStatuses.length) return null;
+  const byId = lockStatuses.find(lock => lock.listingId && String(lock.listingId) === String(property.listingId));
+  if (byId) return byId;
+  const names = lockPropertyNames(property);
   return lockStatuses.find(lock => {
-    const lockKeys = [
-      lock.propertyKey,
-      normalizePropertyKey(lock.propertyName),
-      normalizePropertyKey(lock.lockName)
-    ].filter(Boolean);
-
-    return keys.some(key => lockKeys.includes(key) || lockKeys.some(lockKey => lockKey.includes(key) || key.includes(lockKey)));
+    if (lock.listingId || !lock.propertyName) return false;
+    const name = lock.propertyName.trim().toLowerCase();
+    return names.includes(name) && properties.filter(item => lockPropertyNames(item).includes(name)).length === 1;
   }) || null;
 }
 
 function formatBattery(lockStatus) {
-  const pct = Number(lockStatus.batteryPercent);
-
-  if (Number.isFinite(pct) && pct >= 0) {
-    return `${pct}%`;
-  }
-
-  return lockStatus.batteryStatus || "--";
+  if (Number.isFinite(lockStatus.batteryPercent)) return `${lockStatus.batteryPercent}%`;
+  return { good: "Good", low: "Low", critical: "Critical" }[lockStatus.batteryStatus] || "—";
 }
 
 function getBatteryClass(lockStatus) {
-  const pct = Number(lockStatus.batteryPercent);
-
-  if (Number.isFinite(pct)) {
-    if (pct <= 20) return "lock-battery low";
-    return "lock-battery good";
-  }
-
-  const status = String(lockStatus.batteryStatus || "").toLowerCase();
-  if (status.includes("low")) return "lock-battery low";
-  return "lock-battery good";
+  if (hasBatteryIssue(lockStatus)) return "lock-battery low";
+  return formatBattery(lockStatus) === "—" ? "lock-battery" : "lock-battery good";
 }
 
 function hasBatteryIssue(lockStatus) {
-  const pct = Number(lockStatus?.batteryPercent);
-
-  if (Number.isFinite(pct) && pct >= 0) {
-    return pct <= 20;
-  }
-
-  const status = String(lockStatus?.batteryStatus || "").toLowerCase();
-  return status.includes("low");
+  return lockStatus.batteryStatus === "low" || lockStatus.batteryStatus === "critical" ||
+    (Number.isFinite(lockStatus.batteryPercent) && lockStatus.batteryPercent <= 20);
 }
 
 function hasLockIssue(lockStatus) {
-  return hasBatteryIssue(lockStatus) || lockStatus?.online === false;
+  return hasBatteryIssue(lockStatus) || lockStatus.online === false;
 }
 
 /* Tasks */
