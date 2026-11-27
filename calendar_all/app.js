@@ -98,6 +98,9 @@ let editingTaskId = null;
 let viewingCompletedTasks = false;
 let gapsPollTimer = null;
 let taskAlertsShown = false;
+const completingTaskIds = new Set();
+const confirmedTaskIds = new Set();
+const recentCompletedTasks = new Map();
 let taskAlertRecentTasks = [];
 let taskAlertUrgentTasks = [];
 let tasksAvailable = false;
@@ -324,7 +327,7 @@ async function loadSupportingData() {
   supportingRetryTimers.clear();
   await Promise.all([
     { name: "Tasks", url: TASKS_API_URL, apply: data => {
-      tasks = data.tasks || [];
+      tasks = (data.tasks || []).filter(task => !confirmedTaskIds.has(String(task.id)));
       tasksAvailable = true;
     } },
     { name: "Task vendors", url: TASK_VENDORS_API_URL, apply: data => {
@@ -356,7 +359,7 @@ async function loadSupportingData() {
     fillTaskVendorSelect();
     fillTaskCreatorSelect();
     updatePhoneTaskBadge();
-    if (service.name === "Tasks" && tasksAvailable && properties.length) maybeOpenTaskAlerts();
+    if (service.name === "Tasks" && tasksAvailable) maybeOpenTaskAlerts();
     }
     return refresh();
   }));
@@ -431,7 +434,7 @@ taskAlertPersonFilter.addEventListener("change", renderFilteredTaskAlerts);
 
 window.addEventListener("pageshow", event => {
   if (event.persisted) {
-    maybeOpenTaskAlerts(true);
+    maybeOpenTaskAlerts();
   }
 });
 
@@ -741,13 +744,12 @@ async function reloadTasksOnly(options = {}) {
     throw new Error(data.message || "Failed to reload tasks");
   }
 
-  tasks = data.tasks || [];
+  tasks = (data.tasks || []).filter(task => !confirmedTaskIds.has(String(task.id)));
+  tasksAvailable = true;
   render({ preserveScroll: true });
   updatePhoneTaskBadge();
 
-  if (options.showAlerts) {
-    maybeOpenTaskAlerts(true);
-  }
+  maybeOpenTaskAlerts();
 }
 
 function render(options = {}) {
@@ -1427,9 +1429,10 @@ function getTaskAgeHours(task) {
 }
 
 function getRecentTasks() {
+  // All non-urgent open tasks, including tasks with missing dates.
   return tasks.filter(task => {
     const ageHours = getTaskAgeHours(task);
-    return ageHours !== null && ageHours >= 0 && ageHours <= 24;
+    return ageHours === null || ageHours < 72;
   });
 }
 
@@ -1440,24 +1443,22 @@ function getUrgentTasks() {
   });
 }
 
-function maybeOpenTaskAlerts(force = false) {
+function maybeOpenTaskAlerts() {
+  if (!tasksAvailable) return;
   const recent = getRecentTasks();
   const urgent = getUrgentTasks();
-
-  if (!recent.length && !urgent.length) {
-    closeTaskAlertsModal();
-    return;
-  }
-
   taskAlertRecentTasks = recent;
   taskAlertUrgentTasks = urgent;
   fillTaskAlertPersonFilter(recent, urgent);
   renderTaskAlerts(recent, urgent);
 
-  if (force || !taskAlertsShown) {
-    taskAlertsShown = true;
-    taskAlertsModal.classList.remove("hidden");
+  const firstSuccessfulLoad = !taskAlertsShown;
+  taskAlertsShown = true;
+  if (!recent.length && !urgent.length) {
+    closeTaskAlertsModal();
+    return;
   }
+  if (firstSuccessfulLoad) taskAlertsModal.classList.remove("hidden");
 }
 
 function closeTaskAlertsModal() {
@@ -1470,7 +1471,7 @@ function renderTaskAlerts(recent, urgent) {
 
   recentTasksCount.textContent = String(filteredRecent.length);
   urgentTasksCount.textContent = String(filteredUrgent.length);
-  recentTasksList.innerHTML = renderTaskAlertItems(filteredRecent, "ALERT");
+  recentTasksList.innerHTML = renderTaskAlertItems(filteredRecent, "OPEN");
   urgentTasksList.innerHTML = renderTaskAlertItems(filteredUrgent, "URGENT");
 }
 
@@ -2030,7 +2031,7 @@ function openViewTasksModal(property) {
         ${renderTaskMedia(task.media)}
         <div class="task-actions">
           <button class="edit-task-btn" data-task-id="${escapeHtml(task.id)}">Edit</button>
-          <button class="complete-task-btn" data-task-id="${escapeHtml(task.id)}">Complete</button>
+          <button class="complete-task-btn" data-task-id="${escapeHtml(task.id)}"${completingTaskIds.has(String(task.id)) ? " disabled" : ""}>${completingTaskIds.has(String(task.id)) ? "Completing…" : "Complete"}</button>
         </div>
       </div>
     `).join("");
@@ -2205,32 +2206,61 @@ function renderGapResults(data) {
 
 async function completeTask(taskId) {
   if (!taskId) return;
-
+  const id = String(taskId);
+  const task = tasks.find(item => String(item.id) === id);
+  if (!task || completingTaskIds.has(id) || confirmedTaskIds.has(id)) return;
+  completingTaskIds.add(id);
+  const updateButtons = () => {
+    tasksList.querySelectorAll(".complete-task-btn").forEach(btn => {
+      if (String(btn.dataset.taskId) !== id) return;
+      btn.disabled = completingTaskIds.has(id);
+      btn.textContent = btn.disabled ? "Completing…" : "Complete";
+    });
+  };
+  updateButtons();
+  let data;
   try {
     const res = await fetch(`${TASKS_API_URL}/${encodeURIComponent(taskId)}`, {
       method: "DELETE",
       cache: "no-store"
     });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.ok) {
-      throw new Error(data.message || "Failed to complete task");
-    }
-
-    await reloadTasksOnly();
-
-    if (selectedTaskProperty) {
-      const stillHasTasks = getTasksForProperty(selectedTaskProperty).length > 0;
-
-      if (stillHasTasks) {
-        openViewTasksModal(selectedTaskProperty);
-      } else {
-        closeViewTasksModal();
-      }
-    }
+    data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.message || "Failed to complete task");
   } catch (err) {
+    completingTaskIds.delete(id);
+    updateButtons();
     alert(err.message);
+    return;
+  }
+
+  // The write succeeded; never treat a later read failure as a failed completion.
+  confirmedTaskIds.add(id);
+  completingTaskIds.delete(id);
+  const completed = { ...task, ...(data.task || {}), completed_at: data.task?.completed_at || new Date().toISOString() };
+  recentCompletedTasks.set(id, completed);
+  tasks = tasks.filter(item => String(item.id) !== id);
+  completedTasks = [completed, ...completedTasks.filter(item => String(item.id) !== id)];
+  render({ preserveScroll: true });
+  updatePhoneTaskBadge();
+  maybeOpenTaskAlerts();
+
+  const refreshVisibleTaskList = () => {
+    if (viewTasksModal.classList.contains("hidden")) return;
+    if (viewingCompletedTasks) {
+      renderCompletedTasks();
+    } else if (selectedTaskProperty) {
+      if (getTasksForProperty(selectedTaskProperty).length) openViewTasksModal(selectedTaskProperty);
+      else closeViewTasksModal();
+    } else {
+      openTaskListModal();
+    }
+  };
+  refreshVisibleTaskList();
+  try {
+    await reloadTasksOnly();
+    refreshVisibleTaskList();
+  } catch (err) {
+    console.warn("Task completed; task refresh delayed", err);
   }
 }
 
@@ -2252,14 +2282,26 @@ async function openCompletedTasksModal() {
       throw new Error(data.message || "Failed to load completed tasks");
     }
 
-    completedTasks = data.tasks || [];
+    const serverTasks = data.tasks || [];
+    for (const task of serverTasks) recentCompletedTasks.delete(String(task.id));
+    completedTasks = [...recentCompletedTasks.values(), ...serverTasks];
+    if (!viewingCompletedTasks) return;
 
+    renderCompletedTasks();
+  } catch (err) {
+    if (!viewingCompletedTasks) return;
+    if (completedTasks.length) renderCompletedTasks("Completed tasks refresh delayed; showing last known tasks.");
+    else tasksList.innerHTML = `<div class="task-item"><div class="task-text">${escapeHtml(err.message)}</div></div>`;
+  }
+}
+
+function renderCompletedTasks(warning = "") {
     if (!completedTasks.length) {
       tasksList.innerHTML = `<div class="task-item"><div class="task-text">No completed tasks in the last 45 days.</div></div>`;
       return;
     }
 
-    tasksList.innerHTML = completedTasks.map(task => `
+    tasksList.innerHTML = (warning ? `<div class="task-item"><div class="task-text">${escapeHtml(warning)}</div></div>` : "") + completedTasks.map(task => `
       <div class="task-item completed-task-item" data-task-id="${escapeHtml(task.id)}">
         <div class="task-text">${escapeHtml(task.task_text)}</div>
         <div class="task-assignee">${escapeHtml(task.property_name || "Property")}</div>
@@ -2279,9 +2321,7 @@ async function openCompletedTasksModal() {
         deleteCompletedTask(btn.dataset.taskId);
       });
     });
-  } catch (err) {
-    tasksList.innerHTML = `<div class="task-item"><div class="task-text">${escapeHtml(err.message)}</div></div>`;
-  }
+ 
 }
 
 function openTaskListModal() {
@@ -2338,6 +2378,7 @@ async function deleteCompletedTask(taskId) {
       throw new Error(data.message || "Failed to delete completed task");
     }
 
+    recentCompletedTasks.delete(String(taskId));
     completedTasks = completedTasks.filter(task => String(task.id) !== String(taskId));
     openCompletedTasksModal();
   } catch (err) {
