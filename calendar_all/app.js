@@ -159,7 +159,7 @@ function applyLockSnapshot(data) {
     `Lock readings as of ${lockObservationTime}` : "Waiting for the first lock update";
 }
 
-function initializeLocks() {
+async function initializeLocks() {
   try {
     localStorage.removeItem(LOCK_SNAPSHOT_CACHE_KEY);
     localStorage.removeItem(LOCK_REFRESH_DAY_KEY);
@@ -168,10 +168,37 @@ function initializeLocks() {
   lockRefreshStatus.textContent = "Click Refresh locks to connect this device.";
   refreshLocksBtn.disabled = false;
   if (lockViewKey) {
+    try {
+      const cached = localStorage.getItem('ocean_lock_last_good_v2');
+      if (cached) {
+        const { iv, payload } = JSON.parse(cached);
+        const secret = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(lockViewKey));
+        const key = await crypto.subtle.importKey('raw', secret, 'AES-GCM', false, ['decrypt']);
+        const decoded = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: Uint8Array.from(iv) }, key, Uint8Array.from(payload));
+        const snapshot = JSON.parse(new TextDecoder().decode(decoded));
+        if (snapshot.capturedAt && snapshot.locks?.length) {
+          applyLockSnapshot(snapshot);
+          lockFeedStale = true;
+          lockRefreshStatus.textContent = `Saved readings from ${lockObservationTime}. Checking for updates...`;
+          if (properties.length) render({ preserveScroll: true });
+        }
+      }
+    } catch { /* Invalid or differently keyed caches never replace server data. */ }
     refreshLocksBtn.disabled = false;
     document.getElementById('connectLocksBtn').textContent = 'Lock connection';
     return refreshLocks();
   }
+}
+
+async function saveLockCache(data, secretValue) {
+  try {
+    if (!data.capturedAt || !data.locks?.length || localStorage.getItem('ocean_lock_staff_key_v1') !== secretValue) return;
+    const secret = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secretValue));
+    const key = await crypto.subtle.importKey('raw', secret, 'AES-GCM', false, ['encrypt']);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const payload = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(data)));
+    if (lockViewKey === secretValue) localStorage.setItem('ocean_lock_last_good_v2', JSON.stringify({ iv: [...iv], payload: [...new Uint8Array(payload)] }));
+  } catch { /* Disabled storage must not prevent displaying current readings. */ }
 }
 
 let lockViewKey = '';
@@ -183,7 +210,7 @@ async function refreshLocks() {
   if (!lockViewKey) { document.getElementById('connectLocksBtn').click(); return; }
   const generation = lockAccessGeneration;
   refreshLocksBtn.disabled = true;
-  lockRefreshStatus.textContent = "Checking for lock updates…";
+  lockRefreshStatus.textContent = lockObservationTime ? `Last collected ${lockObservationTime}. Checking for updates...` : 'Checking for lock updates...';
 
   try {
     const response = await fetch('https://ocean-pricing.onrender.com/api/lock-feed', {
@@ -192,18 +219,25 @@ async function refreshLocks() {
     if (generation !== lockAccessGeneration) return;
     if (response.status === 401) {
       lockViewKey = '';
-      try { localStorage.removeItem('ocean_lock_staff_key_v1'); } catch {}
+      try { localStorage.removeItem('ocean_lock_staff_key_v1'); localStorage.removeItem('ocean_lock_last_good_v2'); } catch {}
+      lockStatuses = []; lockCapturedAt = 0; lockObservationTime = '';
+      if (properties.length) render({ preserveScroll: true });
       document.getElementById('connectLocksBtn').textContent = 'Connect locks';
       throw new Error('Calendar key not accepted.');
     }
     if (!response.ok) throw new Error('Lock feed returned HTTP ' + response.status);
     const data = await response.json();
     if (generation !== lockAccessGeneration) return;
-    if (!data.capturedAt && lockStatuses.length) throw new Error('Collector has not refreshed since the server restarted');
+    if ((!data.capturedAt || !data.locks?.length) && lockStatuses.length) {
+      lockFeedStale = true;
+      lockRefreshStatus.textContent = `STALE: last collected ${lockObservationTime}. Waiting for a new browser upload.`;
+      return;
+    }
     applyLockSnapshot(data);
     lockFeedStale = Boolean(data.stale);
     if (lockFeedStale) lockRefreshStatus.textContent = lockObservationTime ? `STALE: last collected ${lockObservationTime}. Check Guesty sign-in.` : 'Waiting for the browser collector.';
     if (properties.length) render({ preserveScroll: true });
+    await saveLockCache(data, lockViewKey);
   } catch {
     if (generation !== lockAccessGeneration) return;
     lockFeedStale = true;
@@ -236,7 +270,7 @@ document.getElementById('connectLocksBtn').addEventListener('click', () => {
     event.preventDefault(); lockViewKey = input.value.trim(); lockAccessGeneration++;
     try {
       if (remember.checked) localStorage.setItem('ocean_lock_staff_key_v1', lockViewKey);
-      else localStorage.removeItem('ocean_lock_staff_key_v1');
+      else { localStorage.removeItem('ocean_lock_staff_key_v1'); localStorage.removeItem('ocean_lock_last_good_v2'); }
     } catch { /* Current-page access still works without browser storage. */ }
     document.getElementById('connectLocksBtn').textContent = 'Lock connection';
     refreshLocksBtn.disabled = false; dialog.close(); refreshLocks();
@@ -269,7 +303,7 @@ refreshLocksBtn.addEventListener('click', async () => {
     if (!lockViewKey) return;
     const previous = lockCapturedAt;
     refreshLocksBtn.disabled = true;
-    lockRefreshStatus.textContent = 'Requesting fresh readings from Guesty...';
+    lockRefreshStatus.textContent = 'Requesting fresh readings from Guesty...' + (lockObservationTime ? ` Last collected ${lockObservationTime}.` : '');
     const acknowledgement = await requestBrowserLockCollection();
     if (!acknowledgement.ok) { lockRefreshStatus.textContent = acknowledgement.error + (lockObservationTime ? ` Last collected ${lockObservationTime}.` : ''); return; }
     for (let attempt = 0; attempt < 25; attempt++) {
@@ -278,7 +312,7 @@ refreshLocksBtn.addEventListener('click', async () => {
       await refreshLocks();
       if (lockCapturedAt > previous || !lockViewKey) return;
       refreshLocksBtn.disabled = true;
-      lockRefreshStatus.textContent = 'Waiting for the fresh Guesty collection...';
+      lockRefreshStatus.textContent = 'Waiting for the fresh Guesty collection...' + (lockObservationTime ? ` Last collected ${lockObservationTime}.` : '');
     }
     lockRefreshStatus.textContent = 'No fresh upload received yet. Check the Lock Reader status.' + (lockObservationTime ? ` Last collected ${lockObservationTime}.` : '');
   } finally { collectingFreshLocks = false; refreshLocksBtn.disabled = false; }
