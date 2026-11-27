@@ -190,6 +190,18 @@
       "completed_at": "2026-11-27T17:46:45.256Z",
       "media": [],
       "completed_by_name": "Matan"
+    },
+    {
+      "id": "52adb4b8-c866-4eaa-b3d4-64893863180d",
+      "listing_id": "68db1a4bccc0790022ab8212",
+      "property_name": "MB - 2131",
+      "task_text": "Test task",
+      "assignee_name": null,
+      "created_by_name": null,
+      "status": "open",
+      "created_at": "2026-11-27T17:59:14.634Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
