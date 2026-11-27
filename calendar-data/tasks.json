@@ -172,10 +172,11 @@
       "task_text": "Unclog the bathtub drain in the first-floor Jack-and-Jill bathroom. Guest reports that the tub fills up to calf height during showers.",
       "assignee_name": null,
       "created_by_name": null,
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-26T19:50:43.643Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-27T17:46:33.562Z",
+      "media": [],
+      "completed_by_name": null
     },
     {
       "id": "1cf79c61-2332-4b37-be6f-69aa5c1bd992",
