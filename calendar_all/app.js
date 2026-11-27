@@ -215,17 +215,9 @@ document.getElementById('connectLocksBtn').addEventListener('click', () => {
   dialog.addEventListener('close', () => dialog.remove());
   form.addEventListener('submit', event => {
     event.preventDefault(); lockViewKey = input.value.trim(); lockAccessGeneration++;
-    document.getElementById('disconnectLocksBtn').hidden = false;
     refreshLocksBtn.disabled = false; dialog.close(); refreshLocks();
   });
   dialog.showModal(); input.focus();
-});
-document.getElementById('disconnectLocksBtn').addEventListener('click', () => {
-  lockViewKey = ''; lockAccessGeneration++; lockStatuses = []; lockCapturedAt = 0; lockObservationTime = '';
-  refreshLocksBtn.disabled = true;
-  document.getElementById('disconnectLocksBtn').hidden = true;
-  lockRefreshStatus.textContent = 'Staff access required for lock readings.';
-  if (properties.length) render({ preserveScroll: true });
 });
 setInterval(() => {
   if (lockViewKey && !refreshLocksBtn.disabled) refreshLocks();
