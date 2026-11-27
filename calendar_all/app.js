@@ -163,9 +163,15 @@ function initializeLocks() {
   try {
     localStorage.removeItem(LOCK_SNAPSHOT_CACHE_KEY);
     localStorage.removeItem(LOCK_REFRESH_DAY_KEY);
+    lockViewKey = localStorage.getItem('ocean_lock_staff_key_v1') || '';
   } catch { /* Storage may be disabled. Readings are memory-only. */ }
   lockRefreshStatus.textContent = "Staff access required for lock readings.";
   refreshLocksBtn.disabled = true;
+  if (lockViewKey) {
+    refreshLocksBtn.disabled = false;
+    document.getElementById('connectLocksBtn').textContent = 'Lock connection';
+    return refreshLocks();
+  }
 }
 
 let lockViewKey = '';
@@ -182,6 +188,12 @@ async function refreshLocks() {
       headers: { Authorization: 'Bearer ' + lockViewKey }, cache: 'no-store', signal: AbortSignal.timeout(45000)
     });
     if (generation !== lockAccessGeneration) return;
+    if (response.status === 401) {
+      lockViewKey = '';
+      try { localStorage.removeItem('ocean_lock_staff_key_v1'); } catch {}
+      document.getElementById('connectLocksBtn').textContent = 'Connect locks';
+      throw new Error('Calendar key not accepted.');
+    }
     if (!response.ok) throw new Error('Lock feed returned HTTP ' + response.status);
     const data = await response.json();
     if (generation !== lockAccessGeneration) return;
@@ -208,13 +220,23 @@ document.getElementById('connectLocksBtn').addEventListener('click', () => {
   const input = document.createElement('input');
   input.type = 'password'; input.required = true; input.autocomplete = 'off';
   label.append(input);
+  const rememberLabel = document.createElement('label');
+  rememberLabel.style.display = 'block';
+  const remember = document.createElement('input'); remember.type = 'checkbox';
+  remember.checked = true;
+  rememberLabel.append(remember, ' Remember key on this trusted device');
   const submit = document.createElement('button'); submit.textContent = 'Connect'; submit.type = 'submit';
   const cancel = document.createElement('button'); cancel.textContent = 'Cancel'; cancel.type = 'button';
   cancel.addEventListener('click', () => dialog.close());
-  form.append(label, submit, cancel); dialog.append(form); document.body.append(dialog);
+  form.append(label, rememberLabel, submit, cancel); dialog.append(form); document.body.append(dialog);
   dialog.addEventListener('close', () => dialog.remove());
   form.addEventListener('submit', event => {
     event.preventDefault(); lockViewKey = input.value.trim(); lockAccessGeneration++;
+    try {
+      if (remember.checked) localStorage.setItem('ocean_lock_staff_key_v1', lockViewKey);
+      else localStorage.removeItem('ocean_lock_staff_key_v1');
+    } catch { /* Current-page access still works without browser storage. */ }
+    document.getElementById('connectLocksBtn').textContent = 'Lock connection';
     refreshLocksBtn.disabled = false; dialog.close(); refreshLocks();
   });
   dialog.showModal(); input.focus();
