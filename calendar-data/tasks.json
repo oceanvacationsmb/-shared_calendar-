@@ -203,6 +203,18 @@
       "completed_at": "2026-11-27T17:59:40.345Z",
       "media": [],
       "completed_by_name": null
+    },
+    {
+      "id": "043d04c7-2412-4e21-a47c-29ec4099fbc2",
+      "listing_id": "68db1a7fcc0288001b295813",
+      "property_name": "NMB - 400B",
+      "task_text": "Check dishwasher",
+      "assignee_name": null,
+      "created_by_name": null,
+      "status": "open",
+      "created_at": "2026-11-27T22:09:20.510Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
