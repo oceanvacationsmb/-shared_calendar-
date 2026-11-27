@@ -185,10 +185,11 @@
       "task_text": "Paint the wall",
       "assignee_name": "Matan",
       "created_by_name": null,
-      "status": "open",
+      "status": "completed",
       "created_at": "2026-11-26T21:52:18.978Z",
-      "completed_at": null,
-      "media": []
+      "completed_at": "2026-11-27T17:46:45.256Z",
+      "media": [],
+      "completed_by_name": "Matan"
     }
   ],
   "vendors": [
