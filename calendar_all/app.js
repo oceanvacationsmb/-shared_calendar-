@@ -165,8 +165,8 @@ function initializeLocks() {
     localStorage.removeItem(LOCK_REFRESH_DAY_KEY);
     lockViewKey = localStorage.getItem('ocean_lock_staff_key_v1') || '';
   } catch { /* Storage may be disabled. Readings are memory-only. */ }
-  lockRefreshStatus.textContent = "Staff access required for lock readings.";
-  refreshLocksBtn.disabled = true;
+  lockRefreshStatus.textContent = "Click Refresh locks to connect this device.";
+  refreshLocksBtn.disabled = false;
   if (lockViewKey) {
     refreshLocksBtn.disabled = false;
     document.getElementById('connectLocksBtn').textContent = 'Lock connection';
@@ -178,7 +178,8 @@ let lockViewKey = '';
 let lockFeedStale = false;
 let lockAccessGeneration = 0;
 async function refreshLocks() {
-  if (refreshLocksBtn.disabled || !lockViewKey) return;
+  if (refreshLocksBtn.disabled) return;
+  if (!lockViewKey) { document.getElementById('connectLocksBtn').click(); return; }
   const generation = lockAccessGeneration;
   refreshLocksBtn.disabled = true;
   lockRefreshStatus.textContent = "Checking for lock updates…";
@@ -208,7 +209,7 @@ async function refreshLocks() {
     lockRefreshStatus.textContent = lockObservationTime ?
       `STALE: refresh failed. Last collected ${lockObservationTime}.` : "Could not load private lock readings. Check the staff key and collector.";
   } finally {
-    refreshLocksBtn.disabled = !lockViewKey;
+    refreshLocksBtn.disabled = false;
   }
 }
 
