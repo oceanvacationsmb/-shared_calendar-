@@ -204,7 +204,7 @@ document.getElementById('connectLocksBtn').addEventListener('click', () => {
   const dialog = document.createElement('dialog');
   const form = document.createElement('form');
   const label = document.createElement('label');
-  label.textContent = 'Staff lock access key ';
+  label.textContent = 'Calendar key (CALENDAR_KEY) ';
   const input = document.createElement('input');
   input.type = 'password'; input.required = true; input.autocomplete = 'off';
   label.append(input);
