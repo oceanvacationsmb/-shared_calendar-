@@ -2,8 +2,6 @@ const API_URL = "https://shared-calendar-api.onrender.com/api/calendar-all";
 const TASKS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-tasks";
 const TASK_VENDORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-vendors";
 const TASK_CREATORS_API_URL = "https://shared-calendar-api.onrender.com/api/calendar-task-creators";
-const LOCKS_RAW_BASE = "https://raw.githubusercontent.com/oceanvacationsmb/-shared_calendar-";
-const LOCKS_REF_URL = "https://api.github.com/repos/oceanvacationsmb/-shared_calendar-/git/ref/heads/lock-data";
 const LOCK_SNAPSHOT_CACHE_KEY = "ocean_calendar_locks_v1";
 const LOCK_REFRESH_DAY_KEY = "ocean_calendar_locks_refresh_day_v1";
 const GAPS_API_BASE_URL = "https://shared-calendar-api.onrender.com/api/gaps";
@@ -144,23 +142,6 @@ async function requestCalendarData(url, timeoutMs = 20000, attempts = 1) {
   }
 }
 
-async function getLockRevision() {
-  try {
-    const response = await fetch(LOCKS_REF_URL, { cache: "no-store", signal: AbortSignal.timeout(5000) });
-    if (response.ok) {
-      const { object } = await response.json();
-      if (/^[a-f0-9]{40}$/.test(object?.sha)) return object.sha;
-    }
-  } catch {
-    // The branch URL still works if GitHub's API is unavailable or rate limited.
-  }
-  return "lock-data";
-}
-
-function lockCalendarDay() {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-}
-
 function applyLockSnapshot(data) {
   if (!data || !Array.isArray(data.locks) ||
       (data.capturedAt !== null && !Number.isFinite(Date.parse(data.capturedAt)))) {
@@ -179,50 +160,76 @@ function applyLockSnapshot(data) {
 }
 
 function initializeLocks() {
-  let checkedToday = false;
-  let hasSnapshot = false;
   try {
-    checkedToday = localStorage.getItem(LOCK_REFRESH_DAY_KEY) === lockCalendarDay();
-    const cached = localStorage.getItem(LOCK_SNAPSHOT_CACHE_KEY);
-    if (cached) {
-      applyLockSnapshot(JSON.parse(cached));
-      hasSnapshot = true;
-    }
-  } catch {
-    // Missing or invalid browser storage should not block lock reads.
-  }
-
-  if (!checkedToday) return refreshLocks();
-  if (!hasSnapshot) lockRefreshStatus.textContent = "No saved lock readings. Use Refresh locks to retry.";
+    localStorage.removeItem(LOCK_SNAPSHOT_CACHE_KEY);
+    localStorage.removeItem(LOCK_REFRESH_DAY_KEY);
+  } catch { /* Storage may be disabled. Readings are memory-only. */ }
+  lockRefreshStatus.textContent = "Staff access required for lock readings.";
+  refreshLocksBtn.disabled = true;
 }
 
+let lockViewKey = '';
+let lockFeedStale = false;
+let lockAccessGeneration = 0;
 async function refreshLocks() {
-  if (refreshLocksBtn.disabled) return;
+  if (refreshLocksBtn.disabled || !lockViewKey) return;
+  const generation = lockAccessGeneration;
   refreshLocksBtn.disabled = true;
   lockRefreshStatus.textContent = "Checking for lock updates…";
-  try {
-    localStorage.setItem(LOCK_REFRESH_DAY_KEY, lockCalendarDay());
-  } catch {
-    // Manual refresh still works if local storage is disabled.
-  }
 
   try {
-    const revision = await getLockRevision();
-    const data = await requestCalendarData(`${LOCKS_RAW_BASE}/${revision}/calendar-data/lock-snapshot.json?v=${Date.now()}`);
+    const response = await fetch('https://ocean-pricing.onrender.com/api/lock-feed', {
+      headers: { Authorization: 'Bearer ' + lockViewKey }, cache: 'no-store', signal: AbortSignal.timeout(45000)
+    });
+    if (generation !== lockAccessGeneration) return;
+    if (!response.ok) throw new Error('Lock feed returned HTTP ' + response.status);
+    const data = await response.json();
+    if (generation !== lockAccessGeneration) return;
+    if (!data.capturedAt && lockStatuses.length) throw new Error('Collector has not refreshed since the server restarted');
     applyLockSnapshot(data);
-    try {
-      localStorage.setItem(LOCK_SNAPSHOT_CACHE_KEY, JSON.stringify(data));
-    } catch {
-      // The fresh readings still display for this visit.
-    }
+    lockFeedStale = Boolean(data.stale);
+    if (lockFeedStale) lockRefreshStatus.textContent = lockObservationTime ? `STALE: last collected ${lockObservationTime}. Check Guesty sign-in.` : 'Waiting for the browser collector.';
     if (properties.length) render({ preserveScroll: true });
   } catch {
+    if (generation !== lockAccessGeneration) return;
+    lockFeedStale = true;
     lockRefreshStatus.textContent = lockObservationTime ?
-      `Refresh failed. Showing readings from ${lockObservationTime}.` : "Couldn’t load lock readings. Try Refresh locks again.";
+      `STALE: refresh failed. Last collected ${lockObservationTime}.` : "Could not load private lock readings. Check the staff key and collector.";
   } finally {
-    refreshLocksBtn.disabled = false;
+    refreshLocksBtn.disabled = !lockViewKey;
   }
 }
+
+document.getElementById('connectLocksBtn').addEventListener('click', () => {
+  const dialog = document.createElement('dialog');
+  const form = document.createElement('form');
+  const label = document.createElement('label');
+  label.textContent = 'Staff lock access key ';
+  const input = document.createElement('input');
+  input.type = 'password'; input.required = true; input.autocomplete = 'off';
+  label.append(input);
+  const submit = document.createElement('button'); submit.textContent = 'Connect'; submit.type = 'submit';
+  const cancel = document.createElement('button'); cancel.textContent = 'Cancel'; cancel.type = 'button';
+  cancel.addEventListener('click', () => dialog.close());
+  form.append(label, submit, cancel); dialog.append(form); document.body.append(dialog);
+  dialog.addEventListener('close', () => dialog.remove());
+  form.addEventListener('submit', event => {
+    event.preventDefault(); lockViewKey = input.value.trim(); lockAccessGeneration++;
+    document.getElementById('disconnectLocksBtn').hidden = false;
+    refreshLocksBtn.disabled = false; dialog.close(); refreshLocks();
+  });
+  dialog.showModal(); input.focus();
+});
+document.getElementById('disconnectLocksBtn').addEventListener('click', () => {
+  lockViewKey = ''; lockAccessGeneration++; lockStatuses = []; lockCapturedAt = 0; lockObservationTime = '';
+  refreshLocksBtn.disabled = true;
+  document.getElementById('disconnectLocksBtn').hidden = true;
+  lockRefreshStatus.textContent = 'Staff access required for lock readings.';
+  if (properties.length) render({ preserveScroll: true });
+});
+setInterval(() => {
+  if (lockViewKey && !refreshLocksBtn.disabled) refreshLocks();
+}, 60000);
 
 refreshLocksBtn.addEventListener("click", refreshLocks);
 
