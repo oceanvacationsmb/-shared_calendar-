@@ -177,6 +177,7 @@ function initializeLocks() {
 let lockViewKey = '';
 let lockFeedStale = false;
 let lockAccessGeneration = 0;
+let collectingFreshLocks = false;
 async function refreshLocks() {
   if (refreshLocksBtn.disabled) return;
   if (!lockViewKey) { document.getElementById('connectLocksBtn').click(); return; }
@@ -243,10 +244,45 @@ document.getElementById('connectLocksBtn').addEventListener('click', () => {
   dialog.showModal(); input.focus();
 });
 setInterval(() => {
-  if (lockViewKey && !refreshLocksBtn.disabled) refreshLocks();
+  if (lockViewKey && !refreshLocksBtn.disabled && !collectingFreshLocks) refreshLocks();
 }, 60000);
 
-refreshLocksBtn.addEventListener("click", refreshLocks);
+function requestBrowserLockCollection() {
+  return new Promise(resolve => {
+    const requestId = crypto.randomUUID();
+    const finish = result => { clearTimeout(timer); window.removeEventListener('message', listener); resolve(result); };
+    const listener = event => {
+      if (event.source === window && event.origin === location.origin && event.data?.type === 'OV_LOCK_REFRESH_ACK' && event.data.requestId === requestId) finish(event.data);
+    };
+    const timer = setTimeout(() => finish({ ok: false, error: 'Reload Lock Reader and this calendar in desktop Chrome to request fresh readings.' }), 3000);
+    window.addEventListener('message', listener);
+    window.postMessage({ type: 'OV_REQUEST_LOCK_REFRESH', requestId }, location.origin);
+  });
+}
+
+refreshLocksBtn.addEventListener('click', async () => {
+  if (collectingFreshLocks) return;
+  if (!lockViewKey) return refreshLocks();
+  collectingFreshLocks = true;
+  try {
+    await refreshLocks();
+    if (!lockViewKey) return;
+    const previous = lockCapturedAt;
+    refreshLocksBtn.disabled = true;
+    lockRefreshStatus.textContent = 'Requesting fresh readings from Guesty...';
+    const acknowledgement = await requestBrowserLockCollection();
+    if (!acknowledgement.ok) { lockRefreshStatus.textContent = acknowledgement.error + (lockObservationTime ? ` Last collected ${lockObservationTime}.` : ''); return; }
+    for (let attempt = 0; attempt < 25; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      refreshLocksBtn.disabled = false;
+      await refreshLocks();
+      if (lockCapturedAt > previous || !lockViewKey) return;
+      refreshLocksBtn.disabled = true;
+      lockRefreshStatus.textContent = 'Waiting for the fresh Guesty collection...';
+    }
+    lockRefreshStatus.textContent = 'No fresh upload received yet. Check the Lock Reader status.' + (lockObservationTime ? ` Last collected ${lockObservationTime}.` : '');
+  } finally { collectingFreshLocks = false; refreshLocksBtn.disabled = false; }
+});
 
 async function loadSupportingData() {
   const version = ++supportingLoadVersion;
