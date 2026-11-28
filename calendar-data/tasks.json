@@ -215,6 +215,18 @@
       "created_at": "2026-11-27T22:09:20.510Z",
       "completed_at": null,
       "media": []
+    },
+    {
+      "id": "9a209b7a-d249-4277-b10a-5a502a912932",
+      "listing_id": "6af3ac647534e900145f95eb",
+      "property_name": "NMB - 1705",
+      "task_text": "Paint the wall",
+      "assignee_name": "Matan",
+      "created_by_name": null,
+      "status": "open",
+      "created_at": "2026-11-28T03:43:40.049Z",
+      "completed_at": null,
+      "media": []
     }
   ],
   "vendors": [
